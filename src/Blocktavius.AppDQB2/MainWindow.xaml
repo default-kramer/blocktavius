@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Blocktavius.AppDQB2"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="MainWindow" Height="700" Width="1100">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"></RowDefinition>
@@ -18,15 +18,21 @@
         <TabControl Grid.Row="1">
             <TabItem>
                 <TabItem.Header>
+                    <TextBlock>Project Parameters</TextBlock>
+                </TabItem.Header>
+                <local:ProjectParamsControl></local:ProjectParamsControl>
+            </TabItem>
+            <TabItem>
+                <TabItem.Header>
                     <TextBlock Text="Map Layers"></TextBlock>
                 </TabItem.Header>
                 <local:LayeredPainterControl></local:LayeredPainterControl>
             </TabItem>
             <TabItem>
                 <TabItem.Header>
-                    <TextBlock>Some other tab</TextBlock>
+                    <TextBlock>Scripts</TextBlock>
                 </TabItem.Header>
-                <TextBlock>lorem ipsum blah blah</TextBlock>
+                <local:ScriptsControl></local:ScriptsControl>
             </TabItem>
         </TabControl>
     </Grid>

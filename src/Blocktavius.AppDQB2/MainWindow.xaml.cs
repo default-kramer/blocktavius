@@ -23,16 +23,24 @@ namespace Blocktavius.AppDQB2
 	/// </summary>
 	public partial class MainWindow : Window
 	{
-		private MainVM vm = new();
+		private ProjectVM vm = new();
 
 		public MainWindow()
 		{
 			InitializeComponent();
 
+			//vm.ProjectFilePath = "foo.blocktaviusproject";
+			vm.StgdatFilePath = "STGDAT01.bin";
+
 			vm.Layers.Add(LayerVM.BuildChunkMask());
 			vm.Layers.Add(new LayerVM());
 			vm.SelectedLayer = vm.Layers.First();
+
+			vm.Scripts.Add(new ScriptVM() { Name = "Main" });
+			vm.SelectedScript = vm.Scripts.First();
+
 			DataContext = vm;
+			Global.SetCurrentProject(vm);
 		}
 
 		private void PreviewButtonClicked(object sender, RoutedEventArgs e)

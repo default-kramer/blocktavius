@@ -17,4 +17,10 @@
     <ProjectReference Include="..\Blocktavius.Core\Blocktavius.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Blockdata.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

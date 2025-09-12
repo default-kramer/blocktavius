@@ -1,0 +1,66 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+
+namespace Blocktavius.AppDQB2;
+
+public interface IAreaVM { }
+
+public interface IBlockProviderVM
+{
+	string DisplayName { get; }
+}
+
+abstract class ScriptNodeVM : ViewModelBase
+{
+	private bool isSelected = false;
+	[Browsable(false)]
+	public bool IsSelected
+	{
+		get => isSelected;
+		set
+		{
+			ChangeProperty(ref isSelected, value);
+			OnPropertyChanged(nameof(BorderThickness));
+		}
+	}
+
+	[Browsable(false)]
+	public int BorderThickness => IsSelected ? 2 : 1;
+}
+
+sealed class ScriptVM : ViewModelBase
+{
+	public ScriptVM()
+	{
+		Nodes.Add(new ScriptNodes.QuaintHillNodeVM());
+	}
+
+	public ObservableCollection<ScriptNodeVM> Nodes { get; } = new();
+
+	private bool expandBedrock = false;
+	public bool ExpandBedrock
+	{
+		get => expandBedrock;
+		set => ChangeProperty(ref expandBedrock, value);
+	}
+
+	private string? name = null;
+	public string? Name
+	{
+		get => name;
+		set => ChangeProperty(ref name, value);
+	}
+
+	private bool isSelected = false;
+	public bool IsSelected
+	{
+		get => isSelected;
+		set => ChangeProperty(ref isSelected, value);
+	}
+}

@@ -15,28 +15,18 @@ class ViewModelBase : INotifyPropertyChanged
 {
 	public event PropertyChangedEventHandler? PropertyChanged;
 
+	protected void ChangeProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+	{
+		if (!object.Equals(field, value))
+		{
+			field = value;
+			OnPropertyChanged(propertyName);
+		}
+	}
+
 	protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
 	{
 		PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-	}
-}
-
-class MainVM : ViewModelBase
-{
-	public ObservableCollection<LayerVM> Layers { get; } = new ObservableCollection<LayerVM>();
-
-	private LayerVM? _selectedLayer;
-	public LayerVM? SelectedLayer
-	{
-		get => _selectedLayer;
-		set
-		{
-			if (_selectedLayer != value)
-			{
-				_selectedLayer = value;
-				OnPropertyChanged();
-			}
-		}
 	}
 }
 

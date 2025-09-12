@@ -9,7 +9,7 @@ using Xceed.Wpf.Toolkit.PropertyGrid.Attributes;
 
 namespace Blocktavius.AppDQB2;
 
-class LayerVM : ViewModelBase
+class LayerVM : ViewModelBase, IAreaVM
 {
 	private TileGridPainterVM _painter;
 	private int tileSize;
