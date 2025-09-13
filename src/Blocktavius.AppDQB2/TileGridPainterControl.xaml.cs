@@ -160,7 +160,7 @@ namespace Blocktavius.AppDQB2
 			_lastUpdatedTile = null;
 		}
 
-		private bool TryGetTileXZ(Point pos, ITileGridPainterVM vm, out XZ xz)
+		private bool TryGetTileXZ(System.Windows.Point pos, ITileGridPainterVM vm, out XZ xz)
 		{
 			xz = new XZ(0, 0);
 			if (pos.X < 0 || pos.X >= ActualWidth || pos.Y < 0 || pos.Y >= ActualHeight)
