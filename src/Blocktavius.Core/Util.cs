@@ -8,6 +8,11 @@ namespace Blocktavius.Core;
 
 public static class Util
 {
+	public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> sequence)
+	{
+		return sequence.Where(x => x != null)!;
+	}
+
 	sealed class Translator<T> : I2DSampler<T>
 	{
 		private readonly I2DSampler<T> sampler;

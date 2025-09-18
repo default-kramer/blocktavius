@@ -10,14 +10,18 @@ namespace Blocktavius.DQB2;
 /// <summary>
 /// Provides immutable access to a possibly-mutable stage.
 /// </summary>
-interface IStage
+public interface IStage
 {
 	bool TryReadChunk(ChunkOffset offset, out IChunk chunk);
 
 	IReadOnlyList<ChunkOffset> ChunksInUse { get; }
+
+	IEnumerable<IChunk> IterateChunks() => ChunksInUse
+		.Select(offset => TryReadChunk(offset, out var chunk) ? chunk : null)
+		.WhereNotNull();
 }
 
-interface IMutableStage : IStage
+public interface IMutableStage : IStage
 {
 	bool TryGetChunk(ChunkOffset offset, out IMutableChunk chunk);
 }
@@ -27,12 +31,12 @@ interface IMutableStage : IStage
 /// to make copy-on-write easier. (So we don't have to worry about the original
 /// instance getting mutated before the copy-on-write happens.)
 /// </summary>
-interface ICloneableStage : IStage
+public interface ICloneableStage : IStage
 {
 	IMutableStage Clone();
 }
 
-class ImmutableStage : ICloneableStage
+public sealed class ImmutableStage : ICloneableStage
 {
 	private readonly ChunkGrid<ImmutableChunk> chunkGrid;
 
@@ -59,7 +63,7 @@ class ImmutableStage : ICloneableStage
 	}
 }
 
-class MutableStage : IMutableStage
+sealed class MutableStage : IMutableStage
 {
 	private readonly ChunkGrid<MutableChunk> chunkGrid;
 

@@ -1,15 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Reflection.Metadata;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace Blocktavius.AppDQB2.EyeOfRubissDriver;
+namespace Blocktavius.DQB2.EyeOfRubiss;
 
-class DriverFileModel
+sealed class DriverFileModel
 {
 	public string IntegrationType { get; init; } = "FSWatcher";
 
@@ -39,6 +37,8 @@ class DriverFileModel
 		var options = new JsonSerializerOptions();
 		options.WriteIndented = true;
 		string json = JsonSerializer.Serialize(this, options);
-		File.WriteAllText(file.FullName, json);
+		var tempFile = file.FullName + ".tmp";
+		File.WriteAllText(tempFile, json);
+		File.Move(tempFile, file.FullName, overwrite: true);
 	}
 }

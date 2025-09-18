@@ -1,8 +1,9 @@
 ﻿using Blocktavius.Core;
+using System.Runtime.InteropServices;
 
 namespace Blocktavius.DQB2;
 
-record struct ChunkOffset(int OffsetX, int OffsetZ)
+public record struct ChunkOffset(int OffsetX, int OffsetZ)
 {
 	public XZ NorthwestCorner => new XZ(OffsetX * ChunkMath.i32, OffsetZ * ChunkMath.i32);
 
@@ -17,7 +18,7 @@ record struct ChunkOffset(int OffsetX, int OffsetZ)
 /// <summary>
 /// Provide immutable access to a possibly-mutable chunk.
 /// </summary>
-interface IChunk
+public interface IChunk
 {
 	ChunkOffset Offset { get; }
 
@@ -26,9 +27,11 @@ interface IChunk
 	/// but it will probably just do the modulo arithmetic and return that block without complaining.
 	/// </summary>
 	ushort GetBlock(Point point);
+
+	Task WriteBlockdataAsync(Stream stream);
 }
 
-interface IMutableChunk : IChunk
+public interface IMutableChunk : IChunk
 {
 	void SetBlock(Point point, ushort block);
 }
@@ -77,6 +80,20 @@ abstract class Chunk : IChunk
 	public ushort GetBlock(Point point)
 	{
 		return ReadSource[ChunkMath.GetIndex(point)];
+	}
+
+	public virtual void WriteBlockdata(Stream stream)
+	{
+		var shorts = ReadSource as ushort[] ?? ReadSource.ToArray();
+		var bytes = MemoryMarshal.Cast<ushort, byte>(shorts);
+		stream.Write(bytes);
+	}
+
+	public virtual async Task WriteBlockdataAsync(Stream stream)
+	{
+		var shorts = ReadSource as ushort[] ?? ReadSource.ToArray();
+		var bytes = MemoryMarshal.Cast<ushort, byte>(shorts);
+		await stream.WriteAsync(bytes.ToArray()).ConfigureAwait(false);
 	}
 }
 
