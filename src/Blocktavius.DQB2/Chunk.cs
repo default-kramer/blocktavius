@@ -13,6 +13,24 @@ public record struct ChunkOffset(int OffsetX, int OffsetZ)
 	{
 		return new ChunkOffset(xz.X / ChunkMath.i32, xz.Z / ChunkMath.i32);
 	}
+
+	public static IEnumerable<ChunkOffset> Covering(Rect bounds)
+	{
+		if (bounds.IsZero)
+		{
+			yield break;
+		}
+
+		var start = FromXZ(bounds.start);
+		var end = FromXZ(bounds.end.Add(-1, -1));
+		for (int oz = start.OffsetZ; oz <= end.OffsetZ; oz++)
+		{
+			for (int ox = start.OffsetX; ox <= end.OffsetX; ox++)
+			{
+				yield return new ChunkOffset(ox, oz);
+			}
+		}
+	}
 }
 
 /// <summary>

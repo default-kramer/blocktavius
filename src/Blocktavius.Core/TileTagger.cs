@@ -198,7 +198,7 @@ public sealed class TileTagger<TTag> where TTag : notnull
 		return regions.Select(r => BuildRegion(r, Scale)).ToList();
 	}
 
-	public I2DSampler<int> BuildHills(TTag tag, PRNG prng)
+	public I2DSampler<Elevation> BuildHills(TTag tag, PRNG prng)
 	{
 		var regions = GetRegions(tag);
 		return TODO.BuildHills(regions, prng);
@@ -409,7 +409,7 @@ public sealed class TileTagger<TTag> where TTag : notnull
 
 public sealed class TODO
 {
-	public static I2DSampler<int> GenerateRandomHills(int scale, PRNG prng)
+	public static I2DSampler<Elevation> GenerateRandomHills(int scale, PRNG prng)
 	{
 		const int onlyTag = 42; // any value is fine
 
@@ -430,7 +430,7 @@ public sealed class TODO
 		return BuildHills(regions, prng);
 	}
 
-	internal static I2DSampler<int> BuildHills(IReadOnlyList<Region> regions, PRNG prng)
+	internal static I2DSampler<Elevation> BuildHills(IReadOnlyList<Region> regions, PRNG prng)
 	{
 		const int maxElevation = 20;
 		const int FUDGE = 12; // TODO
@@ -481,8 +481,7 @@ public sealed class TODO
 
 		var bounds = Rect.Union(regions.Select(r => r.Bounds), cliffData.Select(c => c.biggerSampler.Bounds));
 
-		const int empty = -1;
-		var elevations = new MutableArray2D<int>(bounds, empty);
+		var elevations = new MutableArray2D<Elevation>(bounds, new Elevation(-1));
 
 		foreach (var cliff in cliffData.Select(x => x.sampler))
 		{
@@ -490,9 +489,9 @@ public sealed class TODO
 			{
 				// Inside corners will naturally overlap.
 				// Using `max` isn't perfect here, but it could be good enough.
-				var exist = elevations.Sample(xz);
+				var exist = elevations.Sample(xz).Y;
 				var sample = cliff.Sample(xz).y;
-				elevations.Put(xz, Math.Max(exist, sample));
+				elevations.Put(xz, new Elevation(Math.Max(exist, sample)));
 			}
 		}
 
@@ -505,7 +504,7 @@ public sealed class TODO
 			{
 				var sample1 = cliff1.Sample(xz);
 				var sample2 = cliff2.Sample(xz);
-				elevations.Put(xz, Math.Min(sample1.y, sample2.y));
+				elevations.Put(xz, new Elevation(Math.Min(sample1.y, sample2.y)));
 			}
 		}
 
@@ -515,7 +514,7 @@ public sealed class TODO
 			{
 				if (region.Contains(xz))
 				{
-					elevations.Put(xz, maxElevation);
+					elevations.Put(xz, new Elevation(maxElevation));
 				}
 			}
 		}

@@ -74,6 +74,8 @@ public record Rect(XZ start, XZ end)
 
 	public XZ Size => new XZ(end.X - start.X, end.Z - start.Z);
 
+	public bool IsZero => Size.X < 1 || Size.Z < 1;
+
 	public static Rect Union(IEnumerable<Rect> boxes) => DoUnion(boxes);
 
 	public static Rect Union(params IEnumerable<Rect>[] dater) => DoUnion(dater);
@@ -144,6 +146,21 @@ public record Rect(XZ start, XZ end)
 		}
 
 		return new Rect(new XZ(xMin, zMin), new XZ(xMax + 1, zMax + 1));
+	}
+
+	public Rect Intersection(Rect other)
+	{
+		int x0 = Math.Max(start.X, other.start.X);
+		int z0 = Math.Max(start.Z, other.start.Z);
+		int x1 = Math.Min(end.X, other.end.X);
+		int z1 = Math.Min(end.Z, other.end.Z);
+
+		if (x0 >= x1 || z0 >= z1)
+		{
+			return Rect.Zero;
+		}
+
+		return new Rect(new XZ(x0, z0), new XZ(x1, z1));
 	}
 }
 

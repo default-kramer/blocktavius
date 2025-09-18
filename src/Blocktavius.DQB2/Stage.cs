@@ -24,6 +24,8 @@ public interface IStage
 public interface IMutableStage : IStage
 {
 	bool TryGetChunk(ChunkOffset offset, out IMutableChunk chunk);
+
+	void Mutate(StageMutation mutation);
 }
 
 /// <summary>
@@ -97,5 +99,10 @@ sealed class MutableStage : IMutableStage
 	{
 		var newGrid = grid.Clone((_, chunk) => chunk.Clone_CopyOnWrite());
 		return new MutableStage(newGrid);
+	}
+
+	public void Mutate(StageMutation mutation)
+	{
+		mutation.Apply(this);
 	}
 }
