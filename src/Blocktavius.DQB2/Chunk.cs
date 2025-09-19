@@ -16,7 +16,16 @@ public interface IChunk
 	/// </summary>
 	ushort GetBlock(Point point);
 
-	Task WriteBlockdataAsync(Stream stream);
+	ChunkInternals Internals { get; }
+}
+
+/// <summary>
+/// See <see cref="ICloneableStage"/>.
+/// Mutable chunks are not cloneable for the same reason.
+/// </summary>
+interface ICloneableChunk : IChunk
+{
+	IMutableChunk Clone();
 }
 
 public interface IMutableChunk : IChunk
@@ -33,7 +42,7 @@ static class ChunkMath
 
 	public const int BytesPerChunk = ShortsPerChunk * 2;
 
-	public static int GetIndex(Point point)
+	public static int GetUshortIndex(Point point)
 	{
 		int x = point.xz.X % i32;
 		int z = point.xz.Z % i32;
@@ -44,121 +53,106 @@ static class ChunkMath
 			+ x;
 	}
 
-	public static void ValidateLength(IReadOnlyList<ushort> chunkData, string argName)
+	public static int GetByteIndex(Point point) => GetUshortIndex(point) * 2;
+
+	public static void ValidateLength(IReadOnlyList<byte> blockdata, string argName)
 	{
-		if (chunkData.Count != ShortsPerChunk)
+		if (blockdata.Count != BytesPerChunk)
 		{
-			throw new ArgumentException($"{argName} must have exactly {ShortsPerChunk} elements, but got {chunkData.Count}");
+			throw new ArgumentException($"{argName} must have exactly {BytesPerChunk} elements, but got {blockdata}");
 		}
 	}
 }
 
-abstract class Chunk : IChunk
+/// <summary>
+/// Contains non-public stuff that would otherwise belong to <see cref="IChunk"/>.
+/// </summary>
+public abstract class ChunkInternals
 {
-	protected readonly ChunkOffset offset;
-	protected abstract IReadOnlyList<ushort> ReadSource { get; }
+	internal abstract ValueTask WriteBlockdataAsync(Stream stream);
+}
 
-	public Chunk(ChunkOffset offset)
+sealed class ImmutableChunk<TBlockdata> : ChunkInternals, ICloneableChunk where TBlockdata : struct, IBlockdata
+{
+	private readonly ChunkOffset offset;
+	private readonly TBlockdata blockdata;
+
+	public ImmutableChunk(ChunkOffset offset, TBlockdata blockdata)
 	{
 		this.offset = offset;
+		this.blockdata = blockdata;
 	}
 
 	public ChunkOffset Offset => offset;
 
-	public ushort GetBlock(Point point)
+	public ChunkInternals Internals => this;
+
+	public ushort GetBlock(Point point) => blockdata.GetBlock(point);
+
+	public IMutableChunk Clone()
 	{
-		return ReadSource[ChunkMath.GetIndex(point)];
+		return MutableChunk<TBlockdata>.Create_CopyOnWrite(offset, blockdata);
 	}
 
-	public virtual void WriteBlockdata(Stream stream)
-	{
-		var shorts = ReadSource as ushort[] ?? ReadSource.ToArray();
-		var bytes = MemoryMarshal.Cast<ushort, byte>(shorts);
-		stream.Write(bytes);
-	}
-
-	public virtual async Task WriteBlockdataAsync(Stream stream)
-	{
-		var shorts = ReadSource as ushort[] ?? ReadSource.ToArray();
-		var bytes = MemoryMarshal.Cast<ushort, byte>(shorts);
-		await stream.WriteAsync(bytes.ToArray()).ConfigureAwait(false);
-	}
+	internal override ValueTask WriteBlockdataAsync(Stream stream) => blockdata.WriteAsync(stream);
 }
 
-sealed class ImmutableChunk : Chunk
+sealed class MutableChunk<TReadBlockdata> : ChunkInternals, IMutableChunk where TReadBlockdata : struct, IBlockdata
 {
-	private readonly IReadOnlyList<ushort> chunkData;
-	public ImmutableChunk(ChunkOffset offset, IReadOnlyList<ushort> chunkData) : base(offset)
+	private readonly ChunkOffset offset;
+	private TReadBlockdata readSource;
+	private LittleEndianStuff.ByteArrayBlockdata writeSource;
+
+	private MutableChunk(ChunkOffset offset, TReadBlockdata readSource)
 	{
-		ChunkMath.ValidateLength(chunkData, nameof(chunkData));
-		this.chunkData = chunkData;
-	}
-
-	protected override IReadOnlyList<ushort> ReadSource => chunkData;
-
-	public MutableChunk Clone_CopyOnWrite() => MutableChunk.CopyOnWrite(offset, chunkData);
-}
-
-sealed class MutableChunk : Chunk, IMutableChunk
-{
-	// Copy on write. When writeSource is not null, we ensure
-	// that object.ReferenceEquals(readSource, writeSource)
-	private IReadOnlyList<ushort> readSource;
-	private ushort[]? writeSource;
-	protected override IReadOnlyList<ushort> ReadSource => readSource;
-
-	private MutableChunk(ChunkOffset offset, IReadOnlyList<ushort> readSource) : base(offset)
-	{
+		this.offset = offset;
 		this.readSource = readSource;
-		this.writeSource = null;
+		this.writeSource = LittleEndianStuff.ByteArrayBlockdata.Nothing;
 	}
 
-	private MutableChunk(ChunkOffset offset, ushort[] readWriteSource) : base(offset)
+	private MutableChunk(ChunkOffset offset, TReadBlockdata readSource, LittleEndianStuff.ByteArrayBlockdata writeSource)
 	{
-		this.readSource = readWriteSource;
-		this.writeSource = readWriteSource;
+		this.offset = offset;
+		this.readSource = readSource;
+		this.writeSource = writeSource;
 	}
 
-	public static MutableChunk CopyOnWrite(ChunkOffset offset, IReadOnlyList<ushort> copyOnWriteFrom)
+	internal static MutableChunk<TReadBlockdata> Create_CopyOnWrite(ChunkOffset offset, TReadBlockdata blockdata)
 	{
-		ChunkMath.ValidateLength(copyOnWriteFrom, nameof(copyOnWriteFrom));
-		return new MutableChunk(offset, readSource: copyOnWriteFrom);
+		return new MutableChunk<TReadBlockdata>(offset, blockdata);
 	}
 
-	public static MutableChunk Create(ChunkOffset offset, ushort[] chunkData)
+	internal static IMutableChunk CreateFresh(ChunkOffset offset, byte[] bytes)
 	{
-		ChunkMath.ValidateLength(chunkData, nameof(chunkData));
-		return new MutableChunk(offset, readWriteSource: chunkData);
+		var writeSource = new LittleEndianStuff.ByteArrayBlockdata(bytes);
+		var readSource = writeSource.HackySelfCast<TReadBlockdata>();
+		return new MutableChunk<TReadBlockdata>(offset, readSource, writeSource);
 	}
+
+	public ChunkOffset Offset => offset;
+
+	public ChunkInternals Internals => this;
+
+	public ushort GetBlock(Point point) => readSource.GetBlock(point);
 
 	public void SetBlock(Point point, ushort block)
 	{
-		int index = ChunkMath.GetIndex(point);
-
-		if (writeSource == null)
+		if (writeSource.IsNothing)
 		{
-			var prevVal = readSource[index];
+			var prevVal = readSource.GetBlock(point);
 			if (block == prevVal)
 			{
 				return; // no change
 			}
 
 			// copy on write:
-			writeSource = GC.AllocateUninitializedArray<ushort>(ChunkMath.ShortsPerChunk);
-			if (readSource is ushort[] readArray)
-			{
-				readArray.CopyTo(writeSource, 0);
-			}
-			else
-			{
-				for (int i = 0; i < writeSource.Length; i++)
-				{
-					writeSource[i] = readSource[i];
-				}
-			}
-			readSource = writeSource;
+			var clone = readSource.Clone();
+			writeSource = clone;
+			readSource = clone.HackySelfCast<TReadBlockdata>();
 		}
 
-		writeSource[index] = block;
+		writeSource.SetBlock(point, block);
 	}
+
+	internal override ValueTask WriteBlockdataAsync(Stream stream) => readSource.WriteAsync(stream);
 }

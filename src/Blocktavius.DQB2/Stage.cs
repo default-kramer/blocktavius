@@ -40,9 +40,9 @@ public interface ICloneableStage : IStage
 
 public sealed class ImmutableStage : ICloneableStage
 {
-	private readonly ChunkGrid<ImmutableChunk> chunkGrid;
+	private readonly ChunkGrid<ICloneableChunk> chunkGrid;
 
-	private ImmutableStage(ChunkGrid<ImmutableChunk> chunkGrid)
+	private ImmutableStage(ChunkGrid<ICloneableChunk> chunkGrid)
 	{
 		this.chunkGrid = chunkGrid;
 	}
@@ -60,16 +60,21 @@ public sealed class ImmutableStage : ICloneableStage
 	public static ICloneableStage LoadStgdat(string stgdatFilePath)
 	{
 		var result = StageLoader.LoadStgdat(stgdatFilePath);
-		var chunkGrid = result.ChunkGrid.Clone((offset, array) => new ImmutableChunk(offset, array));
+		var chunkGrid = result.ChunkGrid.Clone((offset, array) =>
+		{
+			var blockdata = new LittleEndianStuff.ByteArrayBlockdata(array);
+			ICloneableChunk chunk = new ImmutableChunk<LittleEndianStuff.ByteArrayBlockdata>(offset, blockdata);
+			return chunk;
+		});
 		return new ImmutableStage(chunkGrid);
 	}
 }
 
 sealed class MutableStage : IMutableStage
 {
-	private readonly ChunkGrid<MutableChunk> chunkGrid;
+	private readonly ChunkGrid<IMutableChunk> chunkGrid;
 
-	private MutableStage(ChunkGrid<MutableChunk> chunkGrid)
+	private MutableStage(ChunkGrid<IMutableChunk> chunkGrid)
 	{
 		this.chunkGrid = chunkGrid;
 	}
@@ -88,21 +93,21 @@ sealed class MutableStage : IMutableStage
 		return chunk != null;
 	}
 
-	public static IMutableStage LoadStgdat(string stgdatFilePath)
+	internal static IMutableStage CopyOnWrite(ChunkGrid<ICloneableChunk> grid)
 	{
-		var result = StageLoader.LoadStgdat(stgdatFilePath);
-		var chunkGrid = result.ChunkGrid.Clone(MutableChunk.Create);
-		return new MutableStage(chunkGrid);
-	}
-
-	internal static IMutableStage CopyOnWrite(ChunkGrid<ImmutableChunk> grid)
-	{
-		var newGrid = grid.Clone((_, chunk) => chunk.Clone_CopyOnWrite());
+		var newGrid = grid.Clone((_, chunk) => chunk.Clone());
 		return new MutableStage(newGrid);
 	}
 
 	public void Mutate(StageMutation mutation)
 	{
 		mutation.Apply(this);
+	}
+
+	public static IMutableStage LoadStgdat(string stgdatFilePath)
+	{
+		var result = StageLoader.LoadStgdat(stgdatFilePath);
+		var chunkGrid = result.ChunkGrid.Clone(MutableChunk<LittleEndianStuff.ByteArrayBlockdata>.CreateFresh);
+		return new MutableStage(chunkGrid);
 	}
 }

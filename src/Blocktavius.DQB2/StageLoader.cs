@@ -10,24 +10,23 @@ static class StageLoader
 {
 	public sealed class LoadResult
 	{
-		public required ReadonlyBytes OriginalHeader { get; init; }
-		public required ReadonlyBytes OriginalCompressedBody { get; init; }
-		public required ChunkGrid<ushort[]> ChunkGrid { get; init; }
+		public required LittleEndianStuff.ReadonlyBytes OriginalHeader { get; init; }
+		public required LittleEndianStuff.ReadonlyBytes OriginalCompressedBody { get; init; }
+		public required ChunkGrid<byte[]> ChunkGrid { get; init; }
 	}
 
 	public static LoadResult LoadStgdat(string stgdatFilePath)
 	{
 		// These should hold the original STGDAT file contents so that we can
 		// make a byte-perfect backup later if we need to.
-		(ReadonlyBytes origHeader, ReadonlyBytes origCompressedBody) = ReadStgdat(stgdatFilePath);
+		(LittleEndianStuff.ReadonlyBytes origHeader, LittleEndianStuff.ReadonlyBytes origCompressedBody) = ReadStgdat(stgdatFilePath);
 
 		// Sapphire: "0x010 in the header has the size of the full STGDAT file"
 		// ... But wait, this is the size of the compressed file, right?
 		// So we don't really care about it on read, only on write.
 		// (It must be, because the uncompressed size didn't change when I was crashing it.)
 
-		// We don't really need ReadonlyBytes here, but it has some convenient methods on it:
-		var body = new ReadonlyBytes(origCompressedBody.Decompress());
+		var body = new LittleEndianStuff.ReadonlyBytes(origCompressedBody.Decompress());
 
 		// Chunkdata comes last, so this check ensures that everything else will be present
 		if (body.Length < GetChunkStartAddress(0))
@@ -57,16 +56,16 @@ static class StageLoader
 		}
 
 		// Now load the chunks
-		var chunks = GC.AllocateUninitializedArray<ushort[]?>(chunkOffsets.Count);
+		var chunks = GC.AllocateUninitializedArray<byte[]?>(chunkOffsets.Count);
 		for (int i = 0; i < chunkOffsets.Count; i++)
 		{
-			ushort[]? chunk;
+			byte[]? chunk;
 			var item = chunkOffsets[i];
 			if (item.HasValue)
 			{
 				int addr = GetChunkStartAddress(item.Value.chunkId);
-				chunk = GC.AllocateUninitializedArray<ushort>(ChunkMath.ShortsPerChunk);
-				body.SliceUInt16(addr).Slice(0, ChunkMath.ShortsPerChunk).CopyTo(chunk);
+				chunk = GC.AllocateUninitializedArray<byte>(ChunkMath.BytesPerChunk);
+				body.AsSpan.Slice(addr, ChunkMath.BytesPerChunk).CopyTo(chunk);
 			}
 			else
 			{
@@ -75,7 +74,7 @@ static class StageLoader
 			chunks[i] = chunk;
 		}
 
-		var chunkGrid = new ChunkGrid<ushort[]>(chunks);
+		var chunkGrid = new ChunkGrid<byte[]>(chunks);
 		return new LoadResult()
 		{
 			OriginalHeader = origHeader,
@@ -84,7 +83,7 @@ static class StageLoader
 		};
 	}
 
-	private static (ReadonlyBytes header, ReadonlyBytes compressedBody) ReadStgdat(string stgdatFilePath)
+	private static (LittleEndianStuff.ReadonlyBytes header, LittleEndianStuff.ReadonlyBytes compressedBody) ReadStgdat(string stgdatFilePath)
 	{
 		using var stgdatStream = File.OpenRead(stgdatFilePath);
 
@@ -101,7 +100,7 @@ static class StageLoader
 		stgdatStream.CopyTo(bodyStream);
 		var compressedBody = bodyStream.ToArray();
 
-		return (new ReadonlyBytes(header), new ReadonlyBytes(compressedBody));
+		return (new LittleEndianStuff.ReadonlyBytes(header), new LittleEndianStuff.ReadonlyBytes(compressedBody));
 	}
 
 	private static ArgumentException StgdatTooShort(string stgdatFilePath)

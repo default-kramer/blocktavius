@@ -73,7 +73,7 @@ public sealed class Driver : IDisposable
 	{
 		var filename = Path.Combine(driverDir.FullName, BuildChunkFilename(chunk.Offset));
 		using var stream = File.Open(filename, FileMode.Create, FileAccess.Write);
-		await chunk.WriteBlockdataAsync(stream).ConfigureAwait(false);
+		await chunk.Internals.WriteBlockdataAsync(stream).ConfigureAwait(false);
 		stream.Flush();
 		stream.Close();
 	}
