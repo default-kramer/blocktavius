@@ -198,10 +198,10 @@ public sealed class TileTagger<TTag> where TTag : notnull
 		return regions.Select(r => BuildRegion(r, Scale)).ToList();
 	}
 
-	public I2DSampler<Elevation> BuildHills(TTag tag, PRNG prng)
+	public I2DSampler<Elevation> BuildHills(TTag tag, PRNG prng, int maxElevation)
 	{
 		var regions = GetRegions(tag);
-		return TODO.BuildHills(regions, prng);
+		return TODO.BuildHills(regions, prng, maxElevation);
 	}
 
 	/// <summary>
@@ -409,7 +409,7 @@ public sealed class TileTagger<TTag> where TTag : notnull
 
 public sealed class TODO
 {
-	public static I2DSampler<Elevation> GenerateRandomHills(int scale, PRNG prng)
+	public static I2DSampler<Elevation> GenerateRandomHills(int scale, PRNG prng, int maxElevation)
 	{
 		const int onlyTag = 42; // any value is fine
 
@@ -427,12 +427,11 @@ public sealed class TODO
 		}
 
 		var regions = tileTagger.GetRegions(onlyTag);
-		return BuildHills(regions, prng);
+		return BuildHills(regions, prng, maxElevation);
 	}
 
-	internal static I2DSampler<Elevation> BuildHills(IReadOnlyList<Region> regions, PRNG prng)
+	internal static I2DSampler<Elevation> BuildHills(IReadOnlyList<Region> regions, PRNG prng, int maxElevation)
 	{
-		const int maxElevation = 20;
 		const int FUDGE = 12; // TODO
 
 		var cliffData = new List<(I2DSampler<QuaintCliff.Item> sampler, I2DSampler<QuaintCliff.Item> biggerSampler, Edge edge)>();

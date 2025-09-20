@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Blocktavius.Core;
+using Blocktavius.DQB2;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -31,5 +33,24 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 	{
 		get => blockProvider;
 		set => ChangeProperty(ref blockProvider, value);
+	}
+
+	public override StageMutation? BuildMutation(StageRebuildContext context)
+	{
+		if (area == null || Block == null)
+		{
+			return null;
+		}
+
+		var tagger = area.BuildTagger();
+		var sampler = tagger.BuildHills(true, context.PRNG, this.elevation)
+			.Translate(context.ImageCoordTranslation);
+
+		if (Block.UniformBlockId.HasValue)
+		{
+			return StageMutation.CreateHills(sampler, Block.UniformBlockId.Value);
+		}
+
+		return null; // TODO support mottlers....
 	}
 }

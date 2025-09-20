@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Blocktavius.Core;
+using Blocktavius.DQB2;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -9,11 +11,19 @@ using System.Windows;
 
 namespace Blocktavius.AppDQB2;
 
-public interface IAreaVM { }
+public interface IAreaVM
+{
+	public TileTagger<bool> BuildTagger();
+}
 
 public interface IBlockProviderVM
 {
 	string DisplayName { get; }
+
+	/// <summary>
+	/// Null for something like a mottler
+	/// </summary>
+	ushort? UniformBlockId { get; }
 }
 
 abstract class ScriptNodeVM : ViewModelBase
@@ -32,6 +42,8 @@ abstract class ScriptNodeVM : ViewModelBase
 
 	[Browsable(false)]
 	public int BorderThickness => IsSelected ? 2 : 1;
+
+	public abstract StageMutation? BuildMutation(StageRebuildContext context);
 }
 
 sealed class ScriptVM : ViewModelBase
@@ -62,5 +74,19 @@ sealed class ScriptVM : ViewModelBase
 	{
 		get => isSelected;
 		set => ChangeProperty(ref isSelected, value);
+	}
+
+	public required bool IsMain { get; init; }
+
+	public IEnumerable<StageMutation> RebuildMutations(StageRebuildContext context)
+	{
+		foreach (var node in this.Nodes)
+		{
+			var mutation = node.BuildMutation(context);
+			if (mutation != null)
+			{
+				yield return mutation;
+			}
+		}
 	}
 }

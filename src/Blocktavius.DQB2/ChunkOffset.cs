@@ -35,4 +35,6 @@ public record struct ChunkOffset(int OffsetX, int OffsetZ)
 			}
 		}
 	}
+
+	public ChunkOffset Add(ChunkOffset other) => new ChunkOffset(this.OffsetX + other.OffsetX, this.OffsetZ + other.OffsetZ);
 }

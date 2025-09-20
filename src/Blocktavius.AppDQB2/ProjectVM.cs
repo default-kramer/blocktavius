@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Blocktavius.DQB2;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -9,6 +10,8 @@ namespace Blocktavius.AppDQB2;
 
 sealed class ProjectVM : ViewModelBase, IBlockList
 {
+	private readonly StgdatLoader stgdatLoader = new();
+
 	IReadOnlyList<BlockVM> IBlockList.Blocks => Blockdata.AllBlockVMs;
 
 	private string? _stgdatFilePath;
@@ -97,5 +100,36 @@ sealed class ProjectVM : ViewModelBase, IBlockList
 	public void OnScriptListViewClicked()
 	{
 		SelectedScriptNode = SelectedScript;
+	}
+
+	public bool TryRebuildStage(out IStage stage)
+	{
+		if (string.IsNullOrWhiteSpace(this.StgdatFilePath))
+		{
+			stage = null!;
+			return false;
+		}
+
+		if (!stgdatLoader.TryLoad(this.StgdatFilePath, out var loadResult, out string error))
+		{
+			stage = null!;
+			return false;
+		}
+
+		IMutableStage workingStage = loadResult.Stage.Clone();
+
+		var context = new StageRebuildContext(workingStage);
+
+		var script = this.Scripts.Where(s => s.IsMain).SingleOrDefault();
+		if (script != null)
+		{
+			foreach (var mutation in script.RebuildMutations(context))
+			{
+				workingStage.Mutate(mutation);
+			}
+		}
+
+		stage = workingStage;
+		return true;
 	}
 }

@@ -81,6 +81,18 @@ class LayerVM : ViewModelBase, IAreaVM
 		}
 	}
 
+	public TileTagger<bool> BuildTagger()
+	{
+		var unscaledSize = new XZ(_painter.ColumnCount, _painter.RowCount);
+		var scale = new XZ(_painter.TileSize, _painter.TileSize);
+		var tagger = new TileTagger<bool>(unscaledSize, scale);
+		foreach (var xz in new Core.Rect(XZ.Zero, unscaledSize).Enumerate())
+		{
+			tagger.AddTag(xz, _painter.GetStatus(xz));
+		}
+		return tagger;
+	}
+
 	// TEMP - exported from Racket, should read from STGDAT instead
 	// Also should make this layer read-only by default
 	private static IEnumerable<XZ> chunkMaskIoA()

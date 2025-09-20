@@ -31,14 +31,13 @@ namespace Blocktavius.AppDQB2
 		{
 			InitializeComponent();
 
-			//vm.ProjectFilePath = "foo.blocktaviusproject";
-			vm.StgdatFilePath = "STGDAT01.bin";
+			vm.StgdatFilePath = @"C:\Users\kramer\Documents\My Games\DRAGON QUEST BUILDERS II\Steam\76561198073553084\SD\STGDAT01.BIN";
 
 			vm.Layers.Add(LayerVM.BuildChunkMask());
 			vm.Layers.Add(new LayerVM());
 			vm.SelectedLayer = vm.Layers.First();
 
-			vm.Scripts.Add(new ScriptVM() { Name = "Main" });
+			vm.Scripts.Add(new ScriptVM() { Name = "Main", IsMain = true });
 			vm.SelectedScript = vm.Scripts.First();
 
 			DataContext = vm;
@@ -51,51 +50,12 @@ namespace Blocktavius.AppDQB2
 			base.OnClosed(e);
 		}
 
-		private Blocktavius.DQB2.ICloneableStage? stage = null;
-
 		private void PreviewButtonClicked(object sender, RoutedEventArgs e)
 		{
-			if (vm.Layers.Count < 2)
+			if (vm.TryRebuildStage(out var scriptedStage))
 			{
-				return;
+				App.eyeOfRubissDriver.WriteStageAsync(scriptedStage).GetAwaiter().GetResult();
 			}
-
-			stage = stage ?? DQB2.ImmutableStage.LoadStgdat(@"C:\Users\kramer\Documents\My Games\DRAGON QUEST BUILDERS II\Steam\76561198073553084\SD\STGDAT01.BIN");
-
-			if (stage is null)
-			{
-				return;
-			}
-
-			// Anytime we convert a painted layer into XZ coordinates, we need to add this offset:
-			var offsetX = stage.ChunksInUse.Select(o => o.NorthwestCorner.X).Min();
-			var offsetZ = stage.ChunksInUse.Select(o => o.NorthwestCorner.Z).Min();
-
-			var clone = stage.Clone();
-
-			var prng = PRNG.Create(new Random());
-
-			var layer = vm.Layers[1];
-			var tagger = SetupTagger(layer.TileGridPainterVM);
-			var sampler = tagger.BuildHills(true, prng)
-				.Translate(new XZ(offsetX, offsetZ))
-				.AdjustElevation(50);
-			var hills = StageMutation.CreateHills(sampler, block: 4); // grassy earth
-			clone.Mutate(hills);
-
-			App.eyeOfRubissDriver.WriteStageAsync(clone).GetAwaiter().GetResult();
-		}
-
-		private static TileTagger<bool> SetupTagger(ITileGridPainterVM gridData)
-		{
-			var unscaledSize = new XZ(gridData.ColumnCount, gridData.RowCount);
-			var scale = new XZ(gridData.TileSize, gridData.TileSize);
-			var tagger = new TileTagger<bool>(unscaledSize, scale);
-			foreach (var xz in new Core.Rect(XZ.Zero, unscaledSize).Enumerate())
-			{
-				tagger.AddTag(xz, gridData.GetStatus(xz));
-			}
-			return tagger;
 		}
 	}
 }
