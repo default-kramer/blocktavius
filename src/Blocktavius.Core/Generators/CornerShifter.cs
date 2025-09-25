@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
-using static Blocktavius.Core.Generators.CornerShifter;
 
 namespace Blocktavius.Core.Generators;
 
@@ -123,8 +121,14 @@ public static class CornerShifter
 		{
 			return Conquer(subproblem, prng, settings);
 		}
+		else
+		{
+			return Divide(subproblem, prng, settings);
+		}
+	}
 
-		// divide
+	private static bool Divide(Subproblem subproblem, PRNG prng, Settings settings)
+	{
 		var splitCenter = subproblem.Corners.Length / 2;
 		List<int> splitIndexes = [splitCenter - 2, splitCenter - 1, splitCenter, splitCenter + 1, splitCenter + 2];
 		prng.Shuffle(splitIndexes);
@@ -169,6 +173,8 @@ public static class CornerShifter
 			prng.Shuffle(xChoices);
 			foreach (var myX in xChoices)
 			{
+				subproblem.Corners[splitIndex] = myX;
+
 				var left = new Subproblem()
 				{
 					Corners = subproblem.Corners.Slice(0, splitIndex),
@@ -189,6 +195,10 @@ public static class CornerShifter
 					return true;
 				}
 			}
+
+			// This splitIndex doesn't work??
+			// Revert any change and try next split index.
+			subproblem.Corners[splitIndex] = subproblem.Prev[splitIndex];
 		}
 
 		return false;
@@ -199,6 +209,22 @@ public static class CornerShifter
 	/// </remarks>
 	private static bool Conquer(Subproblem subproblem, PRNG prng, Settings settings)
 	{
+		if ("TESTING".Length > 0) // testing Divide() only for now...
+		{
+			int x = subproblem.MinX;
+			for (int i = 0; i < subproblem.Corners.Length; i++)
+			{
+				subproblem.Corners[i] = x;
+				x += settings.MinRunLength;
+			}
+
+			x -= settings.MinRunLength;
+			if (x > subproblem.MaxX)
+			{
+				throw new Exception("Assert fail - not enough room left for Conquer()");
+			}
+		}
+
 		// A simplified, self-contained version of the ShiftCorners logic, adapted for a subproblem.
 		bool maxRunLengthViolated = false;
 
