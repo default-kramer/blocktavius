@@ -119,7 +119,7 @@ public static class CornerShifter
 
 	private static bool DivideOrConquer(Subproblem subproblem, PRNG prng, Settings settings)
 	{
-		if (subproblem.Corners.Length > 7)
+		if (subproblem.Corners.Length < 7)
 		{
 			return Conquer(subproblem, prng, settings);
 		}
