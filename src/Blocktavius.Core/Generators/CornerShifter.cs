@@ -179,10 +179,8 @@ public static class CornerShifter
 		public static Algo Create(Contour previous, Settings settings)
 		{
 			var prev = previous.Corners;
-			var help = new Entry[prev.Count];
+			var entries = new Entry[prev.Count];
 
-			// Pass 1 - populate work queue with items such that the "constrained range" is totally smaller
-			// than the "full range". This means we can choose them without really affecting other decisions.
 			for (int i = 0; i < prev.Count; i++)
 			{
 				var fullRange = new Range(prev[i].X - settings.MaxShift, prev[i].X + settings.MaxShift);
@@ -199,10 +197,10 @@ public static class CornerShifter
 					clampRight = prev[i + 1].X;
 				}
 				entry = entry.ConstrainFurther(new Range(clampLeft, clampRight));
-				help[i] = entry;
+				entries[i] = entry;
 			}
 
-			return new Algo(previous, settings, help);
+			return new Algo(previous, settings, entries);
 		}
 
 		public Entry this[int i] => entries[i];
@@ -234,14 +232,17 @@ public static class CornerShifter
 
 				int xMin = int.MinValue;
 				int xMax = int.MaxValue;
+				// If `me` is finalized, then my constrainedRange will have xMin==xMax
+				// and there is no ambiguity in the following logic.
+				// Otherwise we have to assume `me` will be as far right as possible when
+				// constraining my left neighbor, but also assume `me` will be as far left
+				// as possible when constraining my right neighbor.
 				if (left)
 				{
-					// Assume `me` will be as far right as possible when constraining my left neighbor
 					xMax = me.constrainedRange.xMax - settings.MinRunLength;
 				}
 				else
 				{
-					// Assume `me` will be as far left as possible when constraining my right neighbor
 					xMin = me.constrainedRange.xMin + settings.MinRunLength;
 				}
 

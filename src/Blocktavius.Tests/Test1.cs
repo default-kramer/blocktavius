@@ -114,7 +114,7 @@ namespace Blocktavius.Tests
 					{
 						int runLength = workingCopy[i].X - workingCopy[i - 1].X;
 						Assert.IsTrue(runLength >= settings.MinRunLength);
-						//Assert.IsTrue(runLength <= settings.MaxRunLength); NOMERGE
+						Assert.IsTrue(runLength <= settings.MaxRunLength);
 						Assert.IsTrue(workingCopy[i].X > workingCopy[i - 1].X);
 
 						Assert.IsTrue(workingCopy[i].X >= prev.Corners[i - 1].X);
