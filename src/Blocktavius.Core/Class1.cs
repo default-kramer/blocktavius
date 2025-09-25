@@ -37,6 +37,17 @@ public record struct XZ(int X, int Z)
 		yield return Add(0, 1);
 		yield return Add(0, -1);
 	}
+
+	public IEnumerable<XZ> Walk(Direction direction, int steps)
+	{
+		var current = this;
+		while (steps > 0)
+		{
+			yield return current;
+			current = current.Step(direction);
+			steps--;
+		}
+	}
 }
 
 public record Rect(XZ start, XZ end)
