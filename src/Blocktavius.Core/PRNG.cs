@@ -145,6 +145,16 @@ public sealed class PRNG
 		return items[index];
 	}
 
+	public void Shuffle<T>(List<T> list)
+	{
+		int n = list.Count;
+		for (int i = n - 1; i > 0; i--)
+		{
+			int j = NextInt32(i + 1);
+			(list[j], list[i]) = (list[i], list[j]);
+		}
+	}
+
 	public string Serialize()
 	{
 		return DoSerialize(s10, s11, s12, s20, s21, s22);
