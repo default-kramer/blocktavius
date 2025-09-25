@@ -71,6 +71,7 @@ namespace Blocktavius.Tests
 		}
 
 		[TestMethod]
+		[Timeout(1000 * 60)]
 		public void ExerciseCornerShifter()
 		{
 			var prng = PRNG.Create(new Random());
@@ -127,9 +128,18 @@ namespace Blocktavius.Tests
 					Assert.IsTrue(current.Corners.Select(c => c.Dir).SequenceEqual(prev.Corners.Select(c => c.Dir)));
 
 					totalShifts++;
-					if (current.Corners.Select(c => c.X).SequenceEqual(prev.Corners.Select(c => c.X)))
+					int nullShiftsThisTime = 0;
+					for (int i = 0; i < current.Corners.Count; i++)
 					{
-						nullShifts++;
+						if (current.Corners[i].X == prev.Corners[i].X)
+						{
+							nullShiftsThisTime++;
+							nullShifts++;
+						}
+					}
+					if (nullShiftsThisTime > current.Corners.Count / 5 + 1)
+					{
+						Assert.Fail($"Too many null shifts in a single pass: {nullShiftsThisTime} (out of {current.Corners.Count})");
 					}
 
 					prev = current;

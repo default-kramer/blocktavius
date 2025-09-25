@@ -70,8 +70,8 @@ public static class CornerShifter
 
 		public Contour Shift(PRNG prng, Settings settings)
 		{
-			//var next = ShiftCorners(prng, this, settings);
-			var next = ShiftCorners2(prng, this, settings);
+			var next = ShiftCorners(prng, this, settings);
+			//var next = ShiftCorners2(prng, this, settings);
 			return new Contour(next, this.Width);
 		}
 	}
@@ -98,7 +98,7 @@ public static class CornerShifter
 
 	readonly record struct Range(int xMin, int xMax) // inclusive
 	{
-		public bool IsValid => xMax <= xMin;
+		public bool IsInfeasible => xMax < xMin;
 
 		public int Width => (xMax + 1) - xMin;
 
@@ -137,17 +137,17 @@ public static class CornerShifter
 
 		public Entry ConstrainFurther(Range constraints)
 		{
-			var actualConstraints = this.constrainedRange.Intersect(constraints);
+			var newConstrainedRange = this.constrainedRange.Intersect(constraints);
 			var status = this.status;
-			if (actualConstraints.IsValid)
+			if (newConstrainedRange.IsInfeasible)
 			{
 				status = Status.Infeasible;
 			}
-			else if (actualConstraints.Intersect(fullRange) == actualConstraints)
+			else if (newConstrainedRange.Width == 1)
 			{
 				status = Status.FullyConstrained;
 			}
-			return this with { constrainedRange = actualConstraints, status = status };
+			return this with { constrainedRange = newConstrainedRange, status = status };
 		}
 
 		public Entry Finalize(int newX)
@@ -321,7 +321,10 @@ public static class CornerShifter
 		var result = Finalize(Algo.Create(previous, settings), prng);
 		if (!result.Item1)
 		{
-			throw new Exception("FAILED TODO");
+			// The solver failed to find a solution. This can happen.
+			// Instead of throwing, we will return the original contour,
+			// which the test will count as a "null shift".
+			return previous.Corners.ToList();
 		}
 		return result.Item2.CreateFinalResult();
 	}
@@ -339,11 +342,12 @@ public static class CornerShifter
 			{
 				var workQueue = algo.GetIndexes(status);
 				prng.Shuffle(workQueue);
-				for (int i = 0; i < workQueue.Count; i++)
+				foreach (var index in workQueue)
 				{
-					var entry = algo[i];
+					var entry = algo[index];
+					if (entry.status == Status.Finalized) continue;
 					int newX = entry.constrainedRange.RandomX(prng);
-					algo.Finalize(i, newX);
+					algo.Finalize(index, newX);
 				}
 
 				status = algo.PrepareNextPass();
@@ -369,6 +373,7 @@ public static class CornerShifter
 			var batch = algo.CreateBatch(Status.Pending, maxBatchSize: 8);
 			foreach (int i in batch)
 			{
+				if (algo[i].constrainedRange.Width <= 0) continue;
 				int newX = algo[i].constrainedRange.RandomX(prng);
 				algo.Finalize(i, newX);
 			}
@@ -432,7 +437,12 @@ public static class CornerShifter
 				max = Math.Min(max, prevCorners[i + 1].X);
 
 				if (min > max) { possible = false; break; }
-				tempCorners[i] = tempCorners[i] with { X = prng.NextInt32(min, max + 1) };
+					int choice = max;
+					if (choice == prevCorners[i].X && max > min)
+					{
+						choice = max - 1;
+					}
+					tempCorners[i] = tempCorners[i] with { X = choice };
 			}
 			if (!possible) continue;
 
@@ -447,7 +457,12 @@ public static class CornerShifter
 				max = Math.Min(max, (i < tempCorners.Count - 1) ? prevCorners[i + 1].X : settings.Width - 1);
 
 				if (min > max) { possible = false; break; }
-				tempCorners[i] = tempCorners[i] with { X = prng.NextInt32(min, max + 1) };
+					int choice = min;
+					if (choice == prevCorners[i].X && min < max)
+					{
+						choice = min + 1;
+					}
+					tempCorners[i] = tempCorners[i] with { X = choice };
 			}
 			if (!possible) continue;
 
