@@ -70,7 +70,8 @@ public static class CornerShifter
 
 		public Contour Shift(PRNG prng, Settings settings)
 		{
-			var next = ShiftCorners(prng, this, settings);
+			var next = ShiftCorners3(prng, this, settings);
+			//var next = ShiftCorners(prng, this, settings);
 			//var next = ShiftCorners2(prng, this, settings);
 			return new Contour(next, this.Width);
 		}
@@ -387,6 +388,138 @@ public static class CornerShifter
 		return (false, backtrackPoint);
 	}
 
+	readonly ref struct Subproblem
+	{
+		public required ReadOnlySpan<int> Prev { get; init; }
+		public required Span<int> Corners { get; init; }
+
+		/// <summary>
+		/// The leftmost value that Corners[0] is allowed to have.
+		/// Initial value will be 0.
+		/// After a split, the right subproblem will get `chosenX + MinRunLength`.
+		/// </summary>
+		public required int MinX { get; init; }
+
+		/// <summary>
+		/// The rightmost value that Corners.Last is allowed to have.
+		/// Initial value will be settings.Width - 1.
+		/// After a split, the left subproblem will get `chosenX - MinRunLength`.
+		/// </summary>
+		public required int MaxX { get; init; }
+	}
+
+	private static bool DivideOrConquer(Subproblem subproblem, PRNG prng, Settings settings)
+	{
+		if (subproblem.Corners.Length > 7)
+		{
+			return Conquer(subproblem, prng, settings);
+		}
+
+		// divide
+		var splitCenter = subproblem.Corners.Length / 2;
+		List<int> splitIndexes = [splitCenter - 2, splitCenter - 1, splitCenter, splitCenter + 1, splitCenter + 2];
+		prng.Shuffle(splitIndexes);
+		foreach (var splitIndex in splitIndexes)
+		{
+			var myRange = new Range(subproblem.Prev[splitIndex] - settings.MaxShift, subproblem.Prev[splitIndex] + settings.MaxShift);
+
+			myRange = myRange.Intersect(subproblem.MinX, subproblem.MaxX);
+
+			// Can't shift beyond previous neighbors
+			myRange = myRange.Intersect(subproblem.Prev[splitIndex - 1], subproblem.Prev[splitIndex + 1]);
+
+			// Make sure we will have enough room for the 2 subproblems (left and right)
+			// we are about to create.
+			// For example, if we choose 3 as the splitIndex we must leave room on the left side for:
+			// * item[0]
+			// * minRunLength
+			// * item[1]
+			// * minRunLength
+			// * item[2]
+			// * minRunLength
+			int minWidthLeft = splitIndex * (settings.MinRunLength + 1);
+			// ... and then we have the current item, which doesn't count towards either limit
+			// * item[3]
+			// ... and then we would also need to leave room on the right side for
+			// * minRunLength
+			// * item[4]
+			// * minRunLength
+			// * item[5]
+			int minWidthRight = (subproblem.Corners.Length - splitIndex) * (settings.MinRunLength + 1);
+
+			// For a simple example, let's imagine that minWidthLeft is 6 representing 1 neighbor
+			// plus a MinRunLength of 5. In that case, if MinX is 100 that means the range [100..105]
+			// is reserved for the left subproblem, and the range for the split item will be [106..??]
+			myRange = myRange.Intersect(subproblem.MinX + minWidthLeft, subproblem.MaxX - minWidthRight);
+			if (myRange.IsInfeasible)
+			{
+				return false;
+			}
+
+			var xChoices = Enumerable.Range(myRange.xMin, myRange.Width).ToList();
+			prng.Shuffle(xChoices);
+			foreach (var myX in xChoices)
+			{
+				var left = new Subproblem()
+				{
+					Corners = subproblem.Corners.Slice(0, splitIndex),
+					Prev = subproblem.Prev.Slice(0, splitIndex),
+					MinX = subproblem.MinX,
+					MaxX = Math.Min(myX - settings.MinRunLength, subproblem.Prev[splitIndex]),
+				};
+				var right = new Subproblem()
+				{
+					Corners = subproblem.Corners.Slice(splitIndex + 1),
+					Prev = subproblem.Prev.Slice(splitIndex + 1),
+					MinX = Math.Max(myX + settings.MinRunLength, subproblem.Prev[splitIndex]),
+					MaxX = subproblem.MaxX,
+				};
+
+				if (DivideOrConquer(left, prng, settings) && DivideOrConquer(right, prng, settings))
+				{
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	private static bool Conquer(Subproblem subproblem, PRNG prng, Settings settings)
+	{
+		// solve using existing implementation:
+		int xOffset = subproblem.MinX;
+		var corners = subproblem.Corners.ToArray().Select(x => new Corner(x - xOffset, Direction.North)).ToList();
+		var contour = new Contour(corners, 1 + subproblem.MaxX - subproblem.MinX);
+		var result = ShiftCorners(prng, contour, settings);
+		for (int i = 0; i < result.Count; i++)
+		{
+			subproblem.Corners[i] = result[i].X + xOffset;
+		}
+		return true;
+	}
+
+	private static List<Corner> ShiftCorners3(PRNG prng, Contour previous, Settings settings)
+	{
+		var workingCopy = previous.Corners.Select(c => c.X).ToArray();
+
+		var subproblem = new Subproblem()
+		{
+			Corners = workingCopy,
+			Prev = workingCopy.ToArray(), // make another copy that is now immutable
+			MinX = 0,
+			MaxX = settings.Width - 1,
+		};
+
+		if (DivideOrConquer(subproblem, prng, settings))
+		{
+			return workingCopy.Index()
+				.Select(x => previous.Corners[x.Index] with { X = x.Item })
+				.ToList();
+		}
+		throw new Exception("assert fail");
+	}
+
 	private static List<Corner> ShiftCorners(PRNG prng, Contour previous, Settings settings)
 	{
 		var prevCorners = previous.Corners;
@@ -437,12 +570,12 @@ public static class CornerShifter
 				max = Math.Min(max, prevCorners[i + 1].X);
 
 				if (min > max) { possible = false; break; }
-					int choice = max;
-					if (choice == prevCorners[i].X && max > min)
-					{
-						choice = max - 1;
-					}
-					tempCorners[i] = tempCorners[i] with { X = choice };
+				int choice = max;
+				if (choice == prevCorners[i].X && max > min)
+				{
+					choice = max - 1;
+				}
+				tempCorners[i] = tempCorners[i] with { X = choice };
 			}
 			if (!possible) continue;
 
@@ -457,12 +590,12 @@ public static class CornerShifter
 				max = Math.Min(max, (i < tempCorners.Count - 1) ? prevCorners[i + 1].X : settings.Width - 1);
 
 				if (min > max) { possible = false; break; }
-					int choice = min;
-					if (choice == prevCorners[i].X && min < max)
-					{
-						choice = min + 1;
-					}
-					tempCorners[i] = tempCorners[i] with { X = choice };
+				int choice = min;
+				if (choice == prevCorners[i].X && min < max)
+				{
+					choice = min + 1;
+				}
+				tempCorners[i] = tempCorners[i] with { X = choice };
 			}
 			if (!possible) continue;
 
