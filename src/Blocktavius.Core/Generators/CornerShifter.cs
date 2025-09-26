@@ -157,7 +157,7 @@ public static class CornerShifter
 
 	private static bool DivideOrConquer(Subproblem subproblem, PRNG prng, Settings settings)
 	{
-		if (subproblem.Corners.Length < 7)
+		if (subproblem.Corners.Length < 16)
 		{
 			return Conquer2(subproblem, prng, settings);
 		}
@@ -176,9 +176,11 @@ public static class CornerShifter
 		{
 			var myRange = subproblem.ImmutableRange(splitIndex, settings);
 
-			// Make sure we will have enough room for the 2 subproblems (left and right)
+			// Make sure we will have enough room for the 2 subproblems (left and right).
+			// For example, if we have Length=5 that means we have 4 runs;
+			// and if we choose splitIndex=3 that means we have 3 runs to the left and 1 run to the right.
 			int minWidthLeft = splitIndex * settings.MinRunLength;
-			int minWidthRight = (subproblem.Corners.Length - splitIndex) * settings.MinRunLength;
+			int minWidthRight = (subproblem.Corners.Length - 1 - splitIndex) * settings.MinRunLength;
 
 			// For example, imagine that we have
 			//   minWidthLeft = 6
