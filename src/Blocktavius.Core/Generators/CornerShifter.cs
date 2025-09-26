@@ -113,6 +113,35 @@ public static class CornerShifter
 		/// After a split, the left subproblem will get `chosenX - MinRunLength`.
 		/// </summary>
 		public required int MaxX { get; init; }
+
+		public Range Range(int i, Settings settings)
+		{
+			int left = Math.Max(this.MinX, Prev[i] - settings.MaxShift);
+			int right = Math.Min(this.MaxX, Prev[i] + settings.MaxShift);
+			if (i > 0)
+			{
+				left = Math.Max(left, Prev[i - 1]);
+			}
+			if (i + 1 < Prev.Length)
+			{
+				right = Math.Min(right, Prev[i + 1]);
+			}
+			return new Range(left, right);
+		}
+
+		public Range TightRange(int i, Settings settings)
+		{
+			var range = Range(i, settings);
+			if (i > 0)
+			{
+				range = range.Intersect(Corners[i - 1] + settings.MinRunLength, int.MaxValue);
+			}
+			if (i + 1 < Corners.Length)
+			{
+				range = range.Intersect(int.MinValue, Corners[i + 1] - settings.MinRunLength);
+			}
+			return range;
+		}
 	}
 
 	private static bool DivideOrConquer(Subproblem subproblem, PRNG prng, Settings settings)
@@ -134,31 +163,17 @@ public static class CornerShifter
 		prng.Shuffle(splitIndexes);
 		foreach (var splitIndex in splitIndexes)
 		{
-			var myRange = new Range(subproblem.Prev[splitIndex] - settings.MaxShift, subproblem.Prev[splitIndex] + settings.MaxShift);
+			var myRange = subproblem.Range(splitIndex, settings);
+			//var myRange = new Range(subproblem.Prev[splitIndex] - settings.MaxShift, subproblem.Prev[splitIndex] + settings.MaxShift);
 
-			myRange = myRange.Intersect(subproblem.MinX, subproblem.MaxX);
+			//myRange = myRange.Intersect(subproblem.MinX, subproblem.MaxX);
 
 			// Can't shift beyond previous neighbors
-			myRange = myRange.Intersect(subproblem.Prev[splitIndex - 1], subproblem.Prev[splitIndex + 1]);
+			//myRange = myRange.Intersect(subproblem.Prev[splitIndex - 1], subproblem.Prev[splitIndex + 1]);
 
 			// Make sure we will have enough room for the 2 subproblems (left and right)
-			// we are about to create.
-			// For example, if we choose 3 as the splitIndex we must leave room on the left side for:
-			// * item[0]
-			// * minRunLength
-			// * item[1]
-			// * minRunLength
-			// * item[2]
-			// * minRunLength
-			int minWidthLeft = splitIndex * (settings.MinRunLength + 1);
-			// ... and then we have the current item, which doesn't count towards either limit
-			// * item[3]
-			// ... and then we would also need to leave room on the right side for
-			// * minRunLength
-			// * item[4]
-			// * minRunLength
-			// * item[5]
-			int minWidthRight = (subproblem.Corners.Length - splitIndex) * (settings.MinRunLength + 1);
+			int minWidthLeft = splitIndex * settings.MinRunLength;
+			int minWidthRight = (subproblem.Corners.Length - splitIndex) * settings.MinRunLength;
 
 			// For a simple example, let's imagine that minWidthLeft is 6 representing 1 neighbor
 			// plus a MinRunLength of 5. In that case, if MinX is 100 that means the range [100..105]
@@ -166,7 +181,7 @@ public static class CornerShifter
 			myRange = myRange.Intersect(subproblem.MinX + minWidthLeft, subproblem.MaxX - minWidthRight);
 			if (myRange.IsInfeasible)
 			{
-				return false;
+				continue;
 			}
 
 			var xChoices = Enumerable.Range(myRange.xMin, myRange.Width).ToList();
@@ -211,18 +226,68 @@ public static class CornerShifter
 	{
 		if ("TESTING".Length > 0) // testing Divide() only for now...
 		{
-			int x = subproblem.MinX;
-			for (int i = 0; i < subproblem.Corners.Length; i++)
+			var corners = subproblem.Corners;
+
+			for (int i = 0; i < corners.Length; i++)
 			{
-				subproblem.Corners[i] = x;
-				x += settings.MinRunLength;
+				var range = subproblem.Range(i, settings);
+				corners[i] = range.RandomX(prng);
 			}
 
-			x -= settings.MinRunLength;
-			if (x > subproblem.MaxX)
+			// Now we have to enforce MinRunLength.
+			// Metaphorically, we can call corners "posts" and runs "fences".
+			// We have N posts and N-1 fences.
+			// We say that the Nth fence connects post N to post N+1.
+			// In other words, if unresolved.Contains(3) that means we have not ensured that
+			// corners[4] - corners[3] >= MinRunLength.
+			int numRuns = corners.Length - 1;
+			var unresolvedFences = new Queue<int>(Enumerable.Range(0, numRuns));
+			while (unresolvedFences.TryDequeue(out int i))
 			{
-				throw new Exception("Assert fail - not enough room left for Conquer()");
+				if (i < 0 || i >= numRuns) // we don't do bounds checks when adding to the queue
+				{
+					continue;
+				}
+
+				int runLength = corners[i + 1] - corners[i];
+				if (runLength >= settings.MinRunLength)
+				{
+					continue; // already resolved
+				}
+
+				// If either the left post or the right post has a valid tight range,
+				// then we know that moving that post within that range will resolve the
+				// current fence and will not cause any other fences to unresolve.
+				var tightRangeLeft = (0, subproblem.TightRange(i, settings));
+				var tightRangeRight = (1, subproblem.TightRange(i + 1, settings));
+				var tightRange = tightRangeLeft.Item2.Width > 0 ? tightRangeLeft.AsNullable() : null;
+				if (tightRangeRight.Item2.Width > 0)
+				{
+					if (tightRange == null || prng.NextInt32(2) == 0)
+					{
+						tightRange = tightRangeRight;
+					}
+				}
+
+				if (tightRange.HasValue)
+				{
+					i += tightRange.Value.Item1;
+					corners[i] = tightRange.Value.Item2.RandomX(prng);
+				}
+				else
+				{
+					// Neither left nor right has a tight range, too bad.
+					// Randomly choose the left or right post and move it
+					// to a random position anywhere in its feasible range.
+					// Assuming there is a valid solution, we will eventually land on it.
+					i += prng.NextInt32(2);
+					corners[i] = subproblem.Range(i, settings).RandomX(prng);
+					unresolvedFences.Enqueue(i - 1);
+					unresolvedFences.Enqueue(i);
+				}
 			}
+
+			return true;
 		}
 
 		// A simplified, self-contained version of the ShiftCorners logic, adapted for a subproblem.

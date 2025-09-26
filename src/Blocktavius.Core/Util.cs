@@ -8,6 +8,11 @@ namespace Blocktavius.Core;
 
 public static class Util
 {
+	public static T? AsNullable<T>(this T item) where T : struct
+	{
+		return item;
+	}
+
 	public static IEnumerable<T> WhereNotNull<T>(this IEnumerable<T?> sequence)
 	{
 		return sequence.Where(x => x != null)!;

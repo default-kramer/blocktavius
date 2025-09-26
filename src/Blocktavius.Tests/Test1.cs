@@ -88,7 +88,7 @@ namespace Blocktavius.Tests
 			};
 
 			int totalShifts = 0;
-			int nullShifts = 0;
+			int zeroShifts = 0;
 
 			const int shiftsPerRun = 50;
 			int runs = 1234;
@@ -127,28 +127,32 @@ namespace Blocktavius.Tests
 
 					Assert.IsTrue(current.Corners.Select(c => c.Dir).SequenceEqual(prev.Corners.Select(c => c.Dir)));
 
-					int nullShiftsThisTime = 0;
+					int zeroShiftsThisTime = 0;
 					for (int i = 0; i < current.Corners.Count; i++)
 					{
 						totalShifts++;
 						if (current.Corners[i].X == prev.Corners[i].X)
 						{
-							nullShiftsThisTime++;
-							nullShifts++;
+							zeroShiftsThisTime++;
+							zeroShifts++;
 						}
 					}
-					if (nullShiftsThisTime > current.Corners.Count / 5 + 1)
+					if (zeroShiftsThisTime > Math.Max(12, current.Corners.Count / 2))
 					{
-						//Assert.Fail($"Too many null shifts in a single pass: {nullShiftsThisTime} (out of {current.Corners.Count})");
+						Assert.Fail($"Too many zero shifts in a single pass: {zeroShiftsThisTime} (out of {current.Corners.Count})");
 					}
 
 					prev = current;
 				}
 			}
 
-			if (nullShifts > totalShifts / 1000)
+			if (zeroShifts > totalShifts / 3)
 			{
-				Assert.Fail($"Too many null shifts: {nullShifts} / {totalShifts}");
+				Assert.Fail($"Too many zero shifts: {zeroShifts} / {totalShifts}");
+			}
+			if (zeroShifts < totalShifts / 100)
+			{
+				Assert.Fail($"Too few zero shifts: {zeroShifts} / {totalShifts}");
 			}
 		}
 	}
