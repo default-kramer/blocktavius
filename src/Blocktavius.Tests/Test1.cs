@@ -52,6 +52,9 @@ namespace Blocktavius.Tests
 			var prng = PRNG.Create(new Random());
 			Console.WriteLine(prng.Serialize());
 
+			// TODO this seeds fails:
+			//var prng = PRNG.Deserialize("3309110861-16864670-3535033132-2513591414-720943084-1714556781");
+
 			for (int i = 0; i < 1000; i++)
 			{
 				var cliff = Blocktavius.Core.Generators.Cliffs.QuaintCliff.Generate(prng, 100, 60);
