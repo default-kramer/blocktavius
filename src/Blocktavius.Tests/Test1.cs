@@ -93,6 +93,9 @@ namespace Blocktavius.Tests
 			int totalShifts = 0;
 			int zeroShifts = 0;
 
+			int totalRuns = 0;
+			int longRuns = 0;
+
 			const int shiftsPerRun = 50;
 			int runs = 1234;
 
@@ -116,9 +119,14 @@ namespace Blocktavius.Tests
 
 					for (int i = 1; i < workingCopy.Count; i++)
 					{
+						totalRuns++;
 						int runLength = workingCopy[i].X - workingCopy[i - 1].X;
 						Assert.IsTrue(runLength >= settings.MinRunLength);
 						//Assert.IsTrue(runLength <= settings.MaxRunLength);
+						if (runLength > settings.MaxRunLength)
+						{
+							longRuns++;
+						}
 						Assert.IsTrue(workingCopy[i].X > workingCopy[i - 1].X);
 
 						Assert.IsTrue(workingCopy[i].X >= prev.Corners[i - 1].X);
@@ -149,6 +157,10 @@ namespace Blocktavius.Tests
 				}
 			}
 
+			if (longRuns > totalRuns / 20)
+			{
+				Assert.Fail($"Too many long runs: {longRuns} / {totalRuns}");
+			}
 			if (zeroShifts > totalShifts / 3)
 			{
 				Assert.Fail($"Too many zero shifts: {zeroShifts} / {totalShifts}");
