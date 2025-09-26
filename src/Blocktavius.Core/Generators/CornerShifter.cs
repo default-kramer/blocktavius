@@ -215,28 +215,30 @@ public static class CornerShifter
 		{
 			var myRange = subproblem.ImmutableRange(splitIndex, settings);
 
-			// Make sure we will have enough room for the 2 subproblems (left and right).
-			// For example, if we have Length=5 that means we have 4 runs;
-			// and if we choose splitIndex=3 that means we have 3 runs to the left and 1 run to the right.
-			int minWidthLeft = splitIndex * settings.MinRunLength;
-			int minWidthRight = (subproblem.Corners.Length - 1 - splitIndex) * settings.MinRunLength;
-
-			// For example, imagine that we have
-			//   minWidthLeft = 6
-			//   minWidthRight = 3
-			//   MinX = 100
-			//   MaxX = 120
-			// That means we have the following ranges
-			//   [100..105] reserved for the left subproblem
-			//   [106..117] range this pivot index could have without dooming either subproblem
-			//   [118..120] reserved for the right subproblem.
-			// Those "reserved" ranges become irrelevant soon - when we choose a value for the pivot index
-			// we recurse into the left and right subproblems using the actual ranges based on that choice.
-			myRange = myRange.Intersect(subproblem.MinX + minWidthLeft, subproblem.MaxX - minWidthRight);
-			if (myRange.IsInfeasible)
+			if ("false".Length == 0) // NOMERGE - this is doing nothing, right?
 			{
-				// NOMERGE - This never happens, right? (The Intersect call does not change anything.)
-				continue;
+				// Make sure we will have enough room for the 2 subproblems (left and right).
+				// For example, if we have Length=5 that means we have 4 runs;
+				// and if we choose splitIndex=3 that means we have 3 runs to the left and 1 run to the right.
+				int minWidthLeft = splitIndex * settings.MinRunLength;
+				int minWidthRight = (subproblem.Corners.Length - 1 - splitIndex) * settings.MinRunLength;
+
+				// For example, imagine that we have
+				//   minWidthLeft = 6
+				//   minWidthRight = 3
+				//   MinX = 100
+				//   MaxX = 120
+				// That means we have the following ranges
+				//   [100..105] reserved for the left subproblem
+				//   [106..117] range this pivot index could have without dooming either subproblem
+				//   [118..120] reserved for the right subproblem.
+				// Those "reserved" ranges become irrelevant soon - when we choose a value for the pivot index
+				// we recurse into the left and right subproblems using the actual ranges based on that choice.
+				myRange = myRange.Intersect(subproblem.MinX + minWidthLeft, subproblem.MaxX - minWidthRight);
+				if (myRange.IsInfeasible)
+				{
+					continue;
+				}
 			}
 
 			var xChoices = Enumerable.Range(myRange.xMin, myRange.Width).ToList();
@@ -274,12 +276,6 @@ public static class CornerShifter
 				}
 				else if (DivideOrConquer(left, prng, settings) && DivideOrConquer(right, prng, settings))
 				{
-					int runLengthLeft = myX - left.Corners[splitIndex - 1];
-					int runLengthRight = right.Corners[0] - myX;
-					if (runLengthLeft > settings.MaxRunLength || runLengthRight > settings.MaxRunLength)
-					{
-						var asdf = 99.ToString();
-					}
 					return true;
 				}
 			}
