@@ -10,6 +10,9 @@ public static class CornerShifter
 {
 	public record Settings
 	{
+		public required bool CanRelaxMaxRunLength { get; init; }
+		public required bool CanRelaxMinRunLength { get; init; }
+
 		public required int MaxShift { get; init; }
 		public required int Width { get; init; }
 		public required int MinRunLength { get; init; }
@@ -90,7 +93,8 @@ public static class CornerShifter
 			return new Range(Math.Max(xMin, this.xMin), Math.Min(xMax, this.xMax));
 		}
 
-		public Range Intersect(Range other) => Intersect(other.xMin, other.xMax);
+		public Range ConstrainLeft(int left) => new Range(Math.Max(xMin, left), xMax);
+		public Range ConstrainRight(int right) => new Range(xMin, Math.Min(xMax, right));
 
 		public int RandomX(PRNG prng) => prng.NextInt32(xMin, xMax + 1);
 	}
@@ -114,6 +118,15 @@ public static class CornerShifter
 		/// </summary>
 		public required int MaxX { get; init; }
 
+		// We need to store the artificial (boundary) posts separately from MinX/MaxX because
+		// each post gives us a range (using the min+max run lengths) whereas MinX/MaxX are used
+		// for the constraints prev[0-1] and prev[last+1]...
+		// ...Maybe it would be smarter to not slice the spans, and use indexStart and indexEnd instead?
+		// Then you could derive the "artificial posts" as Corners[indexStart-1] and Corners[indexEnd]
+		// and you could derive MinX and MaxX as Prev[indexStart-1] and Corners[indexEnd]
+		public required int ArtificialPostLeft { get; init; }
+		public required int ArtificialPostRight { get; init; }
+
 		/// <summary>
 		/// Returns the range for <paramref name="i"/> based on immutable information,
 		/// such as the previous layer and the settings.
@@ -121,17 +134,36 @@ public static class CornerShifter
 		/// </summary>
 		public Range ImmutableRange(int i, Settings settings)
 		{
-			int left = Math.Max(this.MinX, Prev[i] - settings.MaxShift);
-			int right = Math.Min(this.MaxX, Prev[i] + settings.MaxShift);
-			if (i > 0)
+			var range = new Range(Prev[i] - settings.MaxShift, Prev[i] + settings.MaxShift);
+			range = range.ConstrainLeft(MinX).ConstrainRight(MaxX);
+
+			if (i == 0)
 			{
-				left = Math.Max(left, Prev[i - 1]);
+				// Normally the immutable range does not consider run lengths,
+				// but the artificial posts are special because they are immutable.
+				// Furthermore, the splitting logic requires this so it can detect a
+				// split which violates the max run length.
+				range = range
+					.ConstrainLeft(ArtificialPostLeft + settings.MinRunLength)
+					.ConstrainRight(ArtificialPostLeft + settings.MaxRunLength);
 			}
-			if (i + 1 < Prev.Length)
+			else
 			{
-				right = Math.Min(right, Prev[i + 1]);
+				range = range.ConstrainLeft(Prev[i - 1]);
 			}
-			return new Range(left, right);
+
+			if (i + 1 == Prev.Length)
+			{
+				range = range
+					.ConstrainLeft(ArtificialPostRight - settings.MaxRunLength)
+					.ConstrainRight(ArtificialPostRight - settings.MinRunLength);
+			}
+			else
+			{
+				range = range.ConstrainRight(Prev[i + 1]);
+			}
+
+			return range;
 		}
 
 		/// <summary>
@@ -142,16 +174,23 @@ public static class CornerShifter
 		/// </summary>
 		public Range DynamicRange(int i, Settings settings)
 		{
-			var range = ImmutableRange(i, settings);
+			int leftPost = ArtificialPostLeft;
+			int rightPost = ArtificialPostRight;
+
 			if (i > 0)
 			{
-				range = range.Intersect(Corners[i - 1] + settings.MinRunLength, int.MaxValue);
+				leftPost = Corners[i - 1];
 			}
 			if (i + 1 < Corners.Length)
 			{
-				range = range.Intersect(int.MinValue, Corners[i + 1] - settings.MinRunLength);
+				rightPost = Corners[i + 1];
 			}
-			return range;
+
+			return ImmutableRange(i, settings)
+				.ConstrainLeft(leftPost + settings.MinRunLength)
+				.ConstrainRight(leftPost + settings.MaxRunLength)
+				.ConstrainLeft(rightPost - settings.MaxRunLength)
+				.ConstrainRight(rightPost - settings.MinRunLength);
 		}
 	}
 
@@ -196,11 +235,13 @@ public static class CornerShifter
 			myRange = myRange.Intersect(subproblem.MinX + minWidthLeft, subproblem.MaxX - minWidthRight);
 			if (myRange.IsInfeasible)
 			{
+				// NOMERGE - This never happens, right? (The Intersect call does not change anything.)
 				continue;
 			}
 
 			var xChoices = Enumerable.Range(myRange.xMin, myRange.Width).ToList();
 			prng.Shuffle(xChoices);
+
 			foreach (var myX in xChoices)
 			{
 				subproblem.Corners[splitIndex] = myX;
@@ -210,18 +251,35 @@ public static class CornerShifter
 					Corners = subproblem.Corners.Slice(0, splitIndex),
 					Prev = subproblem.Prev.Slice(0, splitIndex),
 					MinX = subproblem.MinX,
-					MaxX = Math.Min(myX - settings.MinRunLength, subproblem.Prev[splitIndex]),
+					MaxX = Math.Min(myX - 1, subproblem.Prev[splitIndex]),
+					ArtificialPostLeft = subproblem.ArtificialPostLeft,
+					ArtificialPostRight = myX,
 				};
 				var right = new Subproblem()
 				{
 					Corners = subproblem.Corners.Slice(splitIndex + 1),
 					Prev = subproblem.Prev.Slice(splitIndex + 1),
-					MinX = Math.Max(myX + settings.MinRunLength, subproblem.Prev[splitIndex]),
+					MinX = Math.Max(myX + 1, subproblem.Prev[splitIndex]),
 					MaxX = subproblem.MaxX,
+					ArtificialPostLeft = myX,
+					ArtificialPostRight = subproblem.ArtificialPostRight,
 				};
 
-				if (DivideOrConquer(left, prng, settings) && DivideOrConquer(right, prng, settings))
+				var ltest = left.ImmutableRange(splitIndex - 1, settings);
+				var rtest = right.ImmutableRange(0, settings);
+				if (Math.Min(ltest.Width, rtest.Width) < 1 || Math.Max(ltest.Width, rtest.Width) > settings.MaxRunLength)
 				{
+					// here is where we could put this choice of (splitIndex, x) into a queue of things we could try
+					// if we relax the settings... but seems not to be needed yet
+				}
+				else if (DivideOrConquer(left, prng, settings) && DivideOrConquer(right, prng, settings))
+				{
+					int runLengthLeft = myX - left.Corners[splitIndex - 1];
+					int runLengthRight = right.Corners[0] - myX;
+					if (runLengthLeft > settings.MaxRunLength || runLengthRight > settings.MaxRunLength)
+					{
+						var asdf = 99.ToString();
+					}
 					return true;
 				}
 			}
@@ -234,7 +292,33 @@ public static class CornerShifter
 		return false;
 	}
 
+	private static bool TryRelaxSettings(ref Settings settings)
+	{
+		if (settings.CanRelaxMaxRunLength && settings.MaxRunLength < settings.Width)
+		{
+			settings = settings with { MaxRunLength = settings.Width };
+			return true;
+		}
+		else if (settings.CanRelaxMinRunLength && settings.MinRunLength > 1)
+		{
+			settings = settings with { MinRunLength = settings.MinRunLength - 1 };
+			return true;
+		}
+		return false;
+	}
+
 	private static bool Conquer2(Subproblem subproblem, PRNG prng, Settings settings)
+	{
+		do
+		{
+			if (Conquer2(subproblem, prng, settings, retries: 1000)) { return true; }
+		}
+		while (TryRelaxSettings(ref settings));
+
+		return false;
+	}
+
+	private static bool Conquer2(Subproblem subproblem, PRNG prng, Settings settings, int retries)
 	{
 		var corners = subproblem.Corners;
 
@@ -261,9 +345,14 @@ public static class CornerShifter
 			}
 
 			int runLength = corners[i + 1] - corners[i];
-			if (runLength >= settings.MinRunLength)
+			if (runLength >= settings.MinRunLength && runLength <= settings.MaxRunLength)
 			{
 				continue; // already resolved
+			}
+
+			if (retries-- < 1)
+			{
+				return false;
 			}
 
 			// If either the left post or the right post has a nonzero dynamic range,
@@ -426,6 +515,8 @@ public static class CornerShifter
 			Prev = workingCopy.ToArray(), // make another copy that is now immutable
 			MinX = 0,
 			MaxX = settings.Width - 1,
+			ArtificialPostLeft = 0 - settings.MinRunLength,
+			ArtificialPostRight = (settings.Width - 1) + settings.MinRunLength,
 		};
 
 		if (DivideOrConquer(subproblem, prng, settings))

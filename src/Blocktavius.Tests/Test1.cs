@@ -88,6 +88,8 @@ namespace Blocktavius.Tests
 				MaxRunLength = 7,
 				MinRunLength = 1,
 				Width = 350,
+				CanRelaxMaxRunLength = false,
+				CanRelaxMinRunLength = false,
 			};
 
 			int totalShifts = 0;
@@ -161,6 +163,8 @@ namespace Blocktavius.Tests
 			{
 				Assert.Fail($"Too many long runs: {longRuns} / {totalRuns}");
 			}
+			Assert.AreEqual(0, longRuns); // Oh yeah!
+
 			if (zeroShifts > totalShifts / 3)
 			{
 				Assert.Fail($"Too many zero shifts: {zeroShifts} / {totalShifts}");
