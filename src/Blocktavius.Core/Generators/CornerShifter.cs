@@ -505,14 +505,19 @@ public static class CornerShifter
 	{
 		var workingCopy = previous.Corners.Select(c => c.X).ToArray();
 
+		// By convention, a corner having X=3 represents a change from X=3 to X=4.
+		// So a corner at X=0 is fine, but a corner in the last position would be
+		// equivalent to no corner at all. So subtract 2 instead of 1 here:
+		int maxX = settings.Width - 2;
+
 		var subproblem = new Subproblem()
 		{
 			Corners = workingCopy,
 			Prev = workingCopy.ToArray(), // make another copy that is now immutable
 			MinX = 0,
-			MaxX = settings.Width - 1,
+			MaxX = maxX,
 			ArtificialPostLeft = 0 - settings.MinRunLength,
-			ArtificialPostRight = (settings.Width - 1) + settings.MinRunLength,
+			ArtificialPostRight = maxX + settings.MinRunLength,
 		};
 
 		if (DivideOrConquer(subproblem, prng, settings))

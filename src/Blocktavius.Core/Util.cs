@@ -43,10 +43,6 @@ public static class Util
 	{
 		var relative = newTopLeft.Subtract(sampler.Bounds.start);
 		var result = sampler.Translate(relative);
-		if (result.Bounds.start != XZ.Zero)
-		{
-			throw new Exception("assert fail! NOMERGE");
-		}
 		return result;
 	}
 

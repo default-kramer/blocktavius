@@ -218,7 +218,8 @@ public sealed class TileTagger<TTag> where TTag : notnull
 		//return TODO.BuildHills(regions, prng, maxElevation);
 		//return Generators.TODO.BuildHill(regions.Single(), maxElevation, prng);
 		//return Generators.TODO.OtherHill(regions.Single(), maxElevation, prng);
-		return Generators.TODO.SimpleHill(regions.Single(), maxElevation, prng, 3, 2);
+		//return Generators.TODO.SimpleHill(regions.Single(), maxElevation, prng, 3, 2);
+		return Generators.CornerShifterHill.BuildNewHill(regions.Single().Bounds, prng, new Elevation(maxElevation - 10), new Elevation(maxElevation));
 	}
 
 	/// <summary>
