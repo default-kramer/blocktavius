@@ -110,7 +110,7 @@ Overall progress
 */
 internal class FencepostShifter
 {
-	public sealed record Settings
+	internal sealed record Settings
 	{
 		public required int MaxNudge { get; init; }
 		public required int TotalLength { get; init; }
@@ -118,7 +118,25 @@ internal class FencepostShifter
 		public required int MaxFenceLength { get; init; }
 	}
 
-	record struct Post(int X, Range IroncladRange);
+	internal record struct Post(int X, Range IroncladRange);
+
+	internal sealed record ResolutionPlan
+	{
+		public required int AvailableSpace { get; init; }
+		public required Stack<(int PostIndex, int PlannedPosition)> PlannedAdjustments { get; init; }
+
+		public static ResolutionPlan Empty => new()
+		{
+			AvailableSpace = 0,
+			PlannedAdjustments = new Stack<(int, int)>()
+		};
+
+		public static ResolutionPlan NoSpace => new()
+		{
+			AvailableSpace = -1,
+			PlannedAdjustments = new Stack<(int, int)>()
+		};
+	}
 
 	private static IReadOnlyList<Range> BuildIroncladRanges(IReadOnlyList<int> posts, Settings settings)
 	{
@@ -138,12 +156,288 @@ internal class FencepostShifter
 			}
 			if (i < posts.Count - 1)
 			{
-				range = range.ConstrainRight(posts[i + 1] - settings.MinFenceLength);
+				range = range.ConstrainRight(posts[i + 1] - 1);
 			}
 
 			ranges[i] = range;
 		}
 
 		return ranges;
+	}
+
+	private static ResolutionPlan PullLeftCloser(IReadOnlyList<Post> posts, int fenceIndex, int spaceRequested, Settings settings)
+	{
+		int leftPostIndex = fenceIndex - 1;
+
+		if (leftPostIndex < 0)
+			return ResolutionPlan.NoSpace;
+
+		var leftPost = posts[leftPostIndex];
+		int maxLeftMove = leftPost.X - leftPost.IroncladRange.xMin;
+
+		if (maxLeftMove <= 0)
+			return ResolutionPlan.NoSpace;
+
+		int spaceAvailable = Math.Min(maxLeftMove, spaceRequested);
+		int newLeftPosition = leftPost.X - spaceAvailable;
+
+		var plan = new ResolutionPlan
+		{
+			AvailableSpace = spaceAvailable,
+			PlannedAdjustments = new Stack<(int, int)>()
+		};
+		plan.PlannedAdjustments.Push((leftPostIndex, newLeftPosition));
+
+		return plan;
+	}
+
+	private static ResolutionPlan PullRightCloser(IReadOnlyList<Post> posts, int fenceIndex, int spaceRequested, Settings settings)
+	{
+		int rightPostIndex = fenceIndex;
+
+		if (rightPostIndex >= posts.Count)
+			return ResolutionPlan.NoSpace;
+
+		var rightPost = posts[rightPostIndex];
+		int maxRightMove = rightPost.IroncladRange.xMax - rightPost.X;
+
+		if (maxRightMove <= 0)
+			return ResolutionPlan.NoSpace;
+
+		int spaceAvailable = Math.Min(maxRightMove, spaceRequested);
+		int newRightPosition = rightPost.X + spaceAvailable;
+
+		var plan = new ResolutionPlan
+		{
+			AvailableSpace = spaceAvailable,
+			PlannedAdjustments = new Stack<(int, int)>()
+		};
+		plan.PlannedAdjustments.Push((rightPostIndex, newRightPosition));
+
+		return plan;
+	}
+
+	private static ResolutionPlan PushLeftAway(IReadOnlyList<Post> posts, int fenceIndex, int spaceRequested, Settings settings)
+	{
+		int leftPostIndex = fenceIndex - 1;
+		int rightPostIndex = fenceIndex;
+
+		if (leftPostIndex < 0 || rightPostIndex >= posts.Count)
+			return ResolutionPlan.NoSpace;
+
+		var rightPost = posts[rightPostIndex];
+		int maxRightMove = rightPost.IroncladRange.xMax - rightPost.X;
+		int spaceFromRightMove = Math.Min(maxRightMove, spaceRequested);
+
+		if (spaceFromRightMove >= spaceRequested)
+		{
+			var plan = new ResolutionPlan
+			{
+				AvailableSpace = spaceFromRightMove,
+				PlannedAdjustments = new Stack<(int, int)>()
+			};
+			plan.PlannedAdjustments.Push((rightPostIndex, rightPost.X + spaceFromRightMove));
+			return plan;
+		}
+
+		var leftPost = posts[leftPostIndex];
+		int maxLeftMove = leftPost.X - leftPost.IroncladRange.xMin;
+
+		if (maxLeftMove <= 0)
+		{
+			var plan = new ResolutionPlan
+			{
+				AvailableSpace = spaceFromRightMove,
+				PlannedAdjustments = new Stack<(int, int)>()
+			};
+			plan.PlannedAdjustments.Push((rightPostIndex, rightPost.X + spaceFromRightMove));
+			return plan;
+		}
+
+		int remainingSpaceNeeded = spaceRequested - spaceFromRightMove;
+		var recursivePlan = PushLeftAway(posts, fenceIndex - 1, remainingSpaceNeeded, settings);
+
+		int totalAvailableSpace = spaceFromRightMove + Math.Max(0, recursivePlan.AvailableSpace);
+
+		var combinedPlan = new ResolutionPlan
+		{
+			AvailableSpace = totalAvailableSpace,
+			PlannedAdjustments = new Stack<(int, int)>(recursivePlan.PlannedAdjustments)
+		};
+
+		if (spaceFromRightMove > 0)
+			combinedPlan.PlannedAdjustments.Push((rightPostIndex, rightPost.X + spaceFromRightMove));
+
+		return combinedPlan;
+	}
+
+	private static ResolutionPlan PushRightAway(IReadOnlyList<Post> posts, int fenceIndex, int spaceRequested, Settings settings)
+	{
+		int leftPostIndex = fenceIndex - 1;
+		int rightPostIndex = fenceIndex;
+
+		if (leftPostIndex < 0 || rightPostIndex >= posts.Count)
+			return ResolutionPlan.NoSpace;
+
+		var leftPost = posts[leftPostIndex];
+		int maxLeftMove = leftPost.X - leftPost.IroncladRange.xMin;
+		int spaceFromLeftMove = Math.Min(maxLeftMove, spaceRequested);
+
+		if (spaceFromLeftMove >= spaceRequested)
+		{
+			var plan = new ResolutionPlan
+			{
+				AvailableSpace = spaceFromLeftMove,
+				PlannedAdjustments = new Stack<(int, int)>()
+			};
+			plan.PlannedAdjustments.Push((leftPostIndex, leftPost.X - spaceFromLeftMove));
+			return plan;
+		}
+
+		var rightPost = posts[rightPostIndex];
+		int maxRightMove = rightPost.IroncladRange.xMax - rightPost.X;
+
+		if (maxRightMove <= 0)
+		{
+			var plan = new ResolutionPlan
+			{
+				AvailableSpace = spaceFromLeftMove,
+				PlannedAdjustments = new Stack<(int, int)>()
+			};
+			plan.PlannedAdjustments.Push((leftPostIndex, leftPost.X - spaceFromLeftMove));
+			return plan;
+		}
+
+		int remainingSpaceNeeded = spaceRequested - spaceFromLeftMove;
+		var recursivePlan = PushRightAway(posts, fenceIndex + 1, remainingSpaceNeeded, settings);
+
+		int totalAvailableSpace = spaceFromLeftMove + Math.Max(0, recursivePlan.AvailableSpace);
+
+		var combinedPlan = new ResolutionPlan
+		{
+			AvailableSpace = totalAvailableSpace,
+			PlannedAdjustments = new Stack<(int, int)>(recursivePlan.PlannedAdjustments)
+		};
+
+		if (spaceFromLeftMove > 0)
+			combinedPlan.PlannedAdjustments.Push((leftPostIndex, leftPost.X - spaceFromLeftMove));
+
+		return combinedPlan;
+	}
+
+	private static void ApplyResolutionPlans(List<Post> posts, int spaceNeeded, ResolutionPlan leftPlan, ResolutionPlan rightPlan)
+	{
+		int totalAvailableSpace = Math.Max(0, leftPlan.AvailableSpace) + Math.Max(0, rightPlan.AvailableSpace);
+
+		if (totalAvailableSpace < spaceNeeded)
+			throw new InvalidOperationException("Insufficient space to resolve fence violation");
+
+		double leftRatio = leftPlan.AvailableSpace > 0 ? (double)leftPlan.AvailableSpace / totalAvailableSpace : 0;
+		int spaceFromLeft = Math.Min(spaceNeeded, leftPlan.AvailableSpace > 0 ? (int)(spaceNeeded * leftRatio) : 0);
+		int spaceFromRight = Math.Min(spaceNeeded - spaceFromLeft, rightPlan.AvailableSpace);
+
+		var leftAdjustments = spaceFromLeft > 0 ? leftPlan.PlannedAdjustments : Enumerable.Empty<(int, int)>();
+		var rightAdjustments = spaceFromRight > 0 ? rightPlan.PlannedAdjustments : Enumerable.Empty<(int, int)>();
+
+		foreach (var (postIndex, plannedPosition) in leftAdjustments.Concat(rightAdjustments))
+		{
+			var currentPost = posts[postIndex];
+			posts[postIndex] = currentPost with { X = plannedPosition };
+		}
+	}
+
+	public static IReadOnlyList<int> ShiftPosts(IReadOnlyList<int> originalPosts, Settings settings, PRNG prng)
+	{
+		var ironcladRanges = BuildIroncladRanges(originalPosts, settings);
+		var posts = new List<Post>();
+
+		for (int i = 0; i < originalPosts.Count; i++)
+		{
+			var range = ironcladRanges[i];
+			int nudgedPosition = range.RandomX(prng);
+			posts.Add(new Post(nudgedPosition, range));
+		}
+
+		while (true)
+		{
+			int? violatingFenceIndex = FindViolatingFence(posts, settings);
+			if (violatingFenceIndex == null)
+				break;
+
+			ResolveFenceViolation(posts, violatingFenceIndex.Value, settings);
+		}
+
+		return posts.Select(p => p.X).ToList();
+	}
+
+	private static int? FindViolatingFence(IReadOnlyList<Post> posts, Settings settings)
+	{
+		for (int fenceIndex = 0; fenceIndex <= posts.Count; fenceIndex++)
+		{
+			int fenceLength = GetFenceLength(posts, fenceIndex, settings.TotalLength);
+
+			if (fenceLength < settings.MinFenceLength || fenceLength > settings.MaxFenceLength)
+				return fenceIndex;
+		}
+		return null;
+	}
+
+	private static int GetFenceLength(IReadOnlyList<Post> posts, int fenceIndex, int totalLength)
+	{
+		int fenceStart = fenceIndex == 0 ? 0 : posts[fenceIndex - 1].X;
+		int fenceEnd = fenceIndex == posts.Count ? totalLength : posts[fenceIndex].X;
+		return fenceEnd - fenceStart;
+	}
+
+	private static void ResolveFenceViolation(List<Post> posts, int fenceIndex, Settings settings)
+	{
+		int fenceLength = GetFenceLength(posts, fenceIndex, settings.TotalLength);
+		int excess = fenceLength - settings.MaxFenceLength;
+		int shortage = settings.MinFenceLength - fenceLength;
+
+		if (excess > 0)
+		{
+			var leftPlan = PullLeftCloser(posts, fenceIndex, excess, settings);
+			var rightPlan = PullRightCloser(posts, fenceIndex, excess, settings);
+
+			if (leftPlan.AvailableSpace < 0 && rightPlan.AvailableSpace < 0)
+				throw new InvalidOperationException("Cannot resolve fence violation - no valid solution exists");
+
+			ApplyResolutionPlans(posts, excess, leftPlan, rightPlan);
+		}
+		else if (shortage > 0)
+		{
+			var leftPlan = PushLeftAway(posts, fenceIndex, shortage, settings);
+			var rightPlan = PushRightAway(posts, fenceIndex, shortage, settings);
+
+			if (leftPlan.AvailableSpace < 0 && rightPlan.AvailableSpace < 0)
+				throw new InvalidOperationException("Cannot resolve fence violation - no valid solution exists");
+
+			ApplyResolutionPlans(posts, shortage, leftPlan, rightPlan);
+		}
+	}
+
+	internal static class TestHelper
+	{
+		public static ResolutionPlan PullLeftCloser(IReadOnlyList<Post> posts, int fenceIndex, int spaceRequested, Settings settings)
+			=> FencepostShifter.PullLeftCloser(posts, fenceIndex, spaceRequested, settings);
+
+		public static ResolutionPlan PullRightCloser(IReadOnlyList<Post> posts, int fenceIndex, int spaceRequested, Settings settings)
+			=> FencepostShifter.PullRightCloser(posts, fenceIndex, spaceRequested, settings);
+
+		public static ResolutionPlan PushLeftAway(IReadOnlyList<Post> posts, int fenceIndex, int spaceRequested, Settings settings)
+			=> FencepostShifter.PushLeftAway(posts, fenceIndex, spaceRequested, settings);
+
+		public static ResolutionPlan PushRightAway(IReadOnlyList<Post> posts, int fenceIndex, int spaceRequested, Settings settings)
+			=> FencepostShifter.PushRightAway(posts, fenceIndex, spaceRequested, settings);
+
+		public static IReadOnlyList<Range> BuildIroncladRanges(IReadOnlyList<int> posts, Settings settings)
+			=> FencepostShifter.BuildIroncladRanges(posts, settings);
+
+		public static int? FindViolatingFence(IReadOnlyList<Post> posts, Settings settings)
+			=> FencepostShifter.FindViolatingFence(posts, settings);
+
+		public static void ResolveFenceViolation(List<Post> posts, int fenceIndex, Settings settings)
+			=> FencepostShifter.ResolveFenceViolation(posts, fenceIndex, settings);
 	}
 }
