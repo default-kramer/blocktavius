@@ -332,14 +332,31 @@ internal class FencepostShifter
 		if (totalAvailableSpace < spaceNeeded)
 			throw new InvalidOperationException("Insufficient space to resolve fence violation");
 
-		double leftRatio = leftPlan.AvailableSpace > 0 ? (double)leftPlan.AvailableSpace / totalAvailableSpace : 0;
-		int spaceFromLeft = Math.Min(spaceNeeded, leftPlan.AvailableSpace > 0 ? (int)(spaceNeeded * leftRatio) : 0);
-		int spaceFromRight = Math.Min(spaceNeeded - spaceFromLeft, rightPlan.AvailableSpace);
+		// Apply minimal adjustments to get the required space
+		int spaceStillNeeded = spaceNeeded;
 
-		var leftAdjustments = spaceFromLeft > 0 ? leftPlan.PlannedAdjustments : Enumerable.Empty<(int, int)>();
-		var rightAdjustments = spaceFromRight > 0 ? rightPlan.PlannedAdjustments : Enumerable.Empty<(int, int)>();
+		// Apply left plan adjustments first
+		if (spaceStillNeeded > 0 && leftPlan.AvailableSpace > 0)
+		{
+			int spaceFromLeft = Math.Min(spaceStillNeeded, leftPlan.AvailableSpace);
+			ApplyAdjustmentsForSpace(posts, leftPlan.PlannedAdjustments, spaceFromLeft);
+			spaceStillNeeded -= spaceFromLeft;
+		}
 
-		foreach (var (postIndex, plannedPosition) in leftAdjustments.Concat(rightAdjustments))
+		// Apply right plan adjustments if still needed
+		if (spaceStillNeeded > 0 && rightPlan.AvailableSpace > 0)
+		{
+			int spaceFromRight = Math.Min(spaceStillNeeded, rightPlan.AvailableSpace);
+			ApplyAdjustmentsForSpace(posts, rightPlan.PlannedAdjustments, spaceFromRight);
+			spaceStillNeeded -= spaceFromRight;
+		}
+	}
+
+	private static void ApplyAdjustmentsForSpace(List<Post> posts, Stack<(int, int)> adjustments, int spaceNeeded)
+	{
+		// For now, apply all adjustments (this is a simplified approach)
+		// A more sophisticated version would calculate the exact adjustments needed
+		foreach (var (postIndex, plannedPosition) in adjustments)
 		{
 			var currentPost = posts[postIndex];
 			posts[postIndex] = currentPost with { X = plannedPosition };
@@ -358,6 +375,9 @@ internal class FencepostShifter
 			posts.Add(new Post(nudgedPosition, range));
 		}
 
+		// First, ensure all posts are within their ironclad ranges and in ascending order
+		EnsurePostsAreValid(posts);
+
 		while (true)
 		{
 			int? violatingFenceIndex = FindViolatingFence(posts, settings);
@@ -368,6 +388,52 @@ internal class FencepostShifter
 		}
 
 		return posts.Select(p => p.X).ToList();
+	}
+
+	private static void EnsurePostsAreValid(List<Post> posts)
+	{
+		// First pass: Move each post to within its ironclad range
+		for (int i = 0; i < posts.Count; i++)
+		{
+			var post = posts[i];
+			if (!post.IroncladRange.Contains(post.X))
+			{
+				// Move to the closest valid position within the range
+				int newX = Math.Max(post.IroncladRange.xMin, Math.Min(post.IroncladRange.xMax, post.X));
+				posts[i] = post with { X = newX };
+			}
+		}
+
+		// Second pass: Ensure ascending order while respecting ironclad ranges
+		for (int i = 1; i < posts.Count; i++)
+		{
+			if (posts[i].X <= posts[i - 1].X)
+			{
+				// Find a valid position for post i that's greater than post i-1
+				int minRequired = posts[i - 1].X + 1;
+				int newX = Math.Max(minRequired, posts[i].IroncladRange.xMin);
+
+				if (newX <= posts[i].IroncladRange.xMax)
+				{
+					posts[i] = posts[i] with { X = newX };
+				}
+				else
+				{
+					// If we can't fit post i after post i-1, try to move post i-1 left
+					int maxAllowedForPrevious = posts[i].IroncladRange.xMin - 1;
+					if (maxAllowedForPrevious >= posts[i - 1].IroncladRange.xMin)
+					{
+						posts[i - 1] = posts[i - 1] with { X = Math.Min(posts[i - 1].X, maxAllowedForPrevious) };
+						posts[i] = posts[i] with { X = posts[i].IroncladRange.xMin };
+					}
+					else
+					{
+						// Last resort: use ironclad range centers
+						posts[i] = posts[i] with { X = (posts[i].IroncladRange.xMin + posts[i].IroncladRange.xMax) / 2 };
+					}
+				}
+			}
+		}
 	}
 
 	private static int? FindViolatingFence(IReadOnlyList<Post> posts, Settings settings)
@@ -397,20 +463,22 @@ internal class FencepostShifter
 
 		if (excess > 0)
 		{
+			// Fence is too long, need to make it shorter by pulling posts closer
 			var leftPlan = PullLeftCloser(posts, fenceIndex, excess, settings);
 			var rightPlan = PullRightCloser(posts, fenceIndex, excess, settings);
 
-			if (leftPlan.AvailableSpace < 0 && rightPlan.AvailableSpace < 0)
+			if (Math.Max(0, leftPlan.AvailableSpace) + Math.Max(0, rightPlan.AvailableSpace) < excess)
 				throw new InvalidOperationException("Cannot resolve fence violation - no valid solution exists");
 
 			ApplyResolutionPlans(posts, excess, leftPlan, rightPlan);
 		}
 		else if (shortage > 0)
 		{
+			// Fence is too short, need to make it longer by pushing posts apart
 			var leftPlan = PushLeftAway(posts, fenceIndex, shortage, settings);
 			var rightPlan = PushRightAway(posts, fenceIndex, shortage, settings);
 
-			if (leftPlan.AvailableSpace < 0 && rightPlan.AvailableSpace < 0)
+			if (Math.Max(0, leftPlan.AvailableSpace) + Math.Max(0, rightPlan.AvailableSpace) < shortage)
 				throw new InvalidOperationException("Cannot resolve fence violation - no valid solution exists");
 
 			ApplyResolutionPlans(posts, shortage, leftPlan, rightPlan);
@@ -439,5 +507,8 @@ internal class FencepostShifter
 
 		public static void ResolveFenceViolation(List<Post> posts, int fenceIndex, Settings settings)
 			=> FencepostShifter.ResolveFenceViolation(posts, fenceIndex, settings);
+
+		public static void EnsurePostsAreValid(List<Post> posts)
+			=> FencepostShifter.EnsurePostsAreValid(posts);
 	}
 }
