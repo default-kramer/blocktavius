@@ -23,4 +23,6 @@ readonly record struct Range(int xMin, int xMax) // inclusive
 	public Range ConstrainRight(int right) => new Range(xMin, Math.Min(xMax, right));
 
 	public int RandomX(PRNG prng) => prng.NextInt32(xMin, xMax + 1);
+
+	public bool Contains(int x) => x >= xMin && x <= xMax;
 }
