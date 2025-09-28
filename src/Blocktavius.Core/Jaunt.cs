@@ -264,6 +264,15 @@ public sealed class Jaunt
 
 		// Use a more aggressive approach that ensures more frequent changes
 		// Try multiple different strategies and pick one randomly
+		if ("true".Length > 0)
+		{
+			var nudger = new RunNudger(this, new RunNudger.Settings()
+			{
+				MaxNudge = 3,
+				MinRunLength = minRunLength,
+				MaxRunLength = maxRunLength,
+			});
+		}
 
 		int strategy = prng.NextInt32(3);
 		switch (strategy)
@@ -420,5 +429,120 @@ public sealed class Jaunt
 		}
 
 		return new Jaunt(newRuns);
+	}
+}
+
+class RunNudger
+{
+	public sealed record Settings
+	{
+		public required int MinRunLength { get; init; }
+		public required int MaxRunLength { get; init; }
+		public required int MaxNudge { get; init; }
+	}
+
+	class Runs
+	{
+		public readonly IReadOnlyList<int> endpoints;
+		public Runs(IReadOnlyList<int> endpoints)
+		{
+			this.endpoints = endpoints;
+		}
+
+		public int Start(int i) => i == 0 ? 0 : endpoints[i - 1];
+		public int End(int i) => endpoints[i];
+		public int Length(int i) => End(i) - Start(i);
+
+		public Range FeasibleRange(int i, Settings settings)
+		{
+			if (i == endpoints.Count - 1)
+			{
+				// last endpoint cannot move (defines the total length)
+				return new Range(endpoints[i], endpoints[i]);
+			}
+
+			// Where could this endpoint move to?
+			var range = Range.NoConstraints.ConstrainLeft(0);
+			range = range.ConstrainLeft(endpoints[i] - settings.MaxNudge);
+			range = range.ConstrainRight(endpoints[i] + settings.MaxNudge);
+
+			// We already know that i is not the last item.
+			// Make sure we leave room for i+1 to overlap itself.
+			range = range.ConstrainRight(End(i + 1) - 1 - settings.MinRunLength);
+
+			if (i > 0)
+			{
+				// Make sure we leave room for i-1 to overlap itself.
+				range = range.ConstrainLeft(Start(i - 1) + 1);
+			}
+
+			return range;
+		}
+	}
+
+	class MutableRuns : Runs
+	{
+		public readonly List<int> mutableEndpoints;
+		public MutableRuns(List<int> endpoints) : base(endpoints)
+		{
+			this.mutableEndpoints = endpoints;
+		}
+	}
+
+	private readonly Runs prevRuns;
+	private readonly MutableRuns newRuns;
+	private readonly Settings settings;
+
+	public RunNudger(Jaunt jaunt, Settings settings)
+	{
+		var endpoints = jaunt.Runs.Select(r => r.end);
+		prevRuns = new Runs(endpoints.ToList());
+		newRuns = new MutableRuns(endpoints.ToList());
+		this.settings = settings;
+	}
+
+	public void Go(PRNG prng)
+	{
+		// don't attempt to nudge the last endpoint; it can't move
+		for (int i = 0; i < prevRuns.endpoints.Count - 1; i++)
+		{
+			var range = prevRuns.FeasibleRange(i, settings);
+			int nudgeAmount = prng.NextInt32(range.xMin, range.xMax + 1);
+			newRuns.mutableEndpoints[i] += nudgeAmount;
+		}
+
+		// Keep resolving while any problems remain
+		var invalid = new List<int>();
+		FindInvalidEndpoints(invalid);
+		while (invalid.Count > 0)
+		{
+			prng.Shuffle(invalid);
+			foreach (int i in invalid)
+			{
+				Resolve(i);
+			}
+
+			invalid.Clear();
+			FindInvalidEndpoints(invalid);
+		}
+	}
+
+	private void FindInvalidEndpoints(List<int> invalid)
+	{
+		for (int i = 0; i < newRuns.endpoints.Count; i++)
+		{
+			int length = newRuns.Length(i);
+			if (length < settings.MinRunLength || length > settings.MaxRunLength)
+			{
+				invalid.Add(i);
+			}
+		}
+	}
+
+	private void Resolve(int i)
+	{
+		int length = newRuns.Length(i);
+		int amountLacking = settings.MinRunLength - length;
+		int amountExcess = length - settings.MaxRunLength;
 	}
 }
