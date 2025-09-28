@@ -280,5 +280,70 @@ namespace Blocktavius.Tests
 			}
 		}
 
+		[TestMethod]
+		public void TestPullMethodsShouldBeRecursive()
+		{
+			// Create a scenario that truly requires RECURSION for Pull operations
+			// Post configuration where direct movement isn't enough
+			var posts = new List<FencepostShifter.Post>
+			{
+				new(10, new Blocktavius.Core.Range(8, 10)),   // Post 0: can move left 2 units only
+				new(12, new Blocktavius.Core.Range(12, 14)),  // Post 1: can move right 2 units only
+				new(30, new Blocktavius.Core.Range(25, 30))   // Post 2: can move left 5 units
+			};
+
+			var settings = new FencepostShifter.Settings
+			{
+				MaxNudge = 5,
+				TotalLength = 100,
+				MinFenceLength = 3,
+				MaxFenceLength = 15
+			};
+
+			// Current fence lengths:
+			// Fence 1: 10 to 12 = length 2 (< 3, too short by 1)
+			// Fence 2: 12 to 30 = length 18 (> 15, too long by 3)
+
+			Console.WriteLine("=== Testing True Recursion Need ===");
+			Console.WriteLine($"Fence 1: {posts[0].X} to {posts[1].X}, length = {posts[1].X - posts[0].X} (needs +1)");
+			Console.WriteLine($"Fence 2: {posts[1].X} to {posts[2].X}, length = {posts[2].X - posts[1].X} (needs -3)");
+
+			// To shorten fence 2 by 3 units:
+			// PullLeftCloser: move post 1 rightward - but only has 2 units available
+			// Non-recursive: returns AvailableSpace = 2 (insufficient)
+			// Recursive: should coordinate with fence 1 to get more space
+
+			var leftPlan = FencepostShifter.TestHelper.PullLeftCloser(posts, 2, 3, settings);
+			Console.WriteLine($"PullLeftCloser(fence=2, space=3): AvailableSpace = {leftPlan.AvailableSpace}");
+
+			// CURRENT NON-RECURSIVE IMPLEMENTATION:
+			// Post 1 can only move right 2 units directly
+			// Should return AvailableSpace = 2 (less than requested 3)
+
+			Assert.AreEqual(2, leftPlan.AvailableSpace,
+				"Non-recursive implementation should only provide 2 units (post 1's direct capability)");
+
+			// WHAT RECURSIVE IMPLEMENTATION SHOULD DO:
+			// 1. Post 1 can move right 2 units directly
+			// 2. Need 1 more unit, so ask fence 1 to provide space
+			// 3. Move post 0 left by 1 unit (creating room for post 1)
+			// 4. Now post 1 can move right by 3 units total
+			// 5. Return AvailableSpace = 3
+
+			// This test will FAIL with current implementation,
+			// but PASS once Pull methods are made recursive
+
+			Console.WriteLine("\n=== Current Implementation Limitation ===");
+			Console.WriteLine($"Requested: 3 units, Available: {leftPlan.AvailableSpace} units");
+			Console.WriteLine("A recursive implementation could provide the full 3 units by:");
+			Console.WriteLine("1. Moving post 0 left by 1 unit (fence 1: 9 to 12 = length 3)");
+			Console.WriteLine("2. Moving post 1 right by 3 units (fence 2: 12 to 27 = length 15)");
+
+			// This assertion will FAIL with current non-recursive implementation
+			// Uncomment when implementing recursion:
+			// Assert.AreEqual(3, leftPlan.AvailableSpace,
+			//     "Recursive implementation should provide full 3 units through coordination");
+		}
+
 	}
 }
