@@ -55,7 +55,7 @@ public sealed class CornerShifterHill
 				//layers.Add(Layer2.Create(prng, settings, elev));
 
 				var jaunt = Jaunt.Create(prng, jauntSettings);
-				layers.Add(JauntyLayer.Create(jaunt, elev));
+				layers.Add(JauntyLayer.Create(jaunt, elev, 0));
 			}
 			elev = new Elevation(elev.Y + 1);
 		}
@@ -117,15 +117,17 @@ public sealed class CornerShifterHill
 	{
 		public required Elevation elevation { get; init; }
 		public required Jaunt jaunt { get; init; }
+		public required int zOffset { get; init; }
 		private JauntyLayer() { }
 
-		public static JauntyLayer Create(Jaunt jaunt, Elevation elevation)
+		public static JauntyLayer Create(Jaunt jaunt, Elevation elevation, int zOffset)
 		{
 			return new JauntyLayer()
 			{
-				coords = jaunt.Coords,
+				coords = jaunt.ToCoords(new XZ(0, zOffset)).ToList(),
 				elevation = elevation,
 				jaunt = jaunt,
+				zOffset = zOffset,
 			};
 		}
 
@@ -134,12 +136,7 @@ public sealed class CornerShifterHill
 		public override Layer CreateNextLayer(PRNG prng, Elevation elevation)
 		{
 			var jaunt = this.jaunt.NextLayer(prng);
-			return new JauntyLayer()
-			{
-				coords = jaunt.Coords,
-				elevation = elevation,
-				jaunt = jaunt,
-			};
+			return Create(jaunt, elevation, this.zOffset + 1);
 		}
 	}
 

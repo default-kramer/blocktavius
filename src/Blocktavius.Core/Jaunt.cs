@@ -37,7 +37,6 @@ public sealed class Jaunt
 
 	private readonly IReadOnlyList<Run> runs;
 	public readonly int TotalLength;
-	private IReadOnlyList<XZ>? __coords = null;
 	public int NumRuns => runs.Count;
 	public IReadOnlyList<Run> Runs => runs;
 
@@ -51,18 +50,18 @@ public sealed class Jaunt
 		}
 	}
 
-	/// <summary>
-	/// Returns the runs as a list of XZ coordinates starting from X=0
-	/// and using LaneOffset as the Z coordinate.
-	/// </summary>
-	public IReadOnlyList<XZ> Coords
+	public IEnumerable<XZ> ToCoords(XZ start)
 	{
-		get
+		foreach (var run in runs)
 		{
-			__coords = __coords ?? BuildCoords(runs, TotalLength);
-			return __coords;
+			for (int i = 0; i < run.length; i++)
+			{
+				yield return start.Add(0, run.laneOffset);
+				start = start.Add(1, 0);
+			}
 		}
 	}
+
 
 	public static Jaunt Create(PRNG prng, JauntSettings settings)
 	{
@@ -181,7 +180,7 @@ public sealed class Jaunt
 	private CornerShifter.Contour ToContour()
 	{
 		var jaunt = this;
-		var coords = this.Coords;
+		var coords = this.ToCoords(XZ.Zero).ToList();
 
 		var corners = new List<CornerShifter.Corner>(jaunt.NumRuns - 1);
 
@@ -263,110 +262,105 @@ public sealed class Jaunt
 		minRunLength = Math.Min(minRunLength, this.runs.Min(r => r.length));
 		maxRunLength = Math.Max(maxRunLength, this.runs.Max(r => r.length));
 
-		// Calculate original run positions for overlap constraint checking
-		var originalPositions = new List<(int start, int end)>();
-		int x = 0;
-		foreach (var run in this.runs)
+		// Use a more aggressive approach that ensures more frequent changes
+		// Try multiple different strategies and pick one randomly
+
+		int strategy = prng.NextInt32(3);
+		switch (strategy)
 		{
-			originalPositions.Add((x, x + run.length));
-			x += run.length;
+			case 0:
+				return ShiftByLengthTransfer(prng, minRunLength, maxRunLength);
+			case 1:
+				return ShiftByPositionAdjustment(prng, minRunLength, maxRunLength);
+			default:
+				return ShiftByCompression(prng, minRunLength, maxRunLength);
 		}
+	}
 
-		// Generate new run lengths first, adjusting to maintain total length
-		var newLengths = new int[this.runs.Count];
+	private Jaunt ShiftByLengthTransfer(PRNG prng, int minRunLength, int maxRunLength)
+	{
+		// Transfer length between multiple pairs of runs
+		var newLengths = this.runs.Select(r => r.length).ToArray();
 
-		// Start with small random adjustments to original lengths
-		for (int i = 0; i < this.runs.Count; i++)
+		int transfers = Math.Max(2, this.runs.Count / 2);
+		for (int t = 0; t < transfers; t++)
 		{
-			var origLength = this.runs[i].length;
-			int minAdjustment = Math.Max(minRunLength - origLength, -2);
-			int maxAdjustment = Math.Min(maxRunLength - origLength, 2);
+			int donor = prng.NextInt32(this.runs.Count);
+			int recipient = prng.NextInt32(this.runs.Count);
+			if (donor == recipient) continue;
 
-			if (minAdjustment <= maxAdjustment)
-			{
-				int adjustment = prng.NextInt32(minAdjustment, maxAdjustment + 1);
-				newLengths[i] = origLength + adjustment;
-			}
-			else
-			{
-				newLengths[i] = Math.Max(minRunLength, Math.Min(maxRunLength, origLength));
-			}
-		}
+			int maxTransfer = Math.Min(3, newLengths[donor] - minRunLength);
+			int maxReceive = maxRunLength - newLengths[recipient];
+			int transferAmount = Math.Min(maxTransfer, maxReceive);
 
-		// Adjust to maintain exact total length
-		int totalDiff = newLengths.Sum() - this.TotalLength;
-		while (totalDiff != 0 && this.runs.Count > 1)
-		{
-			// Find two runs we can adjust to balance the difference
-			int run1 = prng.NextInt32(this.runs.Count);
-			int run2 = prng.NextInt32(this.runs.Count);
-			if (run1 == run2) continue;
-
-			if (totalDiff > 0) // need to reduce total
+			if (transferAmount > 0)
 			{
-				int maxReduce = Math.Min(totalDiff, newLengths[run1] - minRunLength);
-				if (maxReduce > 0)
-				{
-					newLengths[run1] -= maxReduce;
-					totalDiff -= maxReduce;
-				}
-			}
-			else // need to increase total
-			{
-				int maxIncrease = Math.Min(-totalDiff, maxRunLength - newLengths[run2]);
-				if (maxIncrease > 0)
-				{
-					newLengths[run2] += maxIncrease;
-					totalDiff += maxIncrease;
-				}
+				int actualTransfer = prng.NextInt32(1, transferAmount + 1);
+				newLengths[donor] -= actualTransfer;
+				newLengths[recipient] += actualTransfer;
 			}
 		}
 
-		// Now determine new positions that maintain adjacency (no gaps)
-		// while trying to overlap with original positions where possible
-		var newPositions = new List<(int start, int end)>();
-		int currentPos = 0;
+		return CreateRunsFromLengths(newLengths);
+	}
+
+	private Jaunt ShiftByPositionAdjustment(PRNG prng, int minRunLength, int maxRunLength)
+	{
+		// This strategy doesn't maintain total length properly, so fall back to simpler approach
+		return ShiftByLengthTransfer(prng, minRunLength, maxRunLength);
+	}
+
+	private Jaunt ShiftByCompression(PRNG prng, int minRunLength, int maxRunLength)
+	{
+		// Compress some runs and expand others
+		var newLengths = this.runs.Select(r => r.length).ToArray();
+
+		// Pick runs to compress and expand
+		var compressTargets = new List<int>();
+		var expandTargets = new List<int>();
 
 		for (int i = 0; i < this.runs.Count; i++)
 		{
-			var origStart = originalPositions[i].start;
-			var origEnd = originalPositions[i].end;
-			int newLength = newLengths[i];
-
-			// Calculate ideal start position to maximize overlap with original
-			int idealStart = Math.Max(0, Math.Min(origEnd - newLength, origStart));
-
-			// But we must start at or after currentPos to maintain adjacency
-			int actualStart = Math.Max(currentPos, idealStart);
-
-			// Check if we can shift slightly to get better overlap
-			if (actualStart > origEnd - 1 && actualStart > currentPos)
+			if (newLengths[i] > minRunLength && prng.NextInt32(3) == 0)
 			{
-				// No overlap possible, but we can try to get closer
-				int shiftAmount = Math.Min(actualStart - currentPos, actualStart - (origEnd - newLength));
-				if (shiftAmount > 0 && prng.NextInt32(2) == 0)
-				{
-					actualStart = Math.Max(currentPos, actualStart - shiftAmount);
-				}
+				compressTargets.Add(i);
 			}
-
-			newPositions.Add((actualStart, actualStart + newLength));
-			currentPos = actualStart + newLength;
+			else if (newLengths[i] < maxRunLength && prng.NextInt32(3) == 0)
+			{
+				expandTargets.Add(i);
+			}
 		}
 
-		// Verify total length is correct
-		if (currentPos != this.TotalLength)
+		// Transfer length from compress targets to expand targets
+		foreach (int compressIndex in compressTargets)
 		{
-			// Fallback to simpler approach
-			return FallbackShift(prng, minRunLength, maxRunLength);
+			if (expandTargets.Count == 0) break;
+
+			int expandIndex = expandTargets[prng.NextInt32(expandTargets.Count)];
+			int availableCompression = newLengths[compressIndex] - minRunLength;
+			int availableExpansion = maxRunLength - newLengths[expandIndex];
+			int transferAmount = Math.Min(availableCompression, availableExpansion);
+
+			if (transferAmount > 0)
+			{
+				int actualTransfer = prng.NextInt32(1, Math.Min(transferAmount, 2) + 1);
+				newLengths[compressIndex] -= actualTransfer;
+				newLengths[expandIndex] += actualTransfer;
+			}
 		}
 
-		// Create new runs
-		var newRuns = new List<Run>(this.runs.Count);
-		for (int i = 0; i < this.runs.Count; i++)
+		return CreateRunsFromLengths(newLengths);
+	}
+
+	private Jaunt CreateRunsFromLengths(int[] lengths)
+	{
+		var newRuns = new List<Run>();
+		int start = 0;
+
+		for (int i = 0; i < lengths.Length; i++)
 		{
-			int length = newPositions[i].end - newPositions[i].start;
-			newRuns.Add(new Run(newPositions[i].start, length, this.runs[i].laneOffset));
+			newRuns.Add(new Run(start, lengths[i], this.runs[i].laneOffset));
+			start += lengths[i];
 		}
 
 		return new Jaunt(newRuns);
