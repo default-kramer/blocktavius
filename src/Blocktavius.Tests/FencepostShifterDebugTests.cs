@@ -242,5 +242,99 @@ namespace Blocktavius.Tests
 				}
 			}
 		}
+
+		[TestMethod]
+		public void Debug_FailingTest()
+		{
+			// Exact same setup as TestShiftPosts_ValidInput but with debug output
+			var originalPosts = new List<int> { 10, 30, 60, 80 };
+			var settings = new FencepostShifter.Settings
+			{
+				MaxNudge = 5,
+				TotalLength = 100,
+				MinFenceLength = 5,
+				MaxFenceLength = 25
+			};
+
+			var prng = PRNG.Create(new Random(42));
+
+			Console.WriteLine("=== Starting Debug of Failing Test ===");
+
+			try
+			{
+				var result = FencepostShifter.ShiftPosts(originalPosts, settings, prng);
+				Console.WriteLine("SUCCESS: Algorithm completed without errors");
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"FAILED: {ex.Message}");
+				Console.WriteLine($"Stack trace: {ex.StackTrace}");
+
+				// Let's manually trace through what happens
+				var ironcladRanges = FencepostShifter.TestHelper.BuildIroncladRanges(originalPosts, settings);
+				var posts = new List<FencepostShifter.Post>();
+
+				Console.WriteLine("\n=== Ironclad Ranges ===");
+				for (int i = 0; i < originalPosts.Count; i++)
+				{
+					Console.WriteLine($"Post {i}: original={originalPosts[i]}, range=({ironcladRanges[i].xMin}, {ironcladRanges[i].xMax})");
+				}
+
+				Console.WriteLine("\n=== Random Nudge Phase ===");
+				for (int i = 0; i < originalPosts.Count; i++)
+				{
+					var range = ironcladRanges[i];
+					int nudgedPosition = range.RandomX(prng);
+					posts.Add(new FencepostShifter.Post(nudgedPosition, range));
+					Console.WriteLine($"Post {i}: nudged to {nudgedPosition}");
+				}
+
+				Console.WriteLine("\n=== After EnsurePostsAreValid ===");
+				FencepostShifter.TestHelper.EnsurePostsAreValid(posts);
+				for (int i = 0; i < posts.Count; i++)
+				{
+					Console.WriteLine($"Post {i}: position={posts[i].X}, range=({posts[i].IroncladRange.xMin}, {posts[i].IroncladRange.xMax})");
+				}
+
+				Console.WriteLine("\n=== Fence Violations ===");
+				var violatingFenceIndex = FencepostShifter.TestHelper.FindViolatingFence(posts, settings);
+				if (violatingFenceIndex.HasValue)
+				{
+					int fenceIndex = violatingFenceIndex.Value;
+					Console.WriteLine($"Violating fence: {fenceIndex}");
+
+					int fenceStart = fenceIndex == 0 ? 0 : posts[fenceIndex - 1].X;
+					int fenceEnd = fenceIndex == posts.Count ? settings.TotalLength : posts[fenceIndex].X;
+					int fenceLength = fenceEnd - fenceStart;
+					Console.WriteLine($"Fence {fenceIndex}: {fenceStart} to {fenceEnd}, length = {fenceLength}");
+
+					int excess = fenceLength - settings.MaxFenceLength;
+					int shortage = settings.MinFenceLength - fenceLength;
+
+					if (excess > 0)
+					{
+						Console.WriteLine($"Fence too long by {excess} units");
+						var leftPlan = FencepostShifter.TestHelper.PullLeftCloser(posts, fenceIndex, excess, settings);
+						var rightPlan = FencepostShifter.TestHelper.PullRightCloser(posts, fenceIndex, excess, settings);
+						Console.WriteLine($"PullLeftCloser: {leftPlan.AvailableSpace}");
+						Console.WriteLine($"PullRightCloser: {rightPlan.AvailableSpace}");
+						Console.WriteLine($"Total available: {Math.Max(0, leftPlan.AvailableSpace) + Math.Max(0, rightPlan.AvailableSpace)}");
+					}
+					else if (shortage > 0)
+					{
+						Console.WriteLine($"Fence too short by {shortage} units");
+						var leftPlan = FencepostShifter.TestHelper.PushLeftAway(posts, fenceIndex, shortage, settings);
+						var rightPlan = FencepostShifter.TestHelper.PushRightAway(posts, fenceIndex, shortage, settings);
+						Console.WriteLine($"PushLeftAway: {leftPlan.AvailableSpace}");
+						Console.WriteLine($"PushRightAway: {rightPlan.AvailableSpace}");
+						Console.WriteLine($"Total available: {Math.Max(0, leftPlan.AvailableSpace) + Math.Max(0, rightPlan.AvailableSpace)}");
+					}
+				}
+				else
+				{
+					Console.WriteLine("No violations found - this shouldn't happen!");
+				}
+			}
+		}
 	}
 }
