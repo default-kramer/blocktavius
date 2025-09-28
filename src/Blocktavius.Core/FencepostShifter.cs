@@ -222,7 +222,30 @@ internal class FencepostShifter
 		int leftPostIndex = fenceIndex - 1;
 		int rightPostIndex = fenceIndex;
 
-		if (leftPostIndex < 0 || rightPostIndex >= posts.Count)
+		// For fence 0, there's no left post to push, so we can only move the right post
+		if (fenceIndex == 0)
+		{
+			if (rightPostIndex >= posts.Count)
+				return ResolutionPlan.NoSpace;
+
+			var fenceRightPost = posts[rightPostIndex];
+			int maxRightMoveFence = fenceRightPost.IroncladRange.xMax - fenceRightPost.X;
+			int spaceAvailable = Math.Min(maxRightMoveFence, spaceRequested);
+
+			if (spaceAvailable <= 0)
+				return ResolutionPlan.NoSpace;
+
+			var plan = new ResolutionPlan
+			{
+				AvailableSpace = spaceAvailable,
+				PlannedAdjustments = new Stack<(int, int)>()
+			};
+			plan.PlannedAdjustments.Push((rightPostIndex, fenceRightPost.X + spaceAvailable));
+			return plan;
+		}
+
+		// For last fence, there's no right post, so this operation doesn't apply
+		if (rightPostIndex >= posts.Count)
 			return ResolutionPlan.NoSpace;
 
 		var rightPost = posts[rightPostIndex];
@@ -276,7 +299,34 @@ internal class FencepostShifter
 		int leftPostIndex = fenceIndex - 1;
 		int rightPostIndex = fenceIndex;
 
-		if (leftPostIndex < 0 || rightPostIndex >= posts.Count)
+		// For last fence, there's no right post to push, so we can only move the left post
+		if (fenceIndex == posts.Count)
+		{
+			if (leftPostIndex < 0)
+				return ResolutionPlan.NoSpace;
+
+			var fenceLeftPost = posts[leftPostIndex];
+			int maxLeftMoveFence = fenceLeftPost.X - fenceLeftPost.IroncladRange.xMin;
+			int spaceAvailable = Math.Min(maxLeftMoveFence, spaceRequested);
+
+			if (spaceAvailable <= 0)
+				return ResolutionPlan.NoSpace;
+
+			var plan = new ResolutionPlan
+			{
+				AvailableSpace = spaceAvailable,
+				PlannedAdjustments = new Stack<(int, int)>()
+			};
+			plan.PlannedAdjustments.Push((leftPostIndex, fenceLeftPost.X - spaceAvailable));
+			return plan;
+		}
+
+		// For fence 0, there's no left post, so this operation doesn't apply
+		if (leftPostIndex < 0)
+			return ResolutionPlan.NoSpace;
+
+		// Both posts exist for middle fences
+		if (rightPostIndex >= posts.Count)
 			return ResolutionPlan.NoSpace;
 
 		var leftPost = posts[leftPostIndex];

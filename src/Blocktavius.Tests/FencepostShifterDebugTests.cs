@@ -175,5 +175,72 @@ namespace Blocktavius.Tests
 				Console.WriteLine("\nNo violations found after normal nudging!");
 			}
 		}
+
+		[TestMethod]
+		public void Debug_PullOperations()
+		{
+			// Let's test the Pull operations with specific known values
+			var posts = new List<FencepostShifter.Post>
+			{
+				new(10, new Blocktavius.Core.Range(5, 15)),   // Post 0: has 5 units to move left, 5 to move right
+				new(30, new Blocktavius.Core.Range(25, 35)),  // Post 1: has 5 units to move left, 5 to move right
+				new(60, new Blocktavius.Core.Range(55, 65)),  // Post 2: has 5 units to move left, 5 to move right
+				new(80, new Blocktavius.Core.Range(75, 85))   // Post 3: has 5 units to move left, 5 to move right
+			};
+
+			var settings = new FencepostShifter.Settings
+			{
+				MaxNudge = 5,
+				TotalLength = 100,
+				MinFenceLength = 5,
+				MaxFenceLength = 25
+			};
+
+			Console.WriteLine("Posts and their movement capabilities:");
+			for (int i = 0; i < posts.Count; i++)
+			{
+				var post = posts[i];
+				int leftMove = post.X - post.IroncladRange.xMin;
+				int rightMove = post.IroncladRange.xMax - post.X;
+				Console.WriteLine($"Post {i}: X={post.X}, range=({post.IroncladRange.xMin}, {post.IroncladRange.xMax}), can move left={leftMove}, right={rightMove}");
+			}
+
+			Console.WriteLine("\nFence lengths:");
+			for (int fenceIndex = 0; fenceIndex <= posts.Count; fenceIndex++)
+			{
+				int fenceStart = fenceIndex == 0 ? 0 : posts[fenceIndex - 1].X;
+				int fenceEnd = fenceIndex == posts.Count ? settings.TotalLength : posts[fenceIndex].X;
+				int fenceLength = fenceEnd - fenceStart;
+				bool isValid = fenceLength >= settings.MinFenceLength && fenceLength <= settings.MaxFenceLength;
+				Console.WriteLine($"Fence {fenceIndex}: {fenceStart} to {fenceEnd}, length = {fenceLength}, valid = {isValid}");
+			}
+
+			// Test pulling operations on fence 1 (between posts 0 and 1)
+			Console.WriteLine("\nTesting Pull operations on fence 1:");
+
+			var leftPlan = FencepostShifter.TestHelper.PullLeftCloser(posts, 1, 5, settings);
+			Console.WriteLine($"PullLeftCloser(fence=1, space=5): AvailableSpace = {leftPlan.AvailableSpace}, Adjustments = {leftPlan.PlannedAdjustments.Count}");
+
+			var rightPlan = FencepostShifter.TestHelper.PullRightCloser(posts, 1, 5, settings);
+			Console.WriteLine($"PullRightCloser(fence=1, space=5): AvailableSpace = {rightPlan.AvailableSpace}, Adjustments = {rightPlan.PlannedAdjustments.Count}");
+
+			// Debug the specific logic
+			Console.WriteLine("\nDebugging PullLeftCloser logic:");
+			int leftPostIndex = 1 - 1; // fenceIndex - 1 = 0
+			Console.WriteLine($"leftPostIndex = {leftPostIndex}");
+			if (leftPostIndex >= 0)
+			{
+				var leftPost = posts[leftPostIndex];
+				int maxLeftMove = leftPost.X - leftPost.IroncladRange.xMin;
+				Console.WriteLine($"leftPost.X = {leftPost.X}, leftPost.IroncladRange.xMin = {leftPost.IroncladRange.xMin}");
+				Console.WriteLine($"maxLeftMove = {maxLeftMove}");
+
+				if (maxLeftMove > 0)
+				{
+					int spaceAvailable = Math.Min(maxLeftMove, 5);
+					Console.WriteLine($"spaceAvailable = Math.Min({maxLeftMove}, 5) = {spaceAvailable}");
+				}
+			}
+		}
 	}
 }
