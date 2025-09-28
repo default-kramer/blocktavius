@@ -84,4 +84,74 @@ public class FencepostShifterTests
 		Assert.AreEqual(4, shifter.PushLeft("44", 99));
 		Assert.AreEqual("[0] 10 20 30 40 51 [99]", shifter.Print());
 	}
+
+
+	[TestMethod]
+	public void push_right_vs_min_fence_length()
+	{
+		var shifter = NewShifter()
+			.WithMinFenceLength(10)
+			.Reload(10, 30);
+
+		Assert.AreEqual("[0] 10 30 [99]", shifter.Print());
+		Assert.AreEqual(6, shifter.PushRight("10", 6));
+		Assert.AreEqual("[0] 16 30 [99]", shifter.Print());
+		Assert.AreEqual(4, shifter.PushRight("16", 6));
+		Assert.AreEqual("[0] 20 30 [99]", shifter.Print());
+		Assert.AreEqual(0, shifter.PushRight("20", 1));
+		Assert.AreEqual(0, shifter.PushRight("30", 1));
+		Assert.AreEqual("[0] 20 30 [99]", shifter.Print());
+	}
+
+	[TestMethod]
+	public void push_right_vs_max_nudge()
+	{
+		var shifter = NewShifter()
+			.WithMaxNudge(10)
+			.Reload(30, 60);
+
+		Assert.AreEqual("[0] 30 60 [99]", shifter.Print());
+		Assert.AreEqual(7, shifter.PushRight("60", 7));
+		Assert.AreEqual("[0] 30 67 [99]", shifter.Print());
+		Assert.AreEqual(3, shifter.PushRight("67", 7));
+		Assert.AreEqual("[0] 30 70 [99]", shifter.Print());
+	}
+
+	[TestMethod]
+	public void push_right_against_invalid_state()
+	{
+		var shifter = NewShifter()
+			.WithMaxNudge(3)
+			.WithMinFenceLength(10)
+			.Reload(50, 53, 76, 87);
+
+		// Initial state is not valid, 50---53 violates MinFenceLength=10
+		Assert.AreEqual("[0] 50 53 76 87 [99]", shifter.Print());
+
+		// We try to push 50 right...
+		Assert.AreEqual(-4, shifter.PushRight("50", 1));
+		Assert.AreEqual("[0] 46 56 76 87 [99]", shifter.Print());
+		// ... It does its best and succeeds at pushing 53 to 56 (max nudge = 3)
+		// and returns the available space of -4.
+		// The fact that the test API immediately applies that -4, moving 50 to 46, is
+		// a somewhat arbitrary decision affecting tests only.
+	}
+
+	[TestMethod]
+	public void push_right_recursion()
+	{
+		var shifter = NewShifter()
+			.WithMinFenceLength(10)
+			.Reload(48, 55, 66, 77, 88);
+
+		Assert.AreEqual("[0] 48 55 66 77 88 [99]", shifter.Print());
+		Assert.AreEqual(1, shifter.PushRight("48", 99));
+		Assert.AreEqual("[0] 49 59 69 79 89 [99]", shifter.Print());
+
+		// reload same array, but push 55 this time, leaving 48 in place
+		shifter.Reload(48, 55, 66, 77, 88);
+		Assert.AreEqual("[0] 48 55 66 77 88 [99]", shifter.Print());
+		Assert.AreEqual(4, shifter.PushRight("55", 99));
+		Assert.AreEqual("[0] 48 59 69 79 89 [99]", shifter.Print());
+	}
 }
