@@ -29,6 +29,13 @@ public sealed class CornerShifterHill
 			CanRelaxMaxRunLength = false,
 			CanRelaxMinRunLength = false,
 		};
+		var jauntSettings = new JauntSettings()
+		{
+			MaxLaneCount = settings.MaxDepth,
+			TotalLength = settings.Width,
+			RunLengthProvider = RandomValues.BoundedInfiniteDeck(2, 3, 4, 5, 6, 7),
+			LaneChangeDirectionProvider = RandomValues.InfiniteDeck(true, true, false, false),
+		};
 
 		var bounds = new Rect(XZ.Zero, size);
 		var sampler = new MutableArray2D<Elevation>(bounds, peak);
@@ -45,7 +52,10 @@ public sealed class CornerShifterHill
 			}
 			else
 			{
-				layers.Add(Layer.Create(prng, settings, elev));
+				//layers.Add(Layer2.Create(prng, settings, elev));
+
+				var jaunt = Jaunt.Create(prng, jauntSettings);
+				layers.Add(JauntyLayer.Create(jaunt, elev));
 			}
 			elev = new Elevation(elev.Y + 1);
 		}
@@ -66,14 +76,81 @@ public sealed class CornerShifterHill
 		return sampler;
 	}
 
-	sealed class Layer
+	abstract class Layer
+	{
+		public abstract void WriteLayer(MutableArray2D<Elevation> sampler, int[] prevZ);
+
+		// TODO composability will be much improved if layers don't have to know how to create the next layer...
+		public abstract Layer CreateNextLayer(PRNG prng, Elevation elevation);
+
+		protected static void FillDown(XZ xz, MutableArray2D<Elevation> sampler, int[] prevZ)
+		{
+			int z = prevZ[xz.X];
+			var fillValue = sampler.Sample(new XZ(xz.X, z));
+			while (z < xz.Z)
+			{
+				sampler.Put(new XZ(xz.X, z), fillValue);
+				z++;
+			}
+		}
+	}
+
+	abstract class ListLayer : Layer
+	{
+		public required IReadOnlyList<XZ> coords { get; init; }
+		protected ListLayer() { }
+
+		protected abstract Elevation GetElevation(XZ xz);
+
+		public override void WriteLayer(MutableArray2D<Elevation> sampler, int[] prevZ)
+		{
+			foreach (var xz in coords)
+			{
+				FillDown(xz, sampler, prevZ);
+				sampler.Put(xz, GetElevation(xz));
+				prevZ[xz.X] = xz.Z;
+			}
+		}
+	}
+
+	sealed class JauntyLayer : ListLayer
+	{
+		public required Elevation elevation { get; init; }
+		public required Jaunt jaunt { get; init; }
+		private JauntyLayer() { }
+
+		public static JauntyLayer Create(Jaunt jaunt, Elevation elevation)
+		{
+			return new JauntyLayer()
+			{
+				coords = jaunt.Coords,
+				elevation = elevation,
+				jaunt = jaunt,
+			};
+		}
+
+		protected override Elevation GetElevation(XZ xz) => elevation;
+
+		public override Layer CreateNextLayer(PRNG prng, Elevation elevation)
+		{
+			var jaunt = this.jaunt.NextLayer(prng);
+			return new JauntyLayer()
+			{
+				coords = jaunt.Coords,
+				elevation = elevation,
+				jaunt = jaunt,
+			};
+		}
+	}
+
+	sealed class Layer2 : Layer
 	{
 		public required CornerShifter.Settings settings { get; init; }
 		public required CornerShifter.Contour contour { get; init; }
 		public required int zStart { get; init; }
 		public required Elevation Elevation { get; init; }
 
-		private Layer() { }
+		private Layer2() { }
 
 		private static IEnumerable<XZ> Walk(CornerShifter.Contour contour, int z)
 		{
@@ -94,11 +171,11 @@ public sealed class CornerShifterHill
 			}
 		}
 
-		public static Layer Create(PRNG prng, CornerShifter.Settings settings, Elevation elevation)
+		public static Layer2 Create(PRNG prng, CornerShifter.Settings settings, Elevation elevation)
 		{
 			var contour = CornerShifter.Contour.Generate(prng, settings);
 			int zMin = Walk(contour, 0).Select(xz => xz.Z).Min();
-			return new Layer
+			return new Layer2
 			{
 				settings = settings,
 				contour = contour,
@@ -107,7 +184,7 @@ public sealed class CornerShifterHill
 			};
 		}
 
-		public void WriteLayer(MutableArray2D<Elevation> sampler, int[] prevZ)
+		public override void WriteLayer(MutableArray2D<Elevation> sampler, int[] prevZ)
 		{
 			var elev = this.Elevation;
 			foreach (var xz in Walk(contour, zStart))
@@ -118,20 +195,9 @@ public sealed class CornerShifterHill
 			}
 		}
 
-		private static void FillDown(XZ xz, MutableArray2D<Elevation> sampler, int[] prevZ)
+		public override Layer CreateNextLayer(PRNG prng, Elevation elevation)
 		{
-			int z = prevZ[xz.X];
-			var fillValue = sampler.Sample(new XZ(xz.X, z));
-			while (z < xz.Z)
-			{
-				sampler.Put(new XZ(xz.X, z), fillValue);
-				z++;
-			}
-		}
-
-		public Layer CreateNextLayer(PRNG prng, Elevation elevation)
-		{
-			return new Layer
+			return new Layer2
 			{
 				settings = this.settings,
 				contour = this.contour.Shift(prng, settings),
