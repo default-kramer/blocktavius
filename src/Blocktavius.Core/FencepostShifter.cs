@@ -97,7 +97,7 @@ Don't hesitate to add custom types tailored to this problem
 if it will improve clarity or maintainability.
 
 Overall progress
-[ ] Convince me that you understand the proposed algorithm and agree with its soundness.
+[x] Convince me that you understand the proposed algorithm and agree with its soundness.
     (It would be even better if you can come up with a better algorithm.)
     Also let me know if you agree with this checklist or want to change it.
 [ ] Remove any useless leftover hacking from inside this class.
