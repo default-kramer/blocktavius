@@ -100,7 +100,7 @@ Overall progress
 [x] Convince me that you understand the proposed algorithm and agree with its soundness.
     (It would be even better if you can come up with a better algorithm.)
     Also let me know if you agree with this checklist or want to change it.
-[ ] Remove any useless leftover hacking from inside this class.
+[x] Remove any useless leftover hacking from inside this class.
 [ ] Create and test the ResolutionPlan mechanism.
     Tests should prove that even if the "random nudge" phase is totally broken
     (imagine that it assigns totally random values instead of a value from the
@@ -118,72 +118,7 @@ internal class FencepostShifter
 		public required int MaxFenceLength { get; init; }
 	}
 
-	record struct Post(int X, Range ironcladRange);
-
-	// AHA!!
-	// Perhaps the recursive question is "How much space can you free up by only moving posts to the left?"
-	//private readonly IReadOnlyList<Post> orig = null!;
-	//private readonly List<Post> shifted = null!;
-
-	//private bool CanPushToLeft(int i, int spaceNeeded, ref int postMovesNeeded, Settings settings)
-	//{
-	//	// WARNING - I think this is not quite accurate.
-	//	// What is `i` here, a post index or fence index or both??
-
-	//	// YES I THINK THIS IS THE KEY!
-	//	// To be extra certain
-	//	// 1) Load initial problem
-	//	// 2) Ensure that it is valid per settings
-	//	// 3) Randomly nudge all posts
-	//	// 4) While anything is invalid, pick one invalid post at random and resolve it
-	//	//
-	//	// NOTE: This method should probably return an int instead of a bool.
-	//	// And the caller will check whether there was enough.
-	//	// SOmething like this:
-	//	// var spaceToLeft = FreeSpaceLeft(i-1, spaceNeeded)
-	//	// var spaceToRight = FreeSpaceRight(i+1, spaceNeeded)
-	//	// if(spaceToLeft + spaceToRight < spaceNeeded) ASSERT FAIL "no solution??"
-	//	// else decide how to divvy it up amongst left and right
-	//	//
-	//	// WHY is this seeming more clear than previous implementations?
-	//	// I think the novelty here is separating the 4 questions:
-	//	// * how much space can be cleared by pushing to the left?
-	//	// * same for right?
-	//	// * how much space can be absorbed by pulling from the left?
-	//	// * same for right?
-	//	//
-	//	// With these in hand, I think we can head DIRECTLY to a solution
-	//	// instead of spinning the PRNG until something comes up valid.
-
-	//	if (spaceNeeded < 1)
-	//	{
-	//		return true;
-	//	}
-
-	//	var myPost = shifted[i];
-	//	int myRunLength = shifted[i + 1].X - myPost.X;
-
-	//	int possibleRunShrinkage = myRunLength - settings.MinFenceLength;
-	//	bool canSimplyShortenRun = possibleRunShrinkage >= spaceNeeded;
-
-	//	if (canSimplyShortenRun || i == 0)
-	//	{
-	//		return canSimplyShortenRun;
-	//	}
-
-	//	int postShiftNeeded = spaceNeeded - possibleRunShrinkage;
-	//	int maxPossiblePostShift = myPost.X - myPost.ironcladRange.xMin;
-	//	if (postShiftNeeded > maxPossiblePostShift)
-	//	{
-	//		return false;
-	//	}
-	//	if (!CanPushToLeft(i - 1, postShiftNeeded, ref postShiftNeeded, settings))
-	//	{
-	//		return false;
-	//	}
-	//	postMovesNeeded++;
-	//	return true;
-	//}
+	record struct Post(int X, Range IroncladRange);
 
 	private static IReadOnlyList<Range> BuildIroncladRanges(IReadOnlyList<int> posts, Settings settings)
 	{
@@ -197,21 +132,16 @@ internal class FencepostShifter
 				.ConstrainLeft(0)
 				.ConstrainRight(settings.TotalLength - 1);
 
-			if (i - 1 >= 0)
+			if (i > 0)
 			{
-				// exclude left neighbor's post
 				range = range.ConstrainLeft(posts[i - 1] + 1);
 			}
-			if (i + 1 < posts.Count)
+			if (i < posts.Count - 1)
 			{
-				// exclude right neighbor's post
 				range = range.ConstrainRight(posts[i + 1] - settings.MinFenceLength);
 			}
 
-
-			// TODO is the following correct?
-			range = range.ConstrainLeft((i - 1) * settings.MinFenceLength);
-			range = range.ConstrainRight(i * settings.MaxFenceLength);
+			ranges[i] = range;
 		}
 
 		return ranges;
