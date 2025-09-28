@@ -26,7 +26,7 @@ namespace Blocktavius.Tests
 
 			Assert.AreEqual(3, plan.AvailableSpace);
 			Assert.AreEqual(1, plan.PlannedAdjustments.Count);
-			Assert.AreEqual((0, 7), plan.PlannedAdjustments.Peek());
+			Assert.AreEqual((0, 13), plan.PlannedAdjustments.Peek());
 		}
 
 		[TestMethod]
@@ -50,7 +50,7 @@ namespace Blocktavius.Tests
 
 			Assert.AreEqual(3, plan.AvailableSpace);
 			Assert.AreEqual(1, plan.PlannedAdjustments.Count);
-			Assert.AreEqual((1, 23), plan.PlannedAdjustments.Peek());
+			Assert.AreEqual((1, 17), plan.PlannedAdjustments.Peek());
 		}
 
 		[TestMethod]

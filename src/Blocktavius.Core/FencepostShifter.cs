@@ -173,13 +173,13 @@ internal class FencepostShifter
 			return ResolutionPlan.NoSpace;
 
 		var leftPost = posts[leftPostIndex];
-		int maxLeftMove = leftPost.X - leftPost.IroncladRange.xMin;
+		int maxRightMove = leftPost.IroncladRange.xMax - leftPost.X;
 
-		if (maxLeftMove <= 0)
+		if (maxRightMove <= 0)
 			return ResolutionPlan.NoSpace;
 
-		int spaceAvailable = Math.Min(maxLeftMove, spaceRequested);
-		int newLeftPosition = leftPost.X - spaceAvailable;
+		int spaceAvailable = Math.Min(maxRightMove, spaceRequested);
+		int newLeftPosition = leftPost.X + spaceAvailable;
 
 		var plan = new ResolutionPlan
 		{
@@ -199,13 +199,13 @@ internal class FencepostShifter
 			return ResolutionPlan.NoSpace;
 
 		var rightPost = posts[rightPostIndex];
-		int maxRightMove = rightPost.IroncladRange.xMax - rightPost.X;
+		int maxLeftMove = rightPost.X - rightPost.IroncladRange.xMin;
 
-		if (maxRightMove <= 0)
+		if (maxLeftMove <= 0)
 			return ResolutionPlan.NoSpace;
 
-		int spaceAvailable = Math.Min(maxRightMove, spaceRequested);
-		int newRightPosition = rightPost.X + spaceAvailable;
+		int spaceAvailable = Math.Min(maxLeftMove, spaceRequested);
+		int newRightPosition = rightPost.X - spaceAvailable;
 
 		var plan = new ResolutionPlan
 		{
@@ -491,6 +491,7 @@ internal class FencepostShifter
 		for (int fenceIndex = 0; fenceIndex <= posts.Count; fenceIndex++)
 		{
 			int fenceLength = GetFenceLength(posts, fenceIndex, settings.TotalLength);
+
 
 			if (fenceLength < settings.MinFenceLength || fenceLength > settings.MaxFenceLength)
 				return fenceIndex;

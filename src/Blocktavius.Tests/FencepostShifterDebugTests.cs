@@ -289,11 +289,34 @@ namespace Blocktavius.Tests
 					Console.WriteLine($"Post {i}: nudged to {nudgedPosition}");
 				}
 
+				Console.WriteLine("\n=== Fence Lengths BEFORE EnsurePostsAreValid ===");
+				for (int fenceIndex = 0; fenceIndex <= posts.Count; fenceIndex++)
+				{
+					int fenceStart = fenceIndex == 0 ? 0 : posts[fenceIndex - 1].X;
+					int fenceEnd = fenceIndex == posts.Count ? settings.TotalLength : posts[fenceIndex].X;
+					int fenceLength = fenceEnd - fenceStart;
+					bool isValid = fenceLength >= settings.MinFenceLength && fenceLength <= settings.MaxFenceLength;
+					Console.WriteLine($"Fence {fenceIndex}: {fenceStart} to {fenceEnd}, length = {fenceLength}, valid = {isValid}");
+				}
+
+				var violationBeforeEnsure = FencepostShifter.TestHelper.FindViolatingFence(posts, settings);
+				Console.WriteLine($"Violation before EnsurePostsAreValid: {violationBeforeEnsure}");
+
 				Console.WriteLine("\n=== After EnsurePostsAreValid ===");
 				FencepostShifter.TestHelper.EnsurePostsAreValid(posts);
 				for (int i = 0; i < posts.Count; i++)
 				{
 					Console.WriteLine($"Post {i}: position={posts[i].X}, range=({posts[i].IroncladRange.xMin}, {posts[i].IroncladRange.xMax})");
+				}
+
+				Console.WriteLine("\n=== All Fence Lengths ===");
+				for (int fenceIndex = 0; fenceIndex <= posts.Count; fenceIndex++)
+				{
+					int fenceStart = fenceIndex == 0 ? 0 : posts[fenceIndex - 1].X;
+					int fenceEnd = fenceIndex == posts.Count ? settings.TotalLength : posts[fenceIndex].X;
+					int fenceLength = fenceEnd - fenceStart;
+					bool isValid = fenceLength >= settings.MinFenceLength && fenceLength <= settings.MaxFenceLength;
+					Console.WriteLine($"Fence {fenceIndex}: {fenceStart} to {fenceEnd}, length = {fenceLength}, valid = {isValid} (range: {settings.MinFenceLength}-{settings.MaxFenceLength})");
 				}
 
 				Console.WriteLine("\n=== Fence Violations ===");
