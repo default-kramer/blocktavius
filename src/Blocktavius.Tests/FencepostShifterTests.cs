@@ -185,21 +185,34 @@ public class FencepostShifterTests
 	[TestMethod]
 	public void pull_left_recursion()
 	{
-		// The implicit right anchor [99] is relevant here
 		var shifter = NewShifter()
 			.WithMaxFenceLength(10)
 			.Reload(85, 92);
 
+		// here "[99]" is the limiter
 		Assert.AreEqual("[0] 85 92 [99]", shifter.Print());
 		Assert.AreEqual(6, shifter.PullLeft("85", 99));
 		Assert.AreEqual("[0] 79 89 [99]", shifter.Print());
 
 		shifter = NewShifter()
 			.WithMaxFenceLength(10)
-			.Reload(4, 10, 20, 30, 40, 50, 52, 60, 70, 80, 90);
+			.Reload(4, 10, 20, 30, 40, 50, 51, 60, 70, 80, 90);
 
-		Assert.AreEqual("[0] 04 10 20 30 40 50 52 60 70 80 90 [99]", shifter.Print());
+		// here "04" is the limiter
+		Assert.AreEqual("[0] 04 10 20 30 40 50 51 60 70 80 90 [99]", shifter.Print());
 		Assert.AreEqual(5, shifter.PullLeft("10", 99));
 		Assert.AreEqual("[0] 04 05 15 25 35 45 51 60 70 80 90 [99]", shifter.Print());
+
+		shifter = NewShifter()
+			.WithMaxFenceLength(10)
+			.Reload(50, 60, 70, 73, 74);
+
+		// here "73" is the limiter; it must stop at 71
+		// ... but actually, post "70" must stop at 61, and so on down the line.
+		// It seems the "must overlap previous self" rule and MaxFenceLength interact
+		// in such a way that this test may be less meaningful than I hoped:
+		Assert.AreEqual("[0] 50 60 70 73 74 [99]", shifter.Print());
+		Assert.AreEqual(9, shifter.PullLeft("50", 99));
+		Assert.AreEqual("[0] 41 51 61 71 74 [99]", shifter.Print());
 	}
 }
