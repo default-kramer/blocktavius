@@ -199,6 +199,50 @@ internal class FencepostShifter
 		};
 	}
 
+	private void PullLeft(int postIndex, ResolutionPlan plan)
+	{
+		if (postIndex > shifted.Count - 1 || plan.IsDone)
+		{
+			return;
+		}
+
+		var post = shifted[postIndex];
+		int maxPossibleSpace = post.X - post.IroncladRange.xMin;
+		if (maxPossibleSpace < 1)
+		{
+			return; // This post cannot move
+		}
+
+		// First we clamp the incoming requested space down to the max possible
+		// space this post could move. This avoids unnecessary recursion
+		// and may be necessary for correctness.
+		// This does not interfere with our ability to provide a partial result
+		// (e.g. "you requested 4, but the best I can do is 2").
+		int requestedSpace = Math.Min(maxPossibleSpace, plan.NeededSpace);
+
+		// Compute "easy space" as the amount of space we can free up without recursing.
+		int easySpace = post.X - post.IroncladRange
+			.ConstrainLeft(shifted[postIndex + 1].X - settings.MaxFenceLength)
+			.xMin;
+		if (easySpace >= requestedSpace) // defensive, pretty sure it can never be > here
+		{
+			plan.AvailableSpace += requestedSpace;
+			plan.PlannedMoves.Push((postIndex, post.X - requestedSpace));
+			return;
+		}
+
+		// The "easy space" is not enough, we have to recurse
+		var recurse = plan.CreateRecursivePlan(requestedSpace - easySpace);
+		PullLeft(postIndex + 1, recurse);
+		int hardSpace = Math.Min(recurse.AvailableSpace, recurse.RequestedSpace);
+
+		// Either we've satisfied the request, or we've gone all the way to the left
+		// and there's nothing more we can do.
+		int totalSpace = easySpace + hardSpace;
+		plan.AvailableSpace += totalSpace;
+		plan.PlannedMoves.Push((postIndex, post.X - totalSpace));
+	}
+
 	private void PushPostsRight(int postIndex, ResolutionPlan plan)
 	{
 		if (postIndex > shifted.Count - 1 || plan.IsDone)
@@ -407,6 +451,18 @@ internal class FencepostShifter
 			int postIndex = GetPostIndex(postName);
 			var plan = new ResolutionPlan() { RequestedSpace = amount };
 			shifter.PushPostsRight(postIndex, plan);
+			foreach (var move in plan.PlannedMoves)
+			{
+				shifter.shifted[move.postIndex].X = move.newPosition;
+			}
+			return plan.AvailableSpace;
+		}
+
+		public int PullLeft(string postName, int amount)
+		{
+			int postIndex = GetPostIndex(postName);
+			var plan = new ResolutionPlan() { RequestedSpace = amount };
+			shifter.PullLeft(postIndex, plan);
 			foreach (var move in plan.PlannedMoves)
 			{
 				shifter.shifted[move.postIndex].X = move.newPosition;

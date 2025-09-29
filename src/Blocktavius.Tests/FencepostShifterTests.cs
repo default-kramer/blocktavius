@@ -181,4 +181,25 @@ public class FencepostShifterTests
 		Assert.AreEqual(17, shifter.PushRight("42", 99));
 		Assert.AreEqual("[0] 59 69 79 [99]", shifter.Print());
 	}
+
+	[TestMethod]
+	public void pull_left_recursion()
+	{
+		// The implicit right anchor [99] is relevant here
+		var shifter = NewShifter()
+			.WithMaxFenceLength(10)
+			.Reload(85, 92);
+
+		Assert.AreEqual("[0] 85 92 [99]", shifter.Print());
+		Assert.AreEqual(6, shifter.PullLeft("85", 99));
+		Assert.AreEqual("[0] 79 89 [99]", shifter.Print());
+
+		shifter = NewShifter()
+			.WithMaxFenceLength(10)
+			.Reload(4, 10, 20, 30, 40, 50, 52, 60, 70, 80, 90);
+
+		Assert.AreEqual("[0] 04 10 20 30 40 50 52 60 70 80 90 [99]", shifter.Print());
+		Assert.AreEqual(5, shifter.PullLeft("10", 99));
+		Assert.AreEqual("[0] 04 05 15 25 35 45 51 60 70 80 90 [99]", shifter.Print());
+	}
 }
