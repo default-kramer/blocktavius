@@ -199,6 +199,40 @@ internal class FencepostShifter
 		};
 	}
 
+	private void PushPostsRight(int postIndex, ResolutionPlan plan)
+	{
+		if (postIndex > shifted.Count - 1 || plan.IsDone)
+		{
+			return;
+		}
+
+		var post = shifted[postIndex];
+		int neededSpace = plan.NeededSpace; // grab it before possible mutation
+											// TODO ResolutionPlan should handle this via a method probably
+
+		// Compute "easy space" as the amount of space we can free up without recursing.
+		int easyShiftPosition = shifted[postIndex + 1].X - settings.MinFenceLength;
+		easyShiftPosition = Math.Min(easyShiftPosition, post.IroncladRange.xMax);
+		int easySpace = easyShiftPosition - post.X;
+		if (easySpace >= plan.NeededSpace)
+		{
+			plan.AvailableSpace += neededSpace;
+			plan.PlannedMoves.Push((postIndex, post.X + neededSpace));
+			return;
+		}
+
+		// The "easy space" is not enough, we have to recurse
+		var recurse = plan.CreateRecursivePlan(plan.NeededSpace - easySpace);
+		PushPostsRight(postIndex + 1, recurse);
+		int hardSpace = Math.Min(recurse.AvailableSpace, recurse.RequestedSpace);
+
+		// Either we've satisfied the request, or we've gone all the way to the left
+		// and there's nothing more we can do.
+		int totalSpace = easySpace + hardSpace;
+		plan.AvailableSpace += totalSpace;
+		plan.PlannedMoves.Push((postIndex, post.X + totalSpace));
+	}
+
 	private void PushPostsLeft(int postIndex, ResolutionPlan plan)
 	{
 		if (postIndex < 0 || plan.IsDone)
@@ -216,6 +250,11 @@ internal class FencepostShifter
 
 		// Compute "easy space" as the amount of space we can free up without recursing.
 		int easyShiftPosition = shifted[postIndex - 1].X + settings.MinFenceLength;
+		if (!post.IroncladRange.Contains(easyShiftPosition))
+		{
+			// Is this a bug? If so create a failing test and fix it.
+			System.Diagnostics.Debugger.Break();
+		}
 		int easySpace = post.X - easyShiftPosition;
 		if (easySpace >= requestedSpace)
 		{
@@ -320,11 +359,17 @@ internal class FencepostShifter
 			return sb.ToString();
 		}
 
-		public int PushLeft(string postName, int amount)
+		// makes tests more readable -- the string "25" means the post having 25==post.X;
+		// whereas 25 means the post at index 25
+		private int GetPostIndex(string postName)
 		{
 			int postValue = int.Parse(postName);
-			var postIndex = shifter.shifted.Index().Where(p => p.Item.X == postValue).Single().Index;
+			return shifter.shifted.Index().Where(p => p.Item.X == postValue).Single().Index;
+		}
 
+		public int PushLeft(string postName, int amount)
+		{
+			int postIndex = GetPostIndex(postName);
 			var plan = new ResolutionPlan() { RequestedSpace = amount };
 			shifter.PushPostsLeft(postIndex, plan);
 			foreach (var move in plan.PlannedMoves)
@@ -332,6 +377,18 @@ internal class FencepostShifter
 				shifter.shifted[move.postIndex].X = move.newPosition;
 			}
 
+			return plan.AvailableSpace;
+		}
+
+		public int PushRight(string postName, int amount)
+		{
+			int postIndex = GetPostIndex(postName);
+			var plan = new ResolutionPlan() { RequestedSpace = amount };
+			shifter.PushPostsRight(postIndex, plan);
+			foreach (var move in plan.PlannedMoves)
+			{
+				shifter.shifted[move.postIndex].X = move.newPosition;
+			}
 			return plan.AvailableSpace;
 		}
 	}
