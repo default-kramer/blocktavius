@@ -82,6 +82,28 @@ public class FencepostShifterTests
 	}
 
 	[TestMethod]
+	public void max_nudge_regression_1()
+	{
+		var shifter = NewShifter()
+			.WithMaxNudge(2)
+			.Reload(20, 40);
+
+		// This was incorrectly returning recursing and returning 4
+		// because it moved 20 to 22 and 40 to 42.
+		// It should not recurse at all because the 40 post is not imposing
+		// any constraints on the 20 post.
+		Assert.AreEqual(2, shifter.PushRight("20", 99));
+		Assert.AreEqual("[0] 22 40 [99]", shifter.Print());
+
+		// same test, other direction
+		shifter = NewShifter()
+			.WithMaxNudge(2)
+			.Reload(20, 40);
+		Assert.AreEqual(2, shifter.PushLeft("40", 99));
+		Assert.AreEqual("[0] 20 38 [99]", shifter.Print());
+	}
+
+	[TestMethod]
 	public void push_left_against_invalid_state()
 	{
 		var shifter = NewShifter()
@@ -123,17 +145,11 @@ public class FencepostShifterTests
 	{
 		var shifter = NewShifter()
 			.WithMinFenceLength(10)
-			.Reload(11, 22, 33, 44, 51);
+			.Reload(30, 40, 50, 77);
 
-		Assert.AreEqual("[0] 11 22 33 44 51 [99]", shifter.Print());
-		Assert.AreEqual(1, shifter.PushLeft("51", 99));
-		Assert.AreEqual("[0] 10 20 30 40 50 [99]", shifter.Print());
-
-		// reload same array, but push 44 this time, leaving 51 in place
-		shifter.Reload(11, 22, 33, 44, 51);
-		Assert.AreEqual("[0] 11 22 33 44 51 [99]", shifter.Print());
-		Assert.AreEqual(4, shifter.PushLeft("44", 99));
-		Assert.AreEqual("[0] 10 20 30 40 51 [99]", shifter.Print());
+		Assert.AreEqual("[0] 30 40 50 77 [99]", shifter.Print());
+		Assert.AreEqual(26, shifter.PushLeft("77", 99));
+		Assert.AreEqual("[0] 21 31 41 51 [99]", shifter.Print());
 	}
 
 	[TestMethod]
@@ -141,16 +157,28 @@ public class FencepostShifterTests
 	{
 		var shifter = NewShifter()
 			.WithMinFenceLength(10)
-			.Reload(48, 55, 66, 77, 88);
+			.Reload(42, 50, 60, 70);
 
-		Assert.AreEqual("[0] 48 55 66 77 88 [99]", shifter.Print());
-		Assert.AreEqual(1, shifter.PushRight("48", 99));
-		Assert.AreEqual("[0] 49 59 69 79 89 [99]", shifter.Print());
+		Assert.AreEqual("[0] 42 50 60 70 [99]", shifter.Print());
+		Assert.AreEqual(7, shifter.PushRight("42", 99));
+		Assert.AreEqual("[0] 49 59 69 79 [99]", shifter.Print());
+	}
 
-		// reload same array but push 55 this time
-		shifter.Reload(48, 55, 66, 77, 88);
-		Assert.AreEqual("[0] 48 55 66 77 88 [99]", shifter.Print());
-		Assert.AreEqual(4, shifter.PushRight("55", 99));
-		Assert.AreEqual("[0] 48 59 69 79 89 [99]", shifter.Print());
+	[TestMethod]
+	public void push_right_tricky_recursion()
+	{
+		// Looking at the test above made me think "is it true that newPosts[i] must be
+		// less than oldPosts[i+1] ?"
+		// Because 42 stops just short of 50.
+		// But that is because I packed everything so tightly.
+		// Here we leave space after 50, so 42 can move past it.
+		// As you can see, you have to look 2 posts ahead to see where it will stop.
+		var shifter = NewShifter()
+			.WithMinFenceLength(10)
+			.Reload(42, 50, 70);
+
+		Assert.AreEqual("[0] 42 50 70 [99]", shifter.Print());
+		Assert.AreEqual(17, shifter.PushRight("42", 99));
+		Assert.AreEqual("[0] 59 69 79 [99]", shifter.Print());
 	}
 }

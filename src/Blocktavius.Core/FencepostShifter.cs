@@ -207,26 +207,36 @@ internal class FencepostShifter
 		}
 
 		var post = shifted[postIndex];
-		int neededSpace = plan.NeededSpace; // grab it before possible mutation
-											// TODO ResolutionPlan should handle this via a method probably
+		int maxPossibleSpace = post.IroncladRange.xMax - post.X;
+		if (maxPossibleSpace < 1)
+		{
+			return; // This post cannot move
+		}
+
+		// First we clamp the incoming requested space down to the max possible
+		// space this post could move. This avoids unnecessary recursion
+		// and may be necessary for correctness.
+		// This does not interfere with our ability to provide a partial result
+		// (e.g. "you requested 4, but the best I can do is 2").
+		int requestedSpace = Math.Min(maxPossibleSpace, plan.NeededSpace);
 
 		// Compute "easy space" as the amount of space we can free up without recursing.
-		int easyShiftPosition = shifted[postIndex + 1].X - settings.MinFenceLength;
-		easyShiftPosition = Math.Min(easyShiftPosition, post.IroncladRange.xMax);
-		int easySpace = easyShiftPosition - post.X;
-		if (easySpace >= plan.NeededSpace)
+		int easySpace = post.IroncladRange
+			.ConstrainRight(shifted[postIndex + 1].X - settings.MinFenceLength)
+			.xMax - post.X;
+		if (easySpace >= requestedSpace) // defensive, pretty sure it can never be > here
 		{
-			plan.AvailableSpace += neededSpace;
-			plan.PlannedMoves.Push((postIndex, post.X + neededSpace));
+			plan.AvailableSpace += requestedSpace;
+			plan.PlannedMoves.Push((postIndex, post.X + requestedSpace));
 			return;
 		}
 
 		// The "easy space" is not enough, we have to recurse
-		var recurse = plan.CreateRecursivePlan(plan.NeededSpace - easySpace);
+		var recurse = plan.CreateRecursivePlan(requestedSpace - easySpace);
 		PushPostsRight(postIndex + 1, recurse);
 		int hardSpace = Math.Min(recurse.AvailableSpace, recurse.RequestedSpace);
 
-		// Either we've satisfied the request, or we've gone all the way to the left
+		// Either we've satisfied the request, or we've gone all the way to the right
 		// and there's nothing more we can do.
 		int totalSpace = easySpace + hardSpace;
 		plan.AvailableSpace += totalSpace;
@@ -241,22 +251,24 @@ internal class FencepostShifter
 		}
 
 		var post = shifted[postIndex];
-		int leftPostMaxPossibleShift = post.X - post.IroncladRange.xMin;
-		int requestedSpace = Math.Min(leftPostMaxPossibleShift, plan.NeededSpace);
-		if (requestedSpace < 1)
+		int maxPossibleSpace = post.X - post.IroncladRange.xMin;
+		if (maxPossibleSpace < 1)
 		{
-			return;
+			return; // This post cannot move
 		}
 
+		// First we clamp the incoming requested space down to the max possible
+		// space this post could move. This avoids unnecessary recursion
+		// and may be necessary for correctness.
+		// This does not interfere with our ability to provide a partial result
+		// (e.g. "you requested 4, but the best I can do is 2").
+		int requestedSpace = Math.Min(maxPossibleSpace, plan.NeededSpace);
+
 		// Compute "easy space" as the amount of space we can free up without recursing.
-		int easyShiftPosition = shifted[postIndex - 1].X + settings.MinFenceLength;
-		if (!post.IroncladRange.Contains(easyShiftPosition))
-		{
-			// Is this a bug? If so create a failing test and fix it.
-			System.Diagnostics.Debugger.Break();
-		}
-		int easySpace = post.X - easyShiftPosition;
-		if (easySpace >= requestedSpace)
+		int easySpace = post.X - post.IroncladRange
+			.ConstrainLeft(shifted[postIndex - 1].X + settings.MinFenceLength)
+			.xMin;
+		if (easySpace >= requestedSpace) // defensive, pretty sure it can never be > here
 		{
 			plan.AvailableSpace += requestedSpace;
 			plan.PlannedMoves.Push((postIndex, post.X - requestedSpace));
@@ -289,14 +301,24 @@ internal class FencepostShifter
 
 			if (i - 1 >= 0)
 			{
-				// exclude left neighbor's post
+				// We must not block the left neighbor from overlapping
+				// its original span by at least one space
 				range = range.ConstrainLeft(posts[i - 1] + 1);
 			}
-			if (i + 1 < posts.Count)
+			if (i + 2 < posts.Count)
 			{
-				// exclude right neighbor's post
-				range = range.ConstrainRight(posts[i + 1] - settings.MinFenceLength);
+				// Consider posts i, j, k
+				// Post j ends at k-1
+				// So we cannot move post j past k-1 (must overlap at least 1 space)
+				int jMax = posts[i + 2] - 1;
+				// and we have to make sure i+minFenceLength leaves room for this
+				range = range.ConstrainRight(jMax - settings.MinFenceLength);
 			}
+
+			// This really only matters near the start and end of the list,
+			// but there's no reason not to do it for everyone
+			range = range.ConstrainLeft(i * settings.MinFenceLength);
+			range = range.ConstrainRight(settings.TotalLength - (posts.Count - i) * settings.MinFenceLength);
 
 			ranges[i] = range;
 		}
