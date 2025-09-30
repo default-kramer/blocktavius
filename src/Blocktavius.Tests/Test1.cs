@@ -252,5 +252,140 @@ namespace Blocktavius.Tests
 				Assert.Fail($"Too few unchanged runs: {unchangedRuns} / {totalRuns}");
 			}
 		}
+
+		[TestMethod]
+		[Timeout(1000 * 60)]
+		public void ExerciseFencepostShifter()
+		{
+			var prng = PRNG.Create(new Random());
+			Console.WriteLine(prng.Serialize());
+			//prng = PRNG.Deserialize("3963482428-1355993663-3038773839-3951786606-2086022424-3526517563");
+
+			var settings = new FencepostShifter.Settings()
+			{
+				MaxNudge = 5,
+				TotalLength = 100,
+				MinFenceLength = 2,
+				MaxFenceLength = 15
+			};
+
+			int totalFences = 0;
+			int longFences = 0;
+			int shortFences = 0;
+			int totalShifts = 0;
+			int zeroShifts = 0;
+
+			const int shiftsPerRun = 50;
+			int runs = 500;
+
+			while (runs-- > 0)
+			{
+				var (shifter, prev) = CreateFencepostShifter(prng, ref settings);
+
+				int shifts = shiftsPerRun;
+				while (shifts-- > 0)
+				{
+					var clonePrng = prng.Clone();
+					var clonePrev = prev.ToList();
+
+					var current = shifter.Shift(prng).ToList();
+
+					// Verify basic properties
+					Assert.AreEqual(prev.Count, current.Count);
+
+					// Check that all posts are within bounds
+					Assert.IsTrue(current.First() > 0);
+					Assert.IsTrue(current.Last() < settings.TotalLength);
+
+					// Check fence length constraints
+					for (int i = 0; i <= current.Count; i++)
+					{
+						totalFences++;
+						int leftX = i == 0 ? 0 : current[i - 1];
+						int rightX = i == current.Count ? settings.TotalLength : current[i];
+						int fenceLength = rightX - leftX;
+
+						Assert.IsTrue(fenceLength >= settings.MinFenceLength,
+							$"Fence {i} too short: {fenceLength} < {settings.MinFenceLength}");
+						Assert.IsTrue(fenceLength <= settings.MaxFenceLength,
+							$"Fence {i} too long: {fenceLength} > {settings.MaxFenceLength}");
+
+						if (fenceLength > settings.MaxFenceLength - 1)
+						{
+							longFences++;
+						}
+						if (fenceLength <= settings.MinFenceLength + 1)
+						{
+							shortFences++;
+						}
+					}
+
+					// Check MaxNudge constraint
+					for (int i = 0; i < current.Count; i++)
+					{
+						totalShifts++;
+						int nudgeAmount = Math.Abs(current[i] - prev[i]);
+						Assert.IsTrue(nudgeAmount <= settings.MaxNudge,
+							$"Post {i} nudged too far: {nudgeAmount} > {settings.MaxNudge}");
+
+						if (nudgeAmount == 0)
+						{
+							zeroShifts++;
+						}
+					}
+
+					// Check monotonic ordering
+					for (int i = 1; i < current.Count; i++)
+					{
+						Assert.IsTrue(current[i] > current[i - 1],
+							$"Posts not in order: {current[i]} <= {current[i - 1]} at index {i}");
+					}
+
+					shifter = new FencepostShifter(current.ToList(), settings);
+					prev = current;
+				}
+			}
+
+			// Statistical checks
+			if (longFences > totalFences / 5)
+			{
+				Assert.Fail($"Too many near-maximum fences: {longFences} / {totalFences}");
+			}
+
+			if (shortFences > totalFences / 5)
+			{
+				Assert.Fail($"Too many near-minimum fences: {shortFences} / {totalFences}");
+			}
+
+			if (zeroShifts > totalShifts / 3)
+			{
+				Assert.Fail($"Too many zero shifts: {zeroShifts} / {totalShifts}");
+			}
+
+			if (zeroShifts < totalShifts / 100)
+			{
+				Assert.Fail($"Too few zero shifts: {zeroShifts} / {totalShifts}");
+			}
+		}
+
+		private static (FencepostShifter, IReadOnlyList<int>) CreateFencepostShifter(PRNG prng, ref FencepostShifter.Settings settings)
+		{
+			var posts = new List<int>();
+			int prev = 0;
+			int curr = 0;
+			do
+			{
+				curr += prng.NextInt32(settings.MinFenceLength, settings.MaxFenceLength + 1);
+				posts.Add(curr);
+				prev = curr;
+			} while (curr < 100);
+
+			settings = settings with
+			{
+				TotalLength = curr + prng.NextInt32(settings.MinFenceLength, settings.MaxFenceLength + 1)
+			};
+
+			return (new FencepostShifter(posts, settings), posts);
+		}
 	}
 }

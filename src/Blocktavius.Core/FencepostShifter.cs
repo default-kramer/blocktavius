@@ -189,6 +189,157 @@ internal class FencepostShifter
 		this.pushLeftOperation = new(args);
 	}
 
+	public List<int> Shift(PRNG prng)
+	{
+		RandomShift(prng);
+
+		var violations = FindInvalidFences().ToList();
+		while (violations.Count > 0)
+		{
+			prng.Shuffle(violations);
+			foreach (var violation in violations)
+			{
+				if (violation.Excess > 0)
+				{
+					Resolve(prng, violation);
+				}
+				else
+				{
+					Resolve(prng, violation);
+				}
+			}
+
+			violations = FindInvalidFences().ToList();
+		}
+
+		return shifted.Select(p => p.X).ToList();
+	}
+
+	private void RandomShift(PRNG prng)
+	{
+		foreach (var post in shifted)
+		{
+			post.X = prng.NextInt32(post.IroncladRange.xMin, post.IroncladRange.xMax + 1);
+		}
+	}
+
+	sealed class InvalidFence
+	{
+		public required int LeftPostIndex { get; init; }
+		public required int RightPostIndex { get; init; }
+		public required int Excess { get; init; } // negative indicates shortage
+	}
+
+	private IEnumerable<InvalidFence> FindInvalidFences()
+	{
+		// -1 is a valid index due to our custom indexer trick
+		for (int i = -1; i < shifted.Count; i++)
+		{
+			var violation = AsInvalidFence(i);
+			if (violation != null)
+			{
+				yield return violation;
+			}
+		}
+	}
+
+	private InvalidFence? AsInvalidFence(int leftPostIndex)
+	{
+		var left = shifted[leftPostIndex];
+		var right = shifted[leftPostIndex + 1];
+		if (!left.IroncladRange.Contains(left.X))
+		{
+			throw new Exception($"assert fail: {left}");
+		}
+		if (!right.IroncladRange.Contains(right.X))
+		{
+			throw new Exception($"assert fail: {right}");
+		}
+
+		int fenceLength = right.X - left.X;
+		int excess = fenceLength - settings.MaxFenceLength;
+		int shortage = settings.MinFenceLength - fenceLength;
+		if (excess > 0)
+		{
+			// okay
+		}
+		else if (shortage > 0)
+		{
+			excess = -shortage;
+		}
+		else
+		{
+			return null;
+		}
+
+		return new InvalidFence
+		{
+			Excess = excess,
+			LeftPostIndex = leftPostIndex,
+			RightPostIndex = leftPostIndex + 1,
+		};
+	}
+
+	private void Resolve(PRNG prng, InvalidFence fence)
+	{
+		var recheck = AsInvalidFence(fence.LeftPostIndex);
+		if (recheck == null)
+		{
+			return; // already resolved
+		}
+		fence = recheck;
+
+		ShiftOperation leftOp;
+		ShiftOperation rightOp;
+		if (fence.Excess > 0)
+		{
+			// TODO I just realized how bad these names are.
+			// Does "pull left" mean "pull the left towards the center"
+			// or does it mean "pull left FROM THE RIGHT"??
+			leftOp = pullRightOperation; // pull right FROM LEFT
+			rightOp = pullLeftOperation; // pull left FROM RIGHT
+		}
+		else if (fence.Excess < 0)
+		{
+			leftOp = pushLeftOperation;
+			rightOp = pushRightOperation;
+		}
+		else
+		{
+			throw new Exception("assert fail");
+		}
+
+		int requestedSpace = Math.Abs(fence.Excess);
+
+		var leftPlan = new ResolutionPlan() { RequestedSpace = requestedSpace };
+		leftOp.Execute(fence.LeftPostIndex, leftPlan);
+		var rightPlan = new ResolutionPlan() { RequestedSpace = requestedSpace };
+		rightOp.Execute(fence.RightPostIndex, rightPlan);
+
+		ResolutionPlan plan;
+		if (leftPlan.AvailableSpace < 1)
+		{
+			plan = rightPlan;
+		}
+		else if (rightPlan.AvailableSpace < 1)
+		{
+			plan = leftPlan;
+		}
+		else
+		{
+			plan = prng.RandomChoice(leftPlan, rightPlan);
+		}
+		Apply(plan);
+	}
+
+	private void Apply(ResolutionPlan plan)
+	{
+		foreach (var move in plan.PlannedMoves)
+		{
+			shifted[move.postIndex].X = move.newPosition;
+		}
+	}
+
 	sealed class ResolutionPlan
 	{
 		public Stack<(int postIndex, int newPosition)> PlannedMoves { get; private init; } = new();
