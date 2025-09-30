@@ -181,6 +181,11 @@ internal class FencepostShifter
 			LeftAnchor = MutablePost.Copy(this.orig.LeftAnchor),
 			RightAnchor = MutablePost.Copy(this.orig.RightAnchor),
 		};
+
+		var args = new ShiftOperation.Args { settings = settings, shifted = shifted };
+		this.pullLeftOperation = new(args);
+		this.pushRightOperation = new(args);
+		this.pushLeftOperation = new(args);
 	}
 
 	sealed class ResolutionPlan
@@ -199,137 +204,120 @@ internal class FencepostShifter
 		};
 	}
 
-	private void PullLeft(int postIndex, ResolutionPlan plan)
+	abstract class ShiftOperation
 	{
-		if (postIndex > shifted.Count - 1 || plan.IsDone)
+		public sealed record Args
 		{
-			return;
+			public required Settings settings { get; init; }
+			public required Postlist<MutablePost> shifted { get; init; }
 		}
 
-		var post = shifted[postIndex];
-		int maxPossibleSpace = post.X - post.IroncladRange.xMin;
-		if (maxPossibleSpace < 1)
+		protected readonly Settings settings;
+		protected readonly Postlist<MutablePost> shifted;
+
+		protected ShiftOperation(Args args)
 		{
-			return; // This post cannot move
+			this.settings = args.settings;
+			this.shifted = args.shifted;
 		}
 
-		// First we clamp the incoming requested space down to the max possible
-		// space this post could move. This avoids unnecessary recursion
-		// and may be necessary for correctness.
-		// This does not interfere with our ability to provide a partial result
-		// (e.g. "you requested 4, but the best I can do is 2").
-		int requestedSpace = Math.Min(maxPossibleSpace, plan.NeededSpace);
+		protected abstract int GetMaxPossibleSpace(MutablePost post);
+		protected abstract int CalculateEasySpace(MutablePost post, int postIndex);
+		protected abstract int GetNextPostIndex(int postIndex);
+		protected abstract int CalculateNewPosition(MutablePost post, int totalSpace);
 
-		// Compute "easy space" as the amount of space we can free up without recursing.
-		int easySpace = post.X - post.IroncladRange
-			.ConstrainLeft(shifted[postIndex + 1].X - settings.MaxFenceLength)
-			.xMin;
-		if (easySpace >= requestedSpace) // defensive, pretty sure it can never be > here
+		public void Execute(int postIndex, ResolutionPlan plan)
 		{
-			plan.AvailableSpace += requestedSpace;
-			plan.PlannedMoves.Push((postIndex, post.X - requestedSpace));
-			return;
+			if (postIndex < 0 || postIndex > shifted.Count - 1 || plan.IsDone)
+			{
+				return;
+			}
+
+			var post = shifted[postIndex];
+			int maxPossibleSpace = GetMaxPossibleSpace(post);
+			if (maxPossibleSpace < 1)
+			{
+				return; // This post cannot move
+			}
+
+			// First we clamp the incoming requested space down to the max possible
+			// space this post could move. This avoids unnecessary recursion
+			// and may be necessary for correctness.
+			// This does not interfere with our ability to provide a partial result
+			// (e.g. "you requested 4, but the best I can do is 2").
+			int requestedSpace = Math.Min(maxPossibleSpace, plan.NeededSpace);
+
+			// Compute "easy space" as the amount of space we can free up without recursing.
+			int easySpace = CalculateEasySpace(post, postIndex);
+			if (easySpace >= requestedSpace) // defensive, pretty sure it can never be > here
+			{
+				plan.AvailableSpace += requestedSpace;
+				plan.PlannedMoves.Push((postIndex, CalculateNewPosition(post, requestedSpace)));
+				return;
+			}
+
+			// The "easy space" is not enough, we have to recurse
+			var recurse = plan.CreateRecursivePlan(requestedSpace - easySpace);
+			Execute(GetNextPostIndex(postIndex), recurse);
+			int hardSpace = Math.Min(recurse.AvailableSpace, recurse.RequestedSpace);
+
+			// Either we've satisfied the request, or we've gone all the way to the boundary
+			// and there's nothing more we can do.
+			int totalSpace = easySpace + hardSpace;
+			plan.AvailableSpace += totalSpace;
+			plan.PlannedMoves.Push((postIndex, CalculateNewPosition(post, totalSpace)));
 		}
-
-		// The "easy space" is not enough, we have to recurse
-		var recurse = plan.CreateRecursivePlan(requestedSpace - easySpace);
-		PullLeft(postIndex + 1, recurse);
-		int hardSpace = Math.Min(recurse.AvailableSpace, recurse.RequestedSpace);
-
-		// Either we've satisfied the request, or we've gone all the way to the left
-		// and there's nothing more we can do.
-		int totalSpace = easySpace + hardSpace;
-		plan.AvailableSpace += totalSpace;
-		plan.PlannedMoves.Push((postIndex, post.X - totalSpace));
 	}
 
-	private void PushPostsRight(int postIndex, ResolutionPlan plan)
+	sealed class PullLeftOperation : ShiftOperation
 	{
-		if (postIndex > shifted.Count - 1 || plan.IsDone)
-		{
-			return;
-		}
+		public PullLeftOperation(Args args) : base(args) { }
 
-		var post = shifted[postIndex];
-		int maxPossibleSpace = post.IroncladRange.xMax - post.X;
-		if (maxPossibleSpace < 1)
-		{
-			return; // This post cannot move
-		}
+		protected override int GetMaxPossibleSpace(MutablePost post) => post.X - post.IroncladRange.xMin;
+		protected override int GetNextPostIndex(int postIndex) => postIndex + 1;
+		protected override int CalculateNewPosition(MutablePost post, int totalSpace) => post.X - totalSpace;
 
-		// First we clamp the incoming requested space down to the max possible
-		// space this post could move. This avoids unnecessary recursion
-		// and may be necessary for correctness.
-		// This does not interfere with our ability to provide a partial result
-		// (e.g. "you requested 4, but the best I can do is 2").
-		int requestedSpace = Math.Min(maxPossibleSpace, plan.NeededSpace);
-
-		// Compute "easy space" as the amount of space we can free up without recursing.
-		int easySpace = post.IroncladRange
-			.ConstrainRight(shifted[postIndex + 1].X - settings.MinFenceLength)
-			.xMax - post.X;
-		if (easySpace >= requestedSpace) // defensive, pretty sure it can never be > here
-		{
-			plan.AvailableSpace += requestedSpace;
-			plan.PlannedMoves.Push((postIndex, post.X + requestedSpace));
-			return;
-		}
-
-		// The "easy space" is not enough, we have to recurse
-		var recurse = plan.CreateRecursivePlan(requestedSpace - easySpace);
-		PushPostsRight(postIndex + 1, recurse);
-		int hardSpace = Math.Min(recurse.AvailableSpace, recurse.RequestedSpace);
-
-		// Either we've satisfied the request, or we've gone all the way to the right
-		// and there's nothing more we can do.
-		int totalSpace = easySpace + hardSpace;
-		plan.AvailableSpace += totalSpace;
-		plan.PlannedMoves.Push((postIndex, post.X + totalSpace));
+		protected override int CalculateEasySpace(MutablePost post, int postIndex) =>
+			post.X - post.IroncladRange
+				.ConstrainLeft(shifted[postIndex + 1].X - settings.MaxFenceLength)
+				.xMin;
 	}
 
-	private void PushPostsLeft(int postIndex, ResolutionPlan plan)
+	sealed class PushRightOperation : ShiftOperation
 	{
-		if (postIndex < 0 || plan.IsDone)
-		{
-			return;
-		}
+		public PushRightOperation(Args args) : base(args) { }
 
-		var post = shifted[postIndex];
-		int maxPossibleSpace = post.X - post.IroncladRange.xMin;
-		if (maxPossibleSpace < 1)
-		{
-			return; // This post cannot move
-		}
+		protected override int GetMaxPossibleSpace(MutablePost post) => post.IroncladRange.xMax - post.X;
+		protected override int GetNextPostIndex(int postIndex) => postIndex + 1;
+		protected override int CalculateNewPosition(MutablePost post, int totalSpace) => post.X + totalSpace;
 
-		// First we clamp the incoming requested space down to the max possible
-		// space this post could move. This avoids unnecessary recursion
-		// and may be necessary for correctness.
-		// This does not interfere with our ability to provide a partial result
-		// (e.g. "you requested 4, but the best I can do is 2").
-		int requestedSpace = Math.Min(maxPossibleSpace, plan.NeededSpace);
-
-		// Compute "easy space" as the amount of space we can free up without recursing.
-		int easySpace = post.X - post.IroncladRange
-			.ConstrainLeft(shifted[postIndex - 1].X + settings.MinFenceLength)
-			.xMin;
-		if (easySpace >= requestedSpace) // defensive, pretty sure it can never be > here
-		{
-			plan.AvailableSpace += requestedSpace;
-			plan.PlannedMoves.Push((postIndex, post.X - requestedSpace));
-			return;
-		}
-
-		// The "easy space" is not enough, we have to recurse
-		var recurse = plan.CreateRecursivePlan(requestedSpace - easySpace);
-		PushPostsLeft(postIndex - 1, recurse);
-		int hardSpace = Math.Min(recurse.AvailableSpace, recurse.RequestedSpace);
-
-		// Either we've satisfied the request, or we've gone all the way to the left
-		// and there's nothing more we can do.
-		int totalSpace = easySpace + hardSpace;
-		plan.AvailableSpace += totalSpace;
-		plan.PlannedMoves.Push((postIndex, post.X - totalSpace));
+		protected override int CalculateEasySpace(MutablePost post, int postIndex) =>
+			post.IroncladRange
+				.ConstrainRight(shifted[postIndex + 1].X - settings.MinFenceLength)
+				.xMax - post.X;
 	}
+
+	sealed class PushLeftOperation : ShiftOperation
+	{
+		public PushLeftOperation(Args args) : base(args) { }
+
+		protected override int GetMaxPossibleSpace(MutablePost post) => post.X - post.IroncladRange.xMin;
+		protected override int GetNextPostIndex(int postIndex) => postIndex - 1;
+		protected override int CalculateNewPosition(MutablePost post, int totalSpace) => post.X - totalSpace;
+
+		protected override int CalculateEasySpace(MutablePost post, int postIndex) =>
+			post.X - post.IroncladRange
+				.ConstrainLeft(shifted[postIndex - 1].X + settings.MinFenceLength)
+				.xMin;
+	}
+
+	private readonly PullLeftOperation pullLeftOperation;
+	private readonly PushRightOperation pushRightOperation;
+	private readonly PushLeftOperation pushLeftOperation;
+
+	private void PullLeft(int postIndex, ResolutionPlan plan) => pullLeftOperation.Execute(postIndex, plan);
+	private void PushPostsRight(int postIndex, ResolutionPlan plan) => pushRightOperation.Execute(postIndex, plan);
+	private void PushPostsLeft(int postIndex, ResolutionPlan plan) => pushLeftOperation.Execute(postIndex, plan);
 
 	private static IReadOnlyList<Range> BuildIroncladRanges(IReadOnlyList<int> posts, Settings settings)
 	{
