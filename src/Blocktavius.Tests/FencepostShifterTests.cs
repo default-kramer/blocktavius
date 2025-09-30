@@ -215,4 +215,17 @@ public class FencepostShifterTests
 		Assert.AreEqual(9, shifter.PullLeft("50", 99));
 		Assert.AreEqual("[0] 41 51 61 71 74 [99]", shifter.Print());
 	}
+
+	[TestMethod]
+	public void pull_right_recursion()
+	{
+		var shifter = NewShifter()
+			.WithMaxFenceLength(10)
+			.Reload(3, 9);
+
+		// here "[0]" is the limiter
+		Assert.AreEqual("[0] 03 09 [99]", shifter.Print());
+		Assert.AreEqual(11, shifter.PullRight("09", 99));
+		Assert.AreEqual("[0] 10 20 [99]", shifter.Print());
+	}
 }

@@ -183,8 +183,9 @@ internal class FencepostShifter
 		};
 
 		var args = new ShiftOperation.Args { settings = settings, shifted = shifted };
-		this.pullLeftOperation = new(args);
+		this.pullRightOperation = new(args);
 		this.pushRightOperation = new(args);
+		this.pullLeftOperation = new(args);
 		this.pushLeftOperation = new(args);
 	}
 
@@ -269,18 +270,18 @@ internal class FencepostShifter
 		}
 	}
 
-	sealed class PullLeftOperation : ShiftOperation
+	sealed class PullRightOperation : ShiftOperation
 	{
-		public PullLeftOperation(Args args) : base(args) { }
+		public PullRightOperation(Args args) : base(args) { }
 
-		protected override int GetMaxPossibleSpace(MutablePost post) => post.X - post.IroncladRange.xMin;
-		protected override int GetNextPostIndex(int postIndex) => postIndex + 1;
-		protected override int CalculateNewPosition(MutablePost post, int totalSpace) => post.X - totalSpace;
+		protected override int GetMaxPossibleSpace(MutablePost post) => post.IroncladRange.xMax - post.X;
+		protected override int GetNextPostIndex(int postIndex) => postIndex - 1;
+		protected override int CalculateNewPosition(MutablePost post, int totalSpace) => post.X + totalSpace;
 
 		protected override int CalculateEasySpace(MutablePost post, int postIndex) =>
-			post.X - post.IroncladRange
-				.ConstrainLeft(shifted[postIndex + 1].X - settings.MaxFenceLength)
-				.xMin;
+			post.IroncladRange
+				.ConstrainRight(shifted[postIndex - 1].X + settings.MaxFenceLength)
+				.xMax - post.X;
 	}
 
 	sealed class PushRightOperation : ShiftOperation
@@ -297,6 +298,20 @@ internal class FencepostShifter
 				.xMax - post.X;
 	}
 
+	sealed class PullLeftOperation : ShiftOperation
+	{
+		public PullLeftOperation(Args args) : base(args) { }
+
+		protected override int GetMaxPossibleSpace(MutablePost post) => post.X - post.IroncladRange.xMin;
+		protected override int GetNextPostIndex(int postIndex) => postIndex + 1;
+		protected override int CalculateNewPosition(MutablePost post, int totalSpace) => post.X - totalSpace;
+
+		protected override int CalculateEasySpace(MutablePost post, int postIndex) =>
+			post.X - post.IroncladRange
+				.ConstrainLeft(shifted[postIndex + 1].X - settings.MaxFenceLength)
+				.xMin;
+	}
+
 	sealed class PushLeftOperation : ShiftOperation
 	{
 		public PushLeftOperation(Args args) : base(args) { }
@@ -311,8 +326,9 @@ internal class FencepostShifter
 				.xMin;
 	}
 
-	private readonly PullLeftOperation pullLeftOperation;
+	private readonly PullRightOperation pullRightOperation;
 	private readonly PushRightOperation pushRightOperation;
+	private readonly PullLeftOperation pullLeftOperation;
 	private readonly PushLeftOperation pushLeftOperation;
 
 	private void PullLeft(int postIndex, ResolutionPlan plan) => pullLeftOperation.Execute(postIndex, plan);
@@ -413,19 +429,15 @@ internal class FencepostShifter
 			return sb.ToString();
 		}
 
-		// makes tests more readable -- the string "25" means the post having 25==post.X;
-		// whereas 25 means the post at index 25
-		private int GetPostIndex(string postName)
+		private int Do(string postName, ShiftOperation operation, int amount)
 		{
+			// makes tests more readable -- the string "25" means the post having 25==post.X;
+			// whereas 25 means the post at index 25
 			int postValue = int.Parse(postName);
-			return shifter.shifted.Index().Where(p => p.Item.X == postValue).Single().Index;
-		}
+			int postIndex = shifter.shifted.Index().Where(p => p.Item.X == postValue).Single().Index;
 
-		public int PushLeft(string postName, int amount)
-		{
-			int postIndex = GetPostIndex(postName);
 			var plan = new ResolutionPlan() { RequestedSpace = amount };
-			shifter.PushPostsLeft(postIndex, plan);
+			operation.Execute(postIndex, plan);
 			foreach (var move in plan.PlannedMoves)
 			{
 				shifter.shifted[move.postIndex].X = move.newPosition;
@@ -434,28 +446,12 @@ internal class FencepostShifter
 			return plan.AvailableSpace;
 		}
 
-		public int PushRight(string postName, int amount)
-		{
-			int postIndex = GetPostIndex(postName);
-			var plan = new ResolutionPlan() { RequestedSpace = amount };
-			shifter.PushPostsRight(postIndex, plan);
-			foreach (var move in plan.PlannedMoves)
-			{
-				shifter.shifted[move.postIndex].X = move.newPosition;
-			}
-			return plan.AvailableSpace;
-		}
+		public int PushLeft(string postName, int amount) => Do(postName, shifter.pushLeftOperation, amount);
 
-		public int PullLeft(string postName, int amount)
-		{
-			int postIndex = GetPostIndex(postName);
-			var plan = new ResolutionPlan() { RequestedSpace = amount };
-			shifter.PullLeft(postIndex, plan);
-			foreach (var move in plan.PlannedMoves)
-			{
-				shifter.shifted[move.postIndex].X = move.newPosition;
-			}
-			return plan.AvailableSpace;
-		}
+		public int PushRight(string postName, int amount) => Do(postName, shifter.pushRightOperation, amount);
+
+		public int PullLeft(string postName, int amount) => Do(postName, shifter.pullLeftOperation, amount);
+
+		public int PullRight(string postName, int amount) => Do(postName, shifter.pullRightOperation, amount);
 	}
 }
