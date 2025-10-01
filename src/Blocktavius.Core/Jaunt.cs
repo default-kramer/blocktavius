@@ -265,6 +265,28 @@ public sealed class Jaunt
 		return retval;
 	}
 
+	internal Jaunt ShiftByFencepost(PRNG prng, FencepostShifter.Settings settings)
+	{
+		var origPosts = this.runs.Skip(1).Select(r => r.start).ToList();
+		var shifter = new FencepostShifter(origPosts, settings);
+		var newPosts = shifter.Shift(prng);
+
+		var runs = new List<Run>();
+		for (int i = 0; i < this.runs.Count; i++)
+		{
+			int runStart = i == 0 ? 0 : newPosts[i - 1];
+			int runEnd = (i == this.runs.Count - 1) ? settings.TotalLength : newPosts[i];
+			runs.Add(new Run()
+			{
+				laneOffset = this.runs[i].laneOffset,
+				start = runStart,
+				length = runEnd - runStart,
+			});
+		}
+
+		return new Jaunt(runs);
+	}
+
 	/// <summary>
 	/// Shifts the Jaunt by nudging run boundaries within constraints.
 	/// Uses constraint-satisfying boundary shifting algorithm.

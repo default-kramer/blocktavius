@@ -259,7 +259,7 @@ namespace Blocktavius.Tests
 		{
 			var prng = PRNG.Create(new Random());
 			Console.WriteLine(prng.Serialize());
-			//prng = PRNG.Deserialize("3963482428-1355993663-3038773839-3951786606-2086022424-3526517563");
+			//prng = PRNG.Deserialize("2738926009-1368371339-1413019004-521382713-187568799-2606996474");
 
 			var settings = new FencepostShifter.Settings()
 			{
@@ -285,9 +285,6 @@ namespace Blocktavius.Tests
 				int shifts = shiftsPerRun;
 				while (shifts-- > 0)
 				{
-					var clonePrng = prng.Clone();
-					var clonePrev = prev.ToList();
-
 					var current = shifter.Shift(prng).ToList();
 
 					// Verify basic properties
@@ -302,7 +299,9 @@ namespace Blocktavius.Tests
 					{
 						totalFences++;
 						int leftX = i == 0 ? 0 : current[i - 1];
+						int leftXPrev = i == 0 ? 0 : prev[i - 1];
 						int rightX = i == current.Count ? settings.TotalLength : current[i];
+						int rightXPrev = i == prev.Count ? settings.TotalLength : prev[i];
 						int fenceLength = rightX - leftX;
 
 						Assert.IsTrue(fenceLength >= settings.MinFenceLength,
@@ -318,6 +317,13 @@ namespace Blocktavius.Tests
 						{
 							shortFences++;
 						}
+
+						// Consider the fence having posts L and R.
+						// If post L increases to (or beyond) the original position of post R there is no overlap.
+						// If post R decreases to (or beyond) the original position of post L there is no overlap.
+						// This must be disallowed; at least 1 space of overlap is required.
+						Assert.IsTrue(leftX < rightXPrev);
+						Assert.IsTrue(rightX > leftXPrev);
 					}
 
 					// Check MaxNudge constraint
@@ -371,13 +377,11 @@ namespace Blocktavius.Tests
 		private static (FencepostShifter, IReadOnlyList<int>) CreateFencepostShifter(PRNG prng, ref FencepostShifter.Settings settings)
 		{
 			var posts = new List<int>();
-			int prev = 0;
 			int curr = 0;
 			do
 			{
 				curr += prng.NextInt32(settings.MinFenceLength, settings.MaxFenceLength + 1);
 				posts.Add(curr);
-				prev = curr;
 			} while (curr < 100);
 
 			settings = settings with

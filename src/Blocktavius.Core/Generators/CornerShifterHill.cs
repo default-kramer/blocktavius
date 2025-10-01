@@ -36,6 +36,13 @@ public sealed class CornerShifterHill
 			RunLengthProvider = RandomValues.BoundedInfiniteDeck(2, 3, 4, 5, 6, 7),
 			LaneChangeDirectionProvider = RandomValues.InfiniteDeck(true, true, false, false),
 		};
+		var fencepostShiftSettings = new FencepostShifter.Settings
+		{
+			MaxFenceLength = settings.MaxRunLength,
+			MinFenceLength = settings.MinRunLength,
+			TotalLength = settings.Width,
+			MaxNudge = settings.MaxShift,
+		};
 
 		var bounds = new Rect(XZ.Zero, size);
 		var sampler = new MutableArray2D<Elevation>(bounds, peak);
@@ -55,7 +62,7 @@ public sealed class CornerShifterHill
 				//layers.Add(Layer2.Create(prng, settings, elev));
 
 				var jaunt = Jaunt.Create(prng, jauntSettings);
-				layers.Add(JauntyLayer.Create(jaunt, elev, 0));
+				layers.Add(JauntyLayer.Create(jaunt, elev, 0, fencepostShiftSettings));
 			}
 			elev = new Elevation(elev.Y + 1);
 		}
@@ -118,9 +125,10 @@ public sealed class CornerShifterHill
 		public required Elevation elevation { get; init; }
 		public required Jaunt jaunt { get; init; }
 		public required int zOffset { get; init; }
+		public required FencepostShifter.Settings shiftSettings { get; init; }
 		private JauntyLayer() { }
 
-		public static JauntyLayer Create(Jaunt jaunt, Elevation elevation, int zOffset)
+		public static JauntyLayer Create(Jaunt jaunt, Elevation elevation, int zOffset, FencepostShifter.Settings shiftSettings)
 		{
 			return new JauntyLayer()
 			{
@@ -128,6 +136,7 @@ public sealed class CornerShifterHill
 				elevation = elevation,
 				jaunt = jaunt,
 				zOffset = zOffset,
+				shiftSettings = shiftSettings,
 			};
 		}
 
@@ -135,8 +144,9 @@ public sealed class CornerShifterHill
 
 		public override Layer CreateNextLayer(PRNG prng, Elevation elevation)
 		{
-			var jaunt = this.jaunt.NextLayer(prng);
-			return Create(jaunt, elevation, this.zOffset + 1);
+			//var jaunt = this.jaunt.NextLayer(prng);
+			var jaunt = this.jaunt.ShiftByFencepost(prng, shiftSettings);
+			return Create(jaunt, elevation, this.zOffset + 1, shiftSettings);
 		}
 	}
 

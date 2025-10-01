@@ -165,24 +165,6 @@ public class FencepostShifterTests
 	}
 
 	[TestMethod]
-	public void push_right_tricky_recursion()
-	{
-		// Looking at the test above made me think "is it true that newPosts[i] must be
-		// less than oldPosts[i+1] ?"
-		// Because 42 stops just short of 50.
-		// But that is because I packed everything so tightly.
-		// Here we leave space after 50, so 42 can move past it.
-		// As you can see, you have to look 2 posts ahead to see where it will stop.
-		var shifter = NewShifter()
-			.WithMinFenceLength(10)
-			.Reload(42, 50, 70);
-
-		Assert.AreEqual("[0] 42 50 70 [99]", shifter.Print());
-		Assert.AreEqual(17, shifter.PushRight("42", 99));
-		Assert.AreEqual("[0] 59 69 79 [99]", shifter.Print());
-	}
-
-	[TestMethod]
 	public void pull_left_recursion()
 	{
 		var shifter = NewShifter()
@@ -223,9 +205,9 @@ public class FencepostShifterTests
 			.WithMaxFenceLength(10)
 			.Reload(3, 9);
 
-		// here "[0]" is the limiter
+		// "03" cannot move past "09"
 		Assert.AreEqual("[0] 03 09 [99]", shifter.Print());
-		Assert.AreEqual(11, shifter.PullRight("09", 99));
-		Assert.AreEqual("[0] 10 20 [99]", shifter.Print());
+		Assert.AreEqual(9, shifter.PullRight("09", 99));
+		Assert.AreEqual("[0] 08 18 [99]", shifter.Print());
 	}
 }

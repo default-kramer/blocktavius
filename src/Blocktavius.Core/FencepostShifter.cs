@@ -498,20 +498,17 @@ internal class FencepostShifter
 				.ConstrainLeft(0)
 				.ConstrainRight(settings.TotalLength - 1);
 
+			// Consider the fence having posts L and R.
+			// If post L increases to (or beyond) the original position of post R there is no overlap.
+			// If post R decreases to (or beyond) the original position of post L there is no overlap.
+			// This must be disallowed; at least 1 space of overlap is required.
 			if (i - 1 >= 0)
 			{
-				// We must not block the left neighbor from overlapping
-				// its original span by at least one space
 				range = range.ConstrainLeft(posts[i - 1] + 1);
 			}
-			if (i + 2 < posts.Count)
+			if (i + 1 < posts.Count)
 			{
-				// Consider posts i, j, k
-				// Post j ends at k-1
-				// So we cannot move post j past k-1 (must overlap at least 1 space)
-				int jMax = posts[i + 2] - 1;
-				// and we have to make sure i+minFenceLength leaves room for this
-				range = range.ConstrainRight(jMax - settings.MinFenceLength);
+				range = range.ConstrainRight(posts[i + 1] - 1);
 			}
 
 			// This really only matters near the start and end of the list,
