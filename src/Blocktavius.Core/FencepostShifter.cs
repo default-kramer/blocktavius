@@ -50,12 +50,12 @@ So let's assume we are trying to resolve the fence bounded by orig[4] and orig[5
 If this fence is too long, we have to pull the left and/or right posts closer.
 If this fence is too shot, we have to push the left and/or right posts away.
 There are 4 operations, all of which produce a "ResolutionPlan":
-  * pull left closer
-  * pull right closer
-  * push left away
-  * push right away
+  * pull left closer  (attract the left)
+  * pull right closer (attract the right)
+  * push left away    (repel the left)
+  * push right away   (repel the right)
 All 4 of these operations are recursive, and accept { int postIndex; int requestedSpace }.
-Here pseudocode for PushLeft(i, requestedSpace)
+Here is pseudocode for PushLeft(i, requestedSpace)
   define easySpace = how far left posts[i] can move without moving posts[i-1]
   if easySpace >= requestedSpace
     return requestedSpace
@@ -81,26 +81,6 @@ Here example pseudocode of a complete resolution.
     ... similar idea using PushLeftAway and PushRightAway ...
   else
     return
-
-INSTRUCTIONS FOR CLAUDE:
-Do not modify this comment; make all changes inside the class.
-I will update this comment as we proceed.
-
-Be rigorous. This algorithm is an essential building block for this project
-which requires great code, comments, and tests.
-Don't hesitate to add custom types tailored to this problem
-if it will improve clarity or maintainability.
-
-Overall progress
-[ ] Convince me that you understand the proposed algorithm and agree with its soundness.
-    (It would be even better if you can come up with a better algorithm.)
-    Also let me know if you agree with this checklist or want to change it.
-[ ] Create and test the ResolutionPlan mechanism.
-    Tests should prove that even if the "random nudge" phase is totally broken
-    (imagine that it assigns totally random values instead of a value from the
-     ironclad range), the ResolutionPlan mechanism *still* works!
-    (I think this is true; if not we can relax it.)
-[ ] Complete the algorithm and add statistical tests similar to those of ExerciseCornerShifter.
 */
 internal class FencepostShifter
 {
@@ -183,10 +163,10 @@ internal class FencepostShifter
 		};
 
 		var args = new ShiftOperation.Args { settings = settings, shifted = shifted };
-		this.pullRightOperation = new(args);
-		this.pushRightOperation = new(args);
-		this.pullLeftOperation = new(args);
-		this.pushLeftOperation = new(args);
+		this.attractTheLeft = new(args);
+		this.repelTheRight = new(args);
+		this.attractTheRight = new(args);
+		this.repelTheLeft = new(args);
 	}
 
 	public List<int> Shift(PRNG prng)
@@ -293,16 +273,13 @@ internal class FencepostShifter
 		ShiftOperation rightOp;
 		if (fence.Excess > 0)
 		{
-			// TODO I just realized how bad these names are.
-			// Does "pull left" mean "pull the left towards the center"
-			// or does it mean "pull left FROM THE RIGHT"??
-			leftOp = pullRightOperation; // pull right FROM LEFT
-			rightOp = pullLeftOperation; // pull left FROM RIGHT
+			leftOp = attractTheLeft;
+			rightOp = attractTheRight;
 		}
 		else if (fence.Excess < 0)
 		{
-			leftOp = pushLeftOperation;
-			rightOp = pushRightOperation;
+			leftOp = repelTheLeft;
+			rightOp = repelTheRight;
 		}
 		else
 		{
@@ -311,10 +288,8 @@ internal class FencepostShifter
 
 		int requestedSpace = Math.Abs(fence.Excess);
 
-		var leftPlan = new ResolutionPlan() { RequestedSpace = requestedSpace };
-		leftOp.Execute(fence.LeftPostIndex, leftPlan);
-		var rightPlan = new ResolutionPlan() { RequestedSpace = requestedSpace };
-		rightOp.Execute(fence.RightPostIndex, rightPlan);
+		var leftPlan = leftOp.Execute(fence.LeftPostIndex, requestedSpace);
+		var rightPlan = rightOp.Execute(fence.RightPostIndex, requestedSpace);
 
 		ResolutionPlan plan;
 		if (leftPlan.AvailableSpace < 1)
@@ -345,7 +320,7 @@ internal class FencepostShifter
 		public Stack<(int postIndex, int newPosition)> PlannedMoves { get; private init; } = new();
 		public required int RequestedSpace { get; init; }
 		public int AvailableSpace { get; set; } = 0;
-		public int NeededSpace => RequestedSpace - AvailableSpace;
+		public int StillNeeded => RequestedSpace - AvailableSpace;
 		public bool IsDone => AvailableSpace >= RequestedSpace;
 
 		public ResolutionPlan CreateRecursivePlan(int requestSpace) => new ResolutionPlan()
@@ -378,7 +353,14 @@ internal class FencepostShifter
 		protected abstract int GetNextPostIndex(int postIndex);
 		protected abstract int CalculateNewPosition(MutablePost post, int totalSpace);
 
-		public void Execute(int postIndex, ResolutionPlan plan)
+		public ResolutionPlan Execute(int postIndex, int spaceRequested)
+		{
+			var plan = new ResolutionPlan() { RequestedSpace = spaceRequested };
+			Execute(postIndex, plan);
+			return plan;
+		}
+
+		private void Execute(int postIndex, ResolutionPlan plan)
 		{
 			if (postIndex < 0 || postIndex > shifted.Count - 1 || plan.IsDone)
 			{
@@ -397,7 +379,7 @@ internal class FencepostShifter
 			// and may be necessary for correctness.
 			// This does not interfere with our ability to provide a partial result
 			// (e.g. "you requested 4, but the best I can do is 2").
-			int requestedSpace = Math.Min(maxPossibleSpace, plan.NeededSpace);
+			int requestedSpace = Math.Min(maxPossibleSpace, plan.StillNeeded);
 
 			// Compute "easy space" as the amount of space we can free up without recursing.
 			int easySpace = CalculateEasySpace(post, postIndex);
@@ -421,9 +403,9 @@ internal class FencepostShifter
 		}
 	}
 
-	sealed class PullRightOperation : ShiftOperation
+	sealed class AttractTheLeft : ShiftOperation
 	{
-		public PullRightOperation(Args args) : base(args) { }
+		public AttractTheLeft(Args args) : base(args) { }
 
 		protected override int GetMaxPossibleSpace(MutablePost post) => post.IroncladRange.xMax - post.X;
 		protected override int GetNextPostIndex(int postIndex) => postIndex - 1;
@@ -435,9 +417,9 @@ internal class FencepostShifter
 				.xMax - post.X;
 	}
 
-	sealed class PushRightOperation : ShiftOperation
+	sealed class RepelTheRight : ShiftOperation
 	{
-		public PushRightOperation(Args args) : base(args) { }
+		public RepelTheRight(Args args) : base(args) { }
 
 		protected override int GetMaxPossibleSpace(MutablePost post) => post.IroncladRange.xMax - post.X;
 		protected override int GetNextPostIndex(int postIndex) => postIndex + 1;
@@ -449,9 +431,9 @@ internal class FencepostShifter
 				.xMax - post.X;
 	}
 
-	sealed class PullLeftOperation : ShiftOperation
+	sealed class AttractTheRight : ShiftOperation
 	{
-		public PullLeftOperation(Args args) : base(args) { }
+		public AttractTheRight(Args args) : base(args) { }
 
 		protected override int GetMaxPossibleSpace(MutablePost post) => post.X - post.IroncladRange.xMin;
 		protected override int GetNextPostIndex(int postIndex) => postIndex + 1;
@@ -463,9 +445,9 @@ internal class FencepostShifter
 				.xMin;
 	}
 
-	sealed class PushLeftOperation : ShiftOperation
+	sealed class RepelTheLeft : ShiftOperation
 	{
-		public PushLeftOperation(Args args) : base(args) { }
+		public RepelTheLeft(Args args) : base(args) { }
 
 		protected override int GetMaxPossibleSpace(MutablePost post) => post.X - post.IroncladRange.xMin;
 		protected override int GetNextPostIndex(int postIndex) => postIndex - 1;
@@ -477,14 +459,10 @@ internal class FencepostShifter
 				.xMin;
 	}
 
-	private readonly PullRightOperation pullRightOperation;
-	private readonly PushRightOperation pushRightOperation;
-	private readonly PullLeftOperation pullLeftOperation;
-	private readonly PushLeftOperation pushLeftOperation;
-
-	private void PullLeft(int postIndex, ResolutionPlan plan) => pullLeftOperation.Execute(postIndex, plan);
-	private void PushPostsRight(int postIndex, ResolutionPlan plan) => pushRightOperation.Execute(postIndex, plan);
-	private void PushPostsLeft(int postIndex, ResolutionPlan plan) => pushLeftOperation.Execute(postIndex, plan);
+	private readonly AttractTheLeft attractTheLeft;
+	private readonly RepelTheRight repelTheRight;
+	private readonly AttractTheRight attractTheRight;
+	private readonly RepelTheLeft repelTheLeft;
 
 	private static IReadOnlyList<Range> BuildIroncladRanges(IReadOnlyList<int> posts, Settings settings)
 	{
@@ -584,22 +562,18 @@ internal class FencepostShifter
 			int postValue = int.Parse(postName);
 			int postIndex = shifter.shifted.Index().Where(p => p.Item.X == postValue).Single().Index;
 
-			var plan = new ResolutionPlan() { RequestedSpace = amount };
-			operation.Execute(postIndex, plan);
-			foreach (var move in plan.PlannedMoves)
-			{
-				shifter.shifted[move.postIndex].X = move.newPosition;
-			}
+			var plan = operation.Execute(postIndex, amount);
+			shifter.Apply(plan);
 
 			return plan.AvailableSpace;
 		}
 
-		public int PushLeft(string postName, int amount) => Do(postName, shifter.pushLeftOperation, amount);
+		public int RepelLeft(string postName, int amount) => Do(postName, shifter.repelTheLeft, amount);
 
-		public int PushRight(string postName, int amount) => Do(postName, shifter.pushRightOperation, amount);
+		public int RepelRight(string postName, int amount) => Do(postName, shifter.repelTheRight, amount);
 
-		public int PullLeft(string postName, int amount) => Do(postName, shifter.pullLeftOperation, amount);
+		public int AttractRight(string postName, int amount) => Do(postName, shifter.attractTheRight, amount);
 
-		public int PullRight(string postName, int amount) => Do(postName, shifter.pullRightOperation, amount);
+		public int AttractLeft(string postName, int amount) => Do(postName, shifter.attractTheLeft, amount);
 	}
 }
