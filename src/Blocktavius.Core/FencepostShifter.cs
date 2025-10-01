@@ -192,6 +192,9 @@ internal class FencepostShifter
 			violations = FindInvalidFences().ToList();
 		}
 
+		// optional, but I think I like this idea:
+		FinishingTouches(prng);
+
 		return shifted.Select(p => p.X).ToList();
 	}
 
@@ -200,6 +203,29 @@ internal class FencepostShifter
 		foreach (var post in shifted)
 		{
 			post.X = prng.NextInt32(post.IroncladRange.xMin, post.IroncladRange.xMax + 1);
+		}
+	}
+
+	private void FinishingTouches(PRNG prng)
+	{
+		var indexes = Enumerable.Range(0, shifted.Count).ToList();
+		prng.Shuffle(indexes);
+		foreach (var i in indexes)
+		{
+			var range = shifted[i].IroncladRange
+				.ConstrainLeft(shifted[i - 1].X + settings.MinFenceLength)
+				.ConstrainRight(shifted[i + 1].X - settings.MinFenceLength)
+				.ConstrainLeft(shifted[i + 1].X - settings.MaxFenceLength)
+				.ConstrainRight(shifted[i - 1].X + settings.MaxFenceLength);
+
+			int x = prng.NextInt32(range.xMin, range.xMax + 1);
+			// Should probably allow settings to control how much we dislike posts not moving.
+			// For now, you have a 50% chance of rerolling
+			if (x == orig[i].X && prng.NextInt32(2) == 0)
+			{
+				x = prng.NextInt32(range.xMin, range.xMax + 1);
+			}
+			shifted[i].X = x;
 		}
 	}
 
