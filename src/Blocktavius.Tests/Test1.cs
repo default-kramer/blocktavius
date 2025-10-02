@@ -180,8 +180,8 @@ namespace Blocktavius.Tests
 		public void ExerciseFencepostShifter()
 		{
 			var prng = PRNG.Create(new Random());
-			Console.WriteLine(prng.Serialize());
 			//prng = PRNG.Deserialize("2738926009-1368371339-1413019004-521382713-187568799-2606996474");
+			Console.WriteLine(prng.Serialize());
 
 			var settings = new FencepostShifter.Settings()
 			{
@@ -202,7 +202,7 @@ namespace Blocktavius.Tests
 
 			while (runs-- > 0)
 			{
-				var (shifter, prev) = CreateFencepostShifter(prng, ref settings);
+				var (shifter, prev) = CreateFencepostShifter(prng, 100, ref settings);
 
 				int shifts = shiftsPerRun;
 				while (shifts-- > 0)
@@ -269,7 +269,7 @@ namespace Blocktavius.Tests
 							$"Posts not in order: {current[i]} <= {current[i - 1]} at index {i}");
 					}
 
-					shifter = new FencepostShifter(current.ToList(), settings);
+					shifter = FencepostShifter.Create(current.ToList(), settings);
 					prev = current;
 				}
 			}
@@ -296,7 +296,83 @@ namespace Blocktavius.Tests
 			}
 		}
 
-		private static (FencepostShifter, IReadOnlyList<int>) CreateFencepostShifter(PRNG prng, ref FencepostShifter.Settings settings)
+		[TestMethod]
+		public void fuzz_test_validity()
+		{
+			var prng = PRNG.Create(new Random());
+			//prng = PRNG.Deserialize("3448266955-1428766142-828856624-3947729880-318224983-3566236506");
+			Console.WriteLine(prng.Serialize());
+
+			// Each run will flip a coin and decide whether to:
+			// a) create a "certain problem", which definitely has a solution
+			// b) create an "uncertain problem", which might not have a solution
+			// So when the problem is uncertain, we don't actually know if the shifter gave us the correct answer.
+			int numExpectedSolutions = 0; // certain problem, solution found
+			int numLuckySolutions = 0; // uncertain problem, solution found
+			int numNoSolutions = 0;    // uncertain problem, solution not found
+
+			// We need a length small enough so that when we create an uncertain problem,
+			// some of them will end up valid and other won't.
+			const int length = 20;
+
+			const int totalRuns = 54321;
+			int testRuns = totalRuns;
+			while (testRuns-- > 0)
+			{
+				var settings = new FencepostShifter.Settings
+				{
+					MinFenceLength = prng.RandomChoice(1, 2, 3),
+					MaxFenceLength = prng.RandomChoice(4, 5, 6),
+					MaxNudge = prng.RandomChoice(1, 2, 3, 4),
+					TotalLength = length,
+				};
+
+				IReadOnlyList<int> posts;
+				bool definitelyHasSolution = prng.RandomChoice(true, false);
+				if (definitelyHasSolution)
+				{
+					(_, posts) = CreateFencepostShifter(prng, length, ref settings);
+				}
+				else
+				{
+					var secretSettings = settings with
+					{
+						MinFenceLength = Math.Max(1, settings.MinFenceLength + prng.RandomChoice(0, -1)),
+						MaxFenceLength = settings.MaxFenceLength + prng.RandomChoice(1, 2),
+					};
+					(_, posts) = CreateFencepostShifter(prng, length, ref secretSettings);
+					settings = settings with { TotalLength = secretSettings.TotalLength };
+				}
+
+				bool foundSolution = FencepostShifter.TryCreate(posts, settings, out var shifter);
+				if (foundSolution)
+				{
+					shifter.Shift(prng, out foundSolution);
+				}
+
+				if (definitelyHasSolution)
+				{
+					Assert.IsTrue(foundSolution);
+					numExpectedSolutions++;
+				}
+				else if (foundSolution)
+				{
+					numLuckySolutions++;
+				}
+				else
+				{
+					Assert.IsFalse(definitelyHasSolution);
+					numNoSolutions++;
+				}
+			}
+
+			Assert.AreEqual(totalRuns, numNoSolutions + numLuckySolutions + numExpectedSolutions);
+			Assert.IsTrue(numExpectedSolutions > totalRuns / 4);
+			Assert.IsTrue(numLuckySolutions > totalRuns / 10);
+			Assert.IsTrue(numNoSolutions > totalRuns / 10);
+		}
+
+		private static (FencepostShifter, IReadOnlyList<int>) CreateFencepostShifter(PRNG prng, int minLength, ref FencepostShifter.Settings settings)
 		{
 			var posts = new List<int>();
 			int curr = 0;
@@ -304,14 +380,14 @@ namespace Blocktavius.Tests
 			{
 				curr += prng.NextInt32(settings.MinFenceLength, settings.MaxFenceLength + 1);
 				posts.Add(curr);
-			} while (curr < 100);
+			} while (curr < minLength);
 
 			settings = settings with
 			{
 				TotalLength = curr + prng.NextInt32(settings.MinFenceLength, settings.MaxFenceLength + 1)
 			};
 
-			return (new FencepostShifter(posts, settings), posts);
+			return (FencepostShifter.Create(posts, settings), posts);
 		}
 	}
 }

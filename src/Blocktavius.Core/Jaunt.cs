@@ -259,7 +259,7 @@ public sealed class Jaunt
 	internal Jaunt ShiftByFencepost(PRNG prng, FencepostShifter.Settings settings)
 	{
 		var origPosts = this.runs.Skip(1).Select(r => r.start).ToList();
-		var shifter = new FencepostShifter(origPosts, settings);
+		var shifter = FencepostShifter.Create(origPosts, settings);
 		var newPosts = shifter.Shift(prng);
 
 		var runs = new List<Run>();

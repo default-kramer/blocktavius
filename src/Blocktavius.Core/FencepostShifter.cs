@@ -143,13 +143,10 @@ internal class FencepostShifter
 	private readonly Postlist<MutablePost> shifted;
 	private readonly Settings settings;
 
-	public FencepostShifter(IReadOnlyList<int> orig, Settings settings)
+	private FencepostShifter(IReadOnlyList<Post> posts, Settings settings)
 	{
 		this.settings = settings;
 
-		var ranges = BuildIroncladRanges(orig, settings);
-
-		var posts = orig.Zip(ranges).Select(x => new Post() { X = x.First, IroncladRange = x.Second }).ToList();
 		this.orig = new Postlist<Post>(posts)
 		{
 			LeftAnchor = new Post() { X = 0, IroncladRange = new Range(0, 0) },
@@ -169,12 +166,62 @@ internal class FencepostShifter
 		this.repelTheLeft = new(args);
 	}
 
+	public static FencepostShifter Create(IReadOnlyList<int> orig, Settings settings)
+	{
+		if (!TryCreate(orig, settings, out var shifter))
+		{
+			throw new ArgumentException("no solution exists");
+		}
+		return shifter;
+	}
+
+	public static bool TryCreate(IReadOnlyList<int> orig, Settings settings, out FencepostShifter shifter)
+	{
+		if (settings.MinFenceLength < 1 || settings.MaxFenceLength < settings.MinFenceLength)
+		{
+			shifter = null!;
+			return false;
+		}
+
+		var ranges = BuildIroncladRanges(orig, settings);
+
+		var posts = orig.Zip(ranges).Select(x => new Post() { X = x.First, IroncladRange = x.Second }).ToList();
+
+		foreach (var post in posts)
+		{
+			if (!post.IroncladRange.Contains(post.X))
+			{
+				shifter = null!;
+				return false;
+			}
+		}
+
+		shifter = new FencepostShifter(posts, settings);
+		return true;
+	}
+
+	public List<int> Shift(PRNG prng, out bool hasSolution)
+	{
+		hasSolution = DoShift(prng);
+		return shifted.Select(p => p.X).ToList();
+	}
+
 	public List<int> Shift(PRNG prng)
+	{
+		if (!DoShift(prng))
+		{
+			throw new InvalidOperationException("No solution exists");
+		}
+		return shifted.Select(p => p.X).ToList();
+	}
+
+	private bool DoShift(PRNG prng)
 	{
 		RandomShift(prng);
 
+		int retries = 10; // I've never seen it need more than 1 when a solution exists
 		var violations = FindInvalidFences().ToList();
-		while (violations.Count > 0)
+		while (violations.Count > 0 && retries-- > 0)
 		{
 			prng.Shuffle(violations);
 			foreach (var violation in violations)
@@ -192,10 +239,23 @@ internal class FencepostShifter
 			violations = FindInvalidFences().ToList();
 		}
 
+		if (violations.Count > 0)
+		{
+			return false; // no solution
+		}
+
+		foreach (var post in shifted)
+		{
+			if (!post.IroncladRange.Contains(post.X))
+			{
+				return false; // no solution
+			}
+		}
+
 		// optional, but I think I like this idea:
 		FinishingTouches(prng);
 
-		return shifted.Select(p => p.X).ToList();
+		return true;
 	}
 
 	private void RandomShift(PRNG prng)
@@ -255,11 +315,11 @@ internal class FencepostShifter
 		var right = shifted[leftPostIndex + 1];
 		if (!left.IroncladRange.Contains(left.X))
 		{
-			throw new Exception($"assert fail: {left}");
+			return null; // likely that no solution exists...
 		}
 		if (!right.IroncladRange.Contains(right.X))
 		{
-			throw new Exception($"assert fail: {right}");
+			return null; // likely that no solution exists...
 		}
 
 		int fenceLength = right.X - left.X;
@@ -544,7 +604,7 @@ internal class FencepostShifter
 
 			orig = [7, 20, 30];
 
-			shifter = new(orig, settings);
+			shifter = Create(orig, settings);
 		}
 
 		public TestApi WithMinFenceLength(int minFenceLength)
@@ -568,7 +628,7 @@ internal class FencepostShifter
 		public TestApi Reload(params int[] posts)
 		{
 			this.orig = posts;
-			this.shifter = new FencepostShifter(orig, settings);
+			this.shifter = Create(orig, settings);
 			return this;
 		}
 
