@@ -7,7 +7,7 @@ using System.Text;
 
 namespace Blocktavius.Core;
 
-sealed record Edge
+public sealed record Edge
 {
 	public required XZ Start { get; init; }
 	public required CardinalDirection StepDirection { get; init; }
@@ -55,7 +55,7 @@ enum CornerType { Inside, Outside };
 
 sealed record Corner(Edge NorthOrSouthEdge, Edge EastOrWestEdge, CornerType CornerType);
 
-sealed record Region
+public sealed record Region
 {
 	private readonly IReadOnlySet<XZ> unscaledTiles;
 	private readonly XZ scale;
@@ -71,7 +71,7 @@ sealed record Region
 
 	public bool Contains(XZ xz) => unscaledTiles.Contains(xz.Unscale(scale));
 
-	public IReadOnlyList<Corner> ComputeCorners()
+	internal IReadOnlyList<Corner> ComputeCorners()
 	{
 		var startLookup = Edges.GroupBy(e => e.Start).ToDictionary(g => g.Key, g => g.ToList());
 		var endLookup = Edges.GroupBy(e => e.End).ToDictionary(g => g.Key, g => g.ToList());
@@ -205,21 +205,10 @@ public sealed class TileTagger<TTag> where TTag : notnull
 		array[loc] = array[loc].Add(tag);
 	}
 
-	internal IReadOnlyList<Region> GetRegions(TTag tag)
+	public IReadOnlyList<Region> GetRegions(TTag tag)
 	{
 		var regions = FindRegionTiles(array, tag);
 		return regions.Select(r => BuildRegion(r, Scale)).ToList();
-	}
-
-	public I2DSampler<Elevation> BuildHills(TTag tag, PRNG prng, int maxElevation)
-	{
-		var regions = GetRegions(tag);
-		// TEMP TESTING
-		//return TODO.BuildHills(regions, prng, maxElevation);
-		//return Generators.TODO.BuildHill(regions.Single(), maxElevation, prng);
-		//return Generators.TODO.OtherHill(regions.Single(), maxElevation, prng);
-		//return Generators.TODO.SimpleHill(regions.Single(), maxElevation, prng, 3, 2);
-		return Generators.CornerShifterHill.BuildNewHill(regions.Single().Bounds, prng, new Elevation(maxElevation - 10), new Elevation(maxElevation));
 	}
 
 	/// <summary>
@@ -448,7 +437,7 @@ public sealed class TODO
 		return BuildHills(regions, prng, maxElevation);
 	}
 
-	internal static I2DSampler<Elevation> BuildHills(IReadOnlyList<Region> regions, PRNG prng, int maxElevation)
+	public static I2DSampler<Elevation> BuildHills(IReadOnlyList<Region> regions, PRNG prng, int maxElevation)
 	{
 		const int FUDGE = 12; // TODO
 

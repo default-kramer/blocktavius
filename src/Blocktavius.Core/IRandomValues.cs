@@ -27,6 +27,15 @@ public static class RandomValues
 
 	public static IBoundedRandomValues<int> BoundedInfiniteDeck(params int[] values) => new BoundedInfiniteDeckValues { values = values.ToList() };
 
+	public static IBoundedRandomValues<int> FromRange(int min, int max) => new RangeValues() { MinValue = min, MaxValue = max };
+
+	private sealed class RangeValues : IBoundedRandomValues<int>
+	{
+		public required int MinValue { get; init; }
+		public required int MaxValue { get; init; }
+		public int NextValue(PRNG prng) => prng.NextInt32(MinValue, MaxValue + 1);
+	}
+
 	private sealed class ListValues<T> : IRandomValues<T>
 	{
 		public required IReadOnlyList<T> values;

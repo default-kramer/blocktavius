@@ -35,6 +35,22 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 		set => ChangeProperty(ref blockProvider, value);
 	}
 
+	private int mode;
+	public int Mode
+	{
+		get => mode;
+		set => ChangeProperty(ref mode, value);
+	}
+
+	private bool lockRandomSeed;
+	public bool LockRandomSeed
+	{
+		get => lockRandomSeed;
+		set => ChangeProperty(ref lockRandomSeed, value);
+	}
+
+	private string? prngSeed = null;
+
 	public override StageMutation? BuildMutation(StageRebuildContext context)
 	{
 		if (area == null || Block == null)
@@ -43,8 +59,31 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 		}
 
 		var tagger = area.BuildTagger();
-		var sampler = tagger.BuildHills(true, context.PRNG, this.elevation)
-			.Translate(context.ImageCoordTranslation);
+		var regions = tagger.GetRegions(true);
+
+		PRNG prng;
+		if (lockRandomSeed && prngSeed != null)
+		{
+			prng = PRNG.Deserialize(prngSeed);
+		}
+		else
+		{
+			prng = PRNG.Create(new Random());
+			prngSeed = prng.Serialize();
+		}
+
+		I2DSampler<Elevation> sampler;
+		if (mode == 0)
+		{
+			sampler = TODO.BuildHills(regions, prng, elevation);
+		}
+		else
+		{
+			sampler = Core.Generators.CornerShifterHill.BuildNewHill(regions.Single().Bounds, prng, new Elevation(elevation - 10), new Elevation(elevation));
+		}
+
+		// TODO can I avoid this pitfall?
+		sampler = sampler.Translate(context.ImageCoordTranslation);
 
 		if (Block.UniformBlockId.HasValue)
 		{
