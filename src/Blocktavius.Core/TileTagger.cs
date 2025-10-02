@@ -53,7 +53,16 @@ public sealed record Edge
 
 enum CornerType { Inside, Outside };
 
-sealed record Corner(Edge NorthOrSouthEdge, Edge EastOrWestEdge, CornerType CornerType);
+sealed record Corner(Edge NorthOrSouthEdge, Edge EastOrWestEdge, CornerType CornerType)
+{
+	public XZ MeetingPoint() => SameOrNull(NorthOrSouthEdge.Start, EastOrWestEdge.Start)
+		?? SameOrNull(NorthOrSouthEdge.Start, EastOrWestEdge.End)
+		?? SameOrNull(NorthOrSouthEdge.End, EastOrWestEdge.Start)
+		?? SameOrNull(NorthOrSouthEdge.End, EastOrWestEdge.End)
+		?? throw new Exception("assert fail");
+
+	private static XZ? SameOrNull(XZ a, XZ b) => a == b ? a : null;
+}
 
 public sealed record Region
 {

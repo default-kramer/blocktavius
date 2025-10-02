@@ -6,21 +6,15 @@ using System.Threading.Tasks;
 
 namespace Blocktavius.Core;
 
-// OKAY, can we make a generic hill builder that accepts:
-// * a Region (or list of Edges)
-// * a function `CliffBuilder CreateCliffBuilder(int width)`
-//
-// The AdditiveHillBuilder would
-// * put cliffs on the outside of each edge
-// * fabricate outside corners by extending both cliffs and combining using min
-// * handle inside corners naturally, by taking max
-//
-// The SubtractiveHillBuilder would be similar maybe... but I feel like that one is
-// more complicated in ways I can't precisely describe yet.
-
+/// <summary>
+/// This should handle cornering logic correctly for any reasonable ICliffBuilder.
+/// </summary>
 sealed class AdditiveHillBuilder
 {
-	const int OUTSIDE_CORNER_FUDGE = 100; // TODO
+	// TODO we need to actually slice the main cliff from the *center* (not the left edge
+	// as we are currently doing). Then depending on the type of corner we are building,
+	// we need to slice either the left or right of that center slice.
+	const int OUTSIDE_CORNER_FUDGE = 100;
 
 	public static I2DSampler<Elevation> BuildHill(Region region, Elevation maxElevation, ICliffBuilder cliffBuilder)
 	{
@@ -129,9 +123,65 @@ sealed class AdditiveHillBuilder
 
 	private I2DSampler<Elevation> BuildOutsideCorner(Corner corner, EdgeCliff cliffEW, EdgeCliff cliffNS)
 	{
-		// TODO need to use the cliffbuilder to build cliffs for each edge.
-		// Get a slice of the cliff starting at Edge.Length and going far enough to overlap.
-		// Then rotate/translate and combine using min value
-		return new MutableArray2D<Elevation>(new Rect(XZ.Zero, XZ.Zero), new Elevation(-1));
+		// Determine the corner size - should be large enough to cover both cliff depths.
+		// We will build a square having this side length.
+		int cornerSize = Math.Max(cliffEW.Sampler.Bounds.Size.Z, cliffNS.Sampler.Bounds.Size.Z);
+		var theSquare = new Rect(XZ.Zero, new XZ(cornerSize, cornerSize));
+
+		// Build corner slice extensions starting at edge.Length
+		var sliceEW = cliffEW.CliffBuilder.BuildCliff(new Range(cliffEW.Edge.Length, cliffEW.Edge.Length + cornerSize))
+			.TranslateTo(XZ.Zero)
+			.Crop(theSquare);
+
+		var sliceNS = cliffNS.CliffBuilder.BuildCliff(new Range(cliffNS.Edge.Length, cliffNS.Edge.Length + cornerSize))
+			.TranslateTo(XZ.Zero)
+			.Crop(theSquare);
+
+		if (sliceEW.Bounds != theSquare || sliceNS.Bounds != theSquare)
+		{
+			throw new Exception("assert fail - cropping not working as expected");
+		}
+
+		sliceEW = Rotate(cliffEW.Edge, sliceEW);
+		sliceNS = Rotate(cliffNS.Edge, sliceNS);
+
+		var result = new MutableArray2D<Elevation>(theSquare, new Elevation(-1));
+
+		// Combine using min (lower elevation wins at outside corners)
+		foreach (var xz in theSquare.Enumerate())
+		{
+			var elevEW = sliceEW.Sample(xz);
+			var elevNS = sliceNS.Sample(xz);
+			result.Put(xz, new Elevation(Math.Min(elevEW.Y, elevNS.Y)));
+		}
+
+		var target = GetTargetLoc(corner, cornerSize);
+		return result.TranslateTo(target);
+	}
+
+	private static I2DSampler<T> Rotate<T>(Edge edge, I2DSampler<T> sampler)
+	{
+		switch (edge.InsideDirection)
+		{
+			case CardinalDirection.North:
+				return sampler;
+			case CardinalDirection.South:
+				return sampler.Rotate(180);
+			case CardinalDirection.East:
+				return sampler.Rotate(90);
+			case CardinalDirection.West:
+				return sampler.Rotate(270);
+			default:
+				throw new Exception($"Assert fail: {edge.InsideDirection}");
+		}
+	}
+
+
+	private static XZ GetTargetLoc(Corner corner, int cornerSize)
+	{
+		var meetingPoint = corner.MeetingPoint();
+		int xFactor = corner.NorthOrSouthEdge.Start == meetingPoint ? -1 : 0;
+		int zFactor = corner.EastOrWestEdge.Start == meetingPoint ? -1 : 0;
+		return meetingPoint.Add(cornerSize * xFactor, cornerSize * zFactor);
 	}
 }
