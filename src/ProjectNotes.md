@@ -10,7 +10,7 @@ Large-scale terraforming is the primary goal, but other functions will be desire
 This GUI uses the "Eye of Rubiss" as a companion app to quickly show previews of edited stages,
 which allows much faster iteration than having to save the file, load it in DQB2, and look around.
 
-# Code 
+# Code
 ## Naming
 Ranges that are [inclusive, inclusive] should use "Min" and "Max" names.
 Ranges that are [inclusive, exclusive) should use "Start" and "End" names.

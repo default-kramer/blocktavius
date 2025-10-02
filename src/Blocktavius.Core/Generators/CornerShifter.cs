@@ -6,6 +6,10 @@ using System.Threading.Tasks;
 
 namespace Blocktavius.Core.Generators;
 
+/// <summary>
+/// The <see cref="FencepostShifter"/> does the same thing with much cleaner code.
+/// I need to visually confirm there is no aesthetic benefit to this code and then remove it.
+/// </summary>
 public static class CornerShifter
 {
 	public record Settings
