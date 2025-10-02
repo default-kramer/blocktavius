@@ -58,7 +58,7 @@ sealed class AdditiveHillBuilder
 				case CardinalDirection.North:
 					return Sampler.TranslateTo(Edge.Start);
 				case CardinalDirection.West:
-					return Sampler.Rotate(270);
+					return Sampler.Rotate(270).TranslateTo(Edge.Start);
 				case CardinalDirection.South:
 					return Sampler.Rotate(180)
 						.TranslateTo(Edge.Start.Add(0, -Sampler.Bounds.Size.Z));
