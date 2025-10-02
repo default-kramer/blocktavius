@@ -6,19 +6,7 @@ using System.Threading.Tasks;
 
 namespace Blocktavius.Core;
 
-// OKAY, can we make a generic hill builder that accepts:
-// * a Region (or list of Edges)
-// * a function `CliffBuilder CreateCliffBuilder(int width)`
-//
-// The AdditiveHillBuilder would
-// * put cliffs on the outside of each edge
-// * fabricate outside corners by extending both cliffs and take min or max (not sure yet)
-// * handle inside corners naturally, by taking max
-//
-// The SubtractiveHillBuilder would be similar maybe... but I feel like that one is
-// more complicated in ways I can't precisely describe yet.
-
-sealed class CliffBuilder
+sealed class CliffBuilder : AdditiveHillBuilder.ICliffBuilder
 {
 	interface ILayer
 	{
@@ -33,32 +21,42 @@ sealed class CliffBuilder
 	/// <summary>
 	/// Sorted by elevation, lowest at the front of the queue.
 	/// </summary>
-	private readonly Queue<ILayer> layers = new();
+	private readonly Stack<ILayer> layers = new();
+	private readonly int totalLength;
+	private readonly Elevation minElevation;
+	private readonly Elevation maxElevation;
+	private readonly FencepostShifter.Settings shifterSettings;
+	private readonly JauntSettings jauntSettings;
 
 	// TODO these should all be configurable:
-	const int totalLength = 500;
 	const int minFenceLength = 1;
 	const int maxFenceLength = 8;
 	const int maxNudge = 4;
 	const int maxLaneCount = 5;
-	private readonly Elevation startElevation = new Elevation(70);
 	private readonly PRNG prng = PRNG.Create(new Random());
+	const int steepness = 2; // must be >=1
 
-	private readonly FencepostShifter.Settings shifterSettings = new()
+	public CliffBuilder(int totalLength, Elevation min, Elevation max)
 	{
-		MinFenceLength = minFenceLength,
-		MaxFenceLength = maxFenceLength,
-		MaxNudge = maxNudge,
-		TotalLength = totalLength,
-	};
+		this.totalLength = totalLength;
+		this.minElevation = min;
+		this.maxElevation = max;
 
-	private readonly JauntSettings jauntSettings = new()
-	{
-		LaneChangeDirectionProvider = RandomValues.InfiniteDeck(true, true, true, false, false, false),
-		MaxLaneCount = maxLaneCount,
-		TotalLength = totalLength,
-		RunLengthProvider = RandomValues.FromRange(minFenceLength, maxFenceLength),
-	};
+		shifterSettings = new()
+		{
+			MinFenceLength = minFenceLength,
+			MaxFenceLength = maxFenceLength,
+			MaxNudge = maxNudge,
+			TotalLength = totalLength,
+		};
+		jauntSettings = new()
+		{
+			LaneChangeDirectionProvider = RandomValues.InfiniteDeck(true, true, true, false, false, false),
+			MaxLaneCount = maxLaneCount,
+			TotalLength = totalLength,
+			RunLengthProvider = RandomValues.FromRange(shifterSettings.MinFenceLength, shifterSettings.MaxFenceLength),
+		};
+	}
 
 	private ILayer CreateInitialLayer()
 	{
@@ -66,8 +64,8 @@ sealed class CliffBuilder
 		return new SimpleLayer()
 		{
 			Jaunt = jaunt,
-			MaxElevation = startElevation,
-			MinElevation = new Elevation(startElevation.Y - 1),
+			MaxElevation = maxElevation,
+			MinElevation = new Elevation(maxElevation.Y - steepness + 1),
 			OffsetZ = 0,
 		};
 	}
@@ -79,7 +77,7 @@ sealed class CliffBuilder
 		{
 			Jaunt = shifted,
 			MaxElevation = new Elevation(prevLayer.MinElevation.Y - 1),
-			MinElevation = new Elevation(prevLayer.MinElevation.Y - 2),
+			MinElevation = new Elevation(prevLayer.MinElevation.Y - steepness),
 			OffsetZ = prevLayer.OffsetZ + 1,
 		};
 
@@ -113,10 +111,10 @@ sealed class CliffBuilder
 			throw new ArgumentOutOfRangeException(nameof(range));
 		}
 
-		var elevation = startElevation;
+		var elevation = maxElevation;
 		while (layers.Count == 0 || layers.Peek().MaxElevation.Y > floor.Y)
 		{
-			layers.Enqueue(CreateLayer());
+			layers.Push(CreateLayer());
 		}
 
 		// Find the first relevant layer for the requested floor
@@ -136,6 +134,18 @@ sealed class CliffBuilder
 		return sampler;
 	}
 
+	int AdditiveHillBuilder.ICliffBuilder.Width => totalLength;
+
+	I2DSampler<Elevation> AdditiveHillBuilder.ICliffBuilder.BuildCliff(Range slice)
+	{
+		return Build(minElevation, slice);
+	}
+
+	AdditiveHillBuilder.ICliffBuilder AdditiveHillBuilder.ICliffBuilder.AnotherOne(int width)
+	{
+		return new CliffBuilder(width, minElevation, maxElevation);
+	}
+
 	class SimpleLayer : ILayer
 	{
 		public required Jaunt Jaunt { get; init; }
@@ -153,14 +163,6 @@ sealed class CliffBuilder
 				for (int z = jauntAsList[x].Z; z >= bounds.start.Z; z--)
 				{
 					var xz = new XZ(x, z);
-					if (array.Sample(xz).Y > 0)
-					{
-						// TODO how to we make sure all layers don't have to reimplement this logic?
-						// don't overwrite previous layers, go to next x
-						z = bounds.start.Z - 1;
-						continue;
-					}
-
 					array.Put(xz, MaxElevation);
 				}
 			}

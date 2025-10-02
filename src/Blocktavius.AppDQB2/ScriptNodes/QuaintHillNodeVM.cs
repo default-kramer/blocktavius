@@ -75,11 +75,16 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 		I2DSampler<Elevation> sampler;
 		if (mode == 0)
 		{
-			sampler = Core.Generators.Hills.QuaintHill.BuildQuaintHills(regions, prng, elevation);
+			sampler = Core.Generators.CornerShifterHill.BuildNewHill(regions.Single().Bounds, prng, new Elevation(elevation - 10), new Elevation(elevation));
+
+		}
+		else if (mode == 1)
+		{
+			sampler = Core.Generators.Hills.WinsomeHill.BuildWinsomeHills(regions.Single(), prng, elevation);
 		}
 		else
 		{
-			sampler = Core.Generators.CornerShifterHill.BuildNewHill(regions.Single().Bounds, prng, new Elevation(elevation - 10), new Elevation(elevation));
+			sampler = Core.Generators.Hills.QuaintHill.BuildQuaintHills(regions, prng, elevation);
 		}
 
 		// TODO can I avoid this pitfall?
