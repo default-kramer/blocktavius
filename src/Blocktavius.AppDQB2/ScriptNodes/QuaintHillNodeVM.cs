@@ -75,7 +75,7 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 		I2DSampler<Elevation> sampler;
 		if (mode == 0)
 		{
-			sampler = TODO.BuildHills(regions, prng, elevation);
+			sampler = Core.Generators.Hills.QuaintHill.BuildQuaintHills(regions, prng, elevation);
 		}
 		else
 		{
