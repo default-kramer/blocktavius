@@ -13,6 +13,9 @@ sealed class DriverFileModel
 
 	public required IReadOnlyList<ChunkInfo> ChunkInfos { get; init; }
 
+	public required int? SetCameraX { get; init; }
+	public required int? SetCameraZ { get; init; }
+
 	/// <summary>
 	/// Ensure that the FileSystemWatcher mechanism sees a change by putting a Guid here.
 	/// (Not sure if necessary, but no reason not to do it.)
@@ -30,6 +33,8 @@ sealed class DriverFileModel
 	{
 		ChunkInfos = new List<ChunkInfo>(),
 		UniqueValue = Guid.NewGuid().ToString(),
+		SetCameraX = null,
+		SetCameraZ = null,
 	};
 
 	public void WriteToFile(FileInfo file)

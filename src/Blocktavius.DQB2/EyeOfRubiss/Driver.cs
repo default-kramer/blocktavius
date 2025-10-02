@@ -99,6 +99,8 @@ public sealed class Driver : IDisposable
 		{
 			UniqueValue = Guid.NewGuid().ToString(),
 			ChunkInfos = chunkInfos.ToList(),
+			SetCameraX = 1024,
+			SetCameraZ = 1024,
 		};
 
 		return content;
@@ -110,6 +112,8 @@ public sealed class Driver : IDisposable
 		{
 			UniqueValue = Guid.NewGuid().ToString(),
 			ChunkInfos = new List<DriverFileModel.ChunkInfo>(),
+			SetCameraX = null,
+			SetCameraZ = null,
 		};
 	}
 
