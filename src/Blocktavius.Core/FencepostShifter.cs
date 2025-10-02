@@ -200,19 +200,20 @@ internal class FencepostShifter
 		return true;
 	}
 
-	public List<int> Shift(PRNG prng, out bool hasSolution)
+	public bool TryShift(PRNG prng, out List<int> solution)
 	{
-		hasSolution = DoShift(prng);
-		return shifted.Select(p => p.X).ToList();
+		bool hasSolution = DoShift(prng);
+		solution = shifted.Select(p => p.X).ToList();
+		return hasSolution;
 	}
 
 	public List<int> Shift(PRNG prng)
 	{
-		if (!DoShift(prng))
+		if (!TryShift(prng, out var solution))
 		{
 			throw new InvalidOperationException("No solution exists");
 		}
-		return shifted.Select(p => p.X).ToList();
+		return solution;
 	}
 
 	private bool DoShift(PRNG prng)

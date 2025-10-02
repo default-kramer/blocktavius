@@ -380,11 +380,8 @@ public class FencepostShifterTests
 				settings = settings with { TotalLength = secretSettings.TotalLength };
 			}
 
-			bool foundSolution = FencepostShifter.TryCreate(posts, settings, out var shifter);
-			if (foundSolution)
-			{
-				shifter.Shift(prng, out foundSolution);
-			}
+			bool foundSolution = FencepostShifter.TryCreate(posts, settings, out var shifter)
+				&& shifter.TryShift(prng, out _);
 
 			if (definitelyHasSolution)
 			{
