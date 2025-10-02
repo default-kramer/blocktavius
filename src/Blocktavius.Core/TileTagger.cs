@@ -36,6 +36,19 @@ sealed record Edge
 			Length = this.Length * lengthScale,
 		};
 	}
+
+	public IEnumerable<XZ> Walk()
+	{
+		var dir = Direction.Parse(StepDirection);
+		var xz = Start;
+		int steps = Length;
+		while (steps > 0)
+		{
+			yield return xz;
+			xz = xz.Step(dir);
+			steps--;
+		}
+	}
 }
 
 enum CornerType { Inside, Outside };
@@ -201,7 +214,12 @@ public sealed class TileTagger<TTag> where TTag : notnull
 	public I2DSampler<Elevation> BuildHills(TTag tag, PRNG prng, int maxElevation)
 	{
 		var regions = GetRegions(tag);
-		return TODO.BuildHills(regions, prng, maxElevation);
+		// TEMP TESTING
+		//return TODO.BuildHills(regions, prng, maxElevation);
+		//return Generators.TODO.BuildHill(regions.Single(), maxElevation, prng);
+		//return Generators.TODO.OtherHill(regions.Single(), maxElevation, prng);
+		//return Generators.TODO.SimpleHill(regions.Single(), maxElevation, prng, 3, 2);
+		return Generators.CornerShifterHill.BuildNewHill(regions.Single().Bounds, prng, new Elevation(maxElevation - 10), new Elevation(maxElevation));
 	}
 
 	/// <summary>
