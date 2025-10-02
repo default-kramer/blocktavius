@@ -210,4 +210,219 @@ public class FencepostShifterTests
 		Assert.AreEqual(9, shifter.AttractLeft("09", 99));
 		Assert.AreEqual("[0] 08 18 [99]", shifter.Print());
 	}
+
+	[TestMethod]
+	[Timeout(1000 * 60)]
+	public void ExerciseFencepostShifter()
+	{
+		var prng = PRNG.Create(new Random());
+		//prng = PRNG.Deserialize("2738926009-1368371339-1413019004-521382713-187568799-2606996474");
+		Console.WriteLine(prng.Serialize());
+
+		var settings = new FencepostShifter.Settings()
+		{
+			MaxNudge = 5,
+			TotalLength = 100,
+			MinFenceLength = 2,
+			MaxFenceLength = 15
+		};
+
+		int totalFences = 0;
+		int longFences = 0;
+		int shortFences = 0;
+		int totalShifts = 0;
+		int zeroShifts = 0;
+
+		const int shiftsPerRun = 50;
+		int runs = 500;
+
+		while (runs-- > 0)
+		{
+			var (shifter, prev) = CreateFencepostShifter(prng, 100, ref settings);
+
+			int shifts = shiftsPerRun;
+			while (shifts-- > 0)
+			{
+				var current = shifter.Shift(prng).ToList();
+
+				// Verify basic properties
+				Assert.AreEqual(prev.Count, current.Count);
+
+				// Check that all posts are within bounds
+				Assert.IsTrue(current.First() > 0);
+				Assert.IsTrue(current.Last() < settings.TotalLength);
+
+				// Check fence length constraints
+				for (int i = 0; i <= current.Count; i++)
+				{
+					totalFences++;
+					int leftX = i == 0 ? 0 : current[i - 1];
+					int leftXPrev = i == 0 ? 0 : prev[i - 1];
+					int rightX = i == current.Count ? settings.TotalLength : current[i];
+					int rightXPrev = i == prev.Count ? settings.TotalLength : prev[i];
+					int fenceLength = rightX - leftX;
+
+					Assert.IsTrue(fenceLength >= settings.MinFenceLength,
+						$"Fence {i} too short: {fenceLength} < {settings.MinFenceLength}");
+					Assert.IsTrue(fenceLength <= settings.MaxFenceLength,
+						$"Fence {i} too long: {fenceLength} > {settings.MaxFenceLength}");
+
+					if (fenceLength > settings.MaxFenceLength - 1)
+					{
+						longFences++;
+					}
+					if (fenceLength <= settings.MinFenceLength + 1)
+					{
+						shortFences++;
+					}
+
+					// Consider the fence having posts L and R.
+					// If post L increases to (or beyond) the original position of post R there is no overlap.
+					// If post R decreases to (or beyond) the original position of post L there is no overlap.
+					// This must be disallowed; at least 1 space of overlap is required.
+					Assert.IsTrue(leftX < rightXPrev);
+					Assert.IsTrue(rightX > leftXPrev);
+				}
+
+				// Check MaxNudge constraint
+				for (int i = 0; i < current.Count; i++)
+				{
+					totalShifts++;
+					int nudgeAmount = Math.Abs(current[i] - prev[i]);
+					Assert.IsTrue(nudgeAmount <= settings.MaxNudge,
+						$"Post {i} nudged too far: {nudgeAmount} > {settings.MaxNudge}");
+
+					if (nudgeAmount == 0)
+					{
+						zeroShifts++;
+					}
+				}
+
+				// Check monotonic ordering
+				for (int i = 1; i < current.Count; i++)
+				{
+					Assert.IsTrue(current[i] > current[i - 1],
+						$"Posts not in order: {current[i]} <= {current[i - 1]} at index {i}");
+				}
+
+				shifter = FencepostShifter.Create(current.ToList(), settings);
+				prev = current;
+			}
+		}
+
+		// Statistical checks
+		if (longFences > totalFences / 5)
+		{
+			Assert.Fail($"Too many near-maximum fences: {longFences} / {totalFences}");
+		}
+
+		if (shortFences > totalFences / 5)
+		{
+			Assert.Fail($"Too many near-minimum fences: {shortFences} / {totalFences}");
+		}
+
+		if (zeroShifts > totalShifts / 3)
+		{
+			Assert.Fail($"Too many zero shifts: {zeroShifts} / {totalShifts}");
+		}
+
+		if (zeroShifts < totalShifts / 100)
+		{
+			Assert.Fail($"Too few zero shifts: {zeroShifts} / {totalShifts}");
+		}
+	}
+
+	[TestMethod]
+	public void fuzz_test_validity()
+	{
+		var prng = PRNG.Create(new Random());
+		//prng = PRNG.Deserialize("3448266955-1428766142-828856624-3947729880-318224983-3566236506");
+		Console.WriteLine(prng.Serialize());
+
+		// Each run will flip a coin and decide whether to:
+		// a) create a "certain problem", which definitely has a solution
+		// b) create an "uncertain problem", which might not have a solution
+		// So when the problem is uncertain, we don't actually know if the shifter gave us the correct answer.
+		int numExpectedSolutions = 0; // certain problem, solution found
+		int numLuckySolutions = 0; // uncertain problem, solution found
+		int numNoSolutions = 0;    // uncertain problem, solution not found
+
+		// We need a length small enough so that when we create an uncertain problem,
+		// some of them will end up valid and other won't.
+		const int length = 20;
+
+		const int totalRuns = 54321;
+		int testRuns = totalRuns;
+		while (testRuns-- > 0)
+		{
+			var settings = new FencepostShifter.Settings
+			{
+				MinFenceLength = prng.RandomChoice(1, 2, 3),
+				MaxFenceLength = prng.RandomChoice(4, 5, 6),
+				MaxNudge = prng.RandomChoice(1, 2, 3, 4),
+				TotalLength = length,
+			};
+
+			IReadOnlyList<int> posts;
+			bool definitelyHasSolution = prng.RandomChoice(true, false);
+			if (definitelyHasSolution)
+			{
+				(_, posts) = CreateFencepostShifter(prng, length, ref settings);
+			}
+			else
+			{
+				var secretSettings = settings with
+				{
+					MinFenceLength = Math.Max(1, settings.MinFenceLength + prng.RandomChoice(0, -1)),
+					MaxFenceLength = settings.MaxFenceLength + prng.RandomChoice(1, 2),
+				};
+				(_, posts) = CreateFencepostShifter(prng, length, ref secretSettings);
+				settings = settings with { TotalLength = secretSettings.TotalLength };
+			}
+
+			bool foundSolution = FencepostShifter.TryCreate(posts, settings, out var shifter);
+			if (foundSolution)
+			{
+				shifter.Shift(prng, out foundSolution);
+			}
+
+			if (definitelyHasSolution)
+			{
+				Assert.IsTrue(foundSolution);
+				numExpectedSolutions++;
+			}
+			else if (foundSolution)
+			{
+				numLuckySolutions++;
+			}
+			else
+			{
+				Assert.IsFalse(definitelyHasSolution);
+				numNoSolutions++;
+			}
+		}
+
+		Assert.AreEqual(totalRuns, numNoSolutions + numLuckySolutions + numExpectedSolutions);
+		Assert.IsTrue(numExpectedSolutions > totalRuns / 4);
+		Assert.IsTrue(numLuckySolutions > totalRuns / 10);
+		Assert.IsTrue(numNoSolutions > totalRuns / 10);
+	}
+
+	private static (FencepostShifter, IReadOnlyList<int>) CreateFencepostShifter(PRNG prng, int minLength, ref FencepostShifter.Settings settings)
+	{
+		var posts = new List<int>();
+		int curr = 0;
+		do
+		{
+			curr += prng.NextInt32(settings.MinFenceLength, settings.MaxFenceLength + 1);
+			posts.Add(curr);
+		} while (curr < minLength);
+
+		settings = settings with
+		{
+			TotalLength = curr + prng.NextInt32(settings.MinFenceLength, settings.MaxFenceLength + 1)
+		};
+
+		return (FencepostShifter.Create(posts, settings), posts);
+	}
 }
