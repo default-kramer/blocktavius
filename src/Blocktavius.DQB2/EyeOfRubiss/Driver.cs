@@ -167,8 +167,11 @@ public sealed class Driver : IDisposable
 				}
 
 				try { process.CloseMainWindow(); } catch { }
-				try { process.Close(); } catch { }
-				try { process.Kill(); } catch { }
+				try { process.Close(); }
+				catch
+				{
+					try { process.Kill(); } catch { }
+				}
 				try { process.Dispose(); } catch { }
 				this.process = null;
 			}
