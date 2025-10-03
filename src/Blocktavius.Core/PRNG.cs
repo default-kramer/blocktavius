@@ -65,6 +65,34 @@ public sealed class PRNG
 		return new PRNG(this);
 	}
 
+	/// <summary>
+	/// Mutates the current PRNG and then clones it.
+	/// The idea is here is: imagine you have some two-step process and both steps
+	/// need a PRNG. Also imagine that the user has locked the PRNG seed to something
+	/// they like. If our code looks like this:
+	///    doFirstStep(prng)
+	///    doSecondStep(prng)
+	/// then if the user changes some setting that affects the first step only,
+	/// the prng will probably be in a different state when it reaches the second step.
+	/// But if we do something like this instead:
+	///    doFirstStep(prng.AdvanceAndClone())
+	///    doSecondStep(prng.AdvanceAndClone())
+	/// if the user changes some setting that affects the first step only, the second
+	/// step will receive the same prng state as before, which increases the likelihood
+	/// that the user remains satisfied with the seed they locked in earlier.
+	///
+	/// "So then why advance it at all? Why not just clone it?" The risk is that the
+	/// two steps might start by doing something similar. For example, if both steps
+	/// start by generating a Jaunt, even if they are different lengths the longer one
+	/// will start the same as the shorter one. This offends my sense of taste,
+	/// even if such duplication might take a careful eye to notice.
+	/// </summary>
+	public PRNG AdvanceAndClone()
+	{
+		NextDouble();
+		return Clone();
+	}
+
 	public static PRNG Deserialize(string seed) => new PRNG(State.Deserialize(seed));
 
 	/// <summary>

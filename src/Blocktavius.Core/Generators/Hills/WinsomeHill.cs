@@ -10,10 +10,37 @@ public static class WinsomeHill
 {
 	public static I2DSampler<Elevation> BuildWinsomeHills(Region region, PRNG prng, int maxElevation, int steepness)
 	{
-		var cliffBuilder = new CliffBuilder(1, new Elevation(maxElevation - 30), new Elevation(maxElevation))
+		var builder = new WinsomeHillBuilder()
 		{
-			steepness = steepness,
+			MinElevation = new Elevation(maxElevation - 30),
+			MaxElevation = new Elevation(maxElevation),
+			Steepness = steepness,
+			Prng = prng.AdvanceAndClone(),
 		};
-		return AdditiveHillBuilder.BuildHill(region, new Elevation(maxElevation), cliffBuilder);
+		return builder.BuildHill(region);
+	}
+
+	sealed class WinsomeHillBuilder : AdditiveHillBuilder
+	{
+		public required Elevation MinElevation { get; init; }
+		public required Elevation MaxElevation { get; init; }
+		public required int Steepness { get; init; }
+		public required PRNG Prng { get; init; }
+
+		protected override bool ShouldFillRegion(out Elevation elevation)
+		{
+			elevation = MaxElevation;
+			return true;
+		}
+
+		protected override ICliffBuilder CreateCliffBuilder(Edge edge)
+		{
+			const int cornerReservedSpace = 200; // TODO: we just hope it's enough!
+
+			return new CliffBuilder(mainLength: edge.Length, cornerReservedSpace, MinElevation, MaxElevation, Prng)
+			{
+				steepness = Steepness,
+			};
+		}
 	}
 }

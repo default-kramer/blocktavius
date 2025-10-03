@@ -22,23 +22,28 @@ sealed class CliffBuilder : AdditiveHillBuilder.ICliffBuilder
 	/// Sorted by elevation, lowest at the front of the queue.
 	/// </summary>
 	private readonly Stack<ILayer> layers = new();
-	private readonly int totalLength;
+	private readonly int mainLength;
+	private readonly int reservedSpacePerCorner;
+	private int totalLength => mainLength + reservedSpacePerCorner + reservedSpacePerCorner;
 	private readonly Elevation minElevation;
 	private readonly Elevation maxElevation;
 	private readonly FencepostShifter.Settings shifterSettings;
 	private readonly JauntSettings jauntSettings;
 	public required int steepness { get; init; } = 1; // must be >= 1
+	private readonly PRNG prng;
 
 	// TODO these should all be configurable:
 	const int minFenceLength = 1;
 	const int maxFenceLength = 8;
 	const int maxNudge = 4;
 	const int maxLaneCount = 5;
-	private readonly PRNG prng = PRNG.Create(new Random());
 
-	public CliffBuilder(int totalLength, Elevation min, Elevation max)
+
+	public CliffBuilder(int mainLength, int reservedSpacePerCorner, Elevation min, Elevation max, PRNG prng)
 	{
-		this.totalLength = totalLength;
+		this.prng = prng;
+		this.mainLength = mainLength;
+		this.reservedSpacePerCorner = reservedSpacePerCorner;
 		this.minElevation = min;
 		this.maxElevation = max;
 
@@ -104,7 +109,7 @@ sealed class CliffBuilder : AdditiveHillBuilder.ICliffBuilder
 	/// as necessary to reach the requested <paramref name="floor"/>.
 	/// This allows callers to request a smaller slice of the full width.
 	/// </summary>
-	public I2DSampler<Elevation> Build(Elevation floor, Range range)
+	private I2DSampler<Elevation> Build(Elevation floor, Range range)
 	{
 		if (range.xMin < 0 || range.xMax > totalLength - 1)
 		{
@@ -134,19 +139,22 @@ sealed class CliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		return sampler;
 	}
 
-	int AdditiveHillBuilder.ICliffBuilder.Width => totalLength;
-
-	I2DSampler<Elevation> AdditiveHillBuilder.ICliffBuilder.BuildCliff(Range slice)
+	I2DSampler<Elevation> AdditiveHillBuilder.ICliffBuilder.BuildMainCliff(int length)
 	{
+		var slice = Range.FromStartAndLength(reservedSpacePerCorner, length);
 		return Build(minElevation, slice);
 	}
 
-	AdditiveHillBuilder.ICliffBuilder AdditiveHillBuilder.ICliffBuilder.AnotherOne(int width)
+	I2DSampler<Elevation> AdditiveHillBuilder.ICliffBuilder.BuildCornerCliff(bool left, int length)
 	{
-		return new CliffBuilder(width, minElevation, maxElevation)
+		if (length > reservedSpacePerCorner)
 		{
-			steepness = this.steepness,
-		};
+			throw new Exception("OOPS - we didn't reserve enough space for the corner! What should we do here... :(");
+		}
+
+		var slice = Range.FromStartAndLength(reservedSpacePerCorner, length)
+			.Shift(left ? -length : mainLength);
+		return Build(minElevation, slice);
 	}
 
 	class SimpleLayer : ILayer

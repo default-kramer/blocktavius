@@ -8,6 +8,10 @@ namespace Blocktavius.Core;
 
 readonly record struct Range(int xMin, int xMax) // inclusive
 {
+	public int xEnd => xMax + 1;
+
+	public static Range FromStartAndLength(int start, int length) => new Range(start, start + length - 1);
+
 	public bool IsInfeasible => xMax < xMin;
 
 	public int Width => (xMax + 1) - xMin;
