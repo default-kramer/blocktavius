@@ -19,6 +19,13 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 		set => ChangeProperty(ref elevation, value);
 	}
 
+	private int steepness = 1;
+	public int Steepness
+	{
+		get => steepness;
+		set => ChangeProperty(ref steepness, Math.Max(1, value));
+	}
+
 	private IAreaVM? area;
 	[ItemsSource(typeof(Global.LayersItemsSource))]
 	public IAreaVM? Area
@@ -80,7 +87,7 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 		}
 		else if (mode == 1)
 		{
-			sampler = Core.Generators.Hills.WinsomeHill.BuildWinsomeHills(regions.Single(), prng, elevation);
+			sampler = Core.Generators.Hills.WinsomeHill.BuildWinsomeHills(regions.Single(), prng, elevation, Math.Max(1, steepness));
 		}
 		else
 		{

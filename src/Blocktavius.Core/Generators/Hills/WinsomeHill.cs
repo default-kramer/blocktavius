@@ -8,9 +8,12 @@ namespace Blocktavius.Core.Generators.Hills;
 
 public static class WinsomeHill
 {
-	public static I2DSampler<Elevation> BuildWinsomeHills(Region region, PRNG prng, int maxElevation)
+	public static I2DSampler<Elevation> BuildWinsomeHills(Region region, PRNG prng, int maxElevation, int steepness)
 	{
-		var cliffBuilder = new CliffBuilder(1, new Elevation(maxElevation - 30), new Elevation(maxElevation));
+		var cliffBuilder = new CliffBuilder(1, new Elevation(maxElevation - 30), new Elevation(maxElevation))
+		{
+			steepness = steepness,
+		};
 		return AdditiveHillBuilder.BuildHill(region, new Elevation(maxElevation), cliffBuilder);
 	}
 }

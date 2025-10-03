@@ -11,10 +11,10 @@ namespace Blocktavius.Core;
 /// </summary>
 sealed class AdditiveHillBuilder
 {
-	// TODO we need to actually slice the main cliff from the *center* (not the left edge
-	// as we are currently doing). Then depending on the type of corner we are building,
-	// we need to slice either the left or right of that center slice.
-	const int OUTSIDE_CORNER_FUDGE = 100;
+	// Reserved space. We create the CliffBuilder wider than the edge itself needs
+	// in case the edge ends up needing corners. We can draw from this reserved space
+	// to create cliffs for the corners to use which should seamlessly match the edge's main cliff.
+	const int CORNER_OVERLAP = 100;
 
 	public static I2DSampler<Elevation> BuildHill(Region region, Elevation maxElevation, ICliffBuilder cliffBuilder)
 	{
@@ -30,6 +30,7 @@ sealed class AdditiveHillBuilder
 	{
 		public int Width { get; }
 		public I2DSampler<Elevation> BuildCliff(Range slice);
+
 		public ICliffBuilder AnotherOne(int width);
 	}
 
@@ -38,8 +39,8 @@ sealed class AdditiveHillBuilder
 		public required Edge Edge { get; init; }
 
 		/// <summary>
-		/// This sampler will be normalized from 0 to Edge.Length in the X direction,
-		/// and from 0 to whatever is needed in the Z direction.
+		/// This slice will start at X = <see cref="CORNER_OVERLAP"/> and its length
+		/// will match <see cref="Edge.Length"/>.
 		/// </summary>
 		public required I2DSampler<Elevation> Sampler { get; init; }
 
@@ -70,13 +71,15 @@ sealed class AdditiveHillBuilder
 
 	private I2DSampler<Elevation> BuildHill(Region region)
 	{
+		var corners = region.ComputeCorners();
+		var outsideCorners = corners.Where(c => c.CornerType == CornerType.Outside).ToList();
+
 		var edgeCliffs = region.Edges.Select(BuildCliff).ToList();
 
 		// these list will contain all edge cliffs and corner cliffs, all translated
 		List<I2DSampler<Elevation>> cliffs = edgeCliffs.Select(x => x.TranslateSampler()).ToList();
 
-		var corners = region.ComputeCorners().ToList();
-		foreach (var corner in corners.Where(c => c.CornerType == CornerType.Outside))
+		foreach (var corner in outsideCorners)
 		{
 			var cliffEW = edgeCliffs.Single(x => x.Edge == corner.EastOrWestEdge);
 			var cliffNS = edgeCliffs.Single(x => x.Edge == corner.NorthOrSouthEdge);
@@ -111,8 +114,15 @@ sealed class AdditiveHillBuilder
 
 	private EdgeCliff BuildCliff(Edge edge)
 	{
-		var cliffBuilder = this.CliffBuilder.AnotherOne(edge.Length + OUTSIDE_CORNER_FUDGE);
-		var sampler = cliffBuilder.BuildCliff(new Range(0, edge.Length));
+		// Always allocate space for corners on both sides, regardless of whether they exist
+		// This ensures all slicing ranges are always valid
+		int totalWidth = edge.Length + CORNER_OVERLAP * 2;
+		var cliffBuilder = this.CliffBuilder.AnotherOne(totalWidth);
+
+		// Slice the main edge cliff from the center, excluding corner regions on both sides
+		// Range is inclusive, so to get edge.Length values, we need [start, start + length - 1]
+		var sampler = cliffBuilder.BuildCliff(new Range(CORNER_OVERLAP, CORNER_OVERLAP + edge.Length - 1));
+
 		return new EdgeCliff()
 		{
 			CliffBuilder = cliffBuilder,
@@ -128,12 +138,26 @@ sealed class AdditiveHillBuilder
 		int cornerSize = Math.Max(cliffEW.Sampler.Bounds.Size.Z, cliffNS.Sampler.Bounds.Size.Z);
 		var theSquare = new Rect(XZ.Zero, new XZ(cornerSize, cornerSize));
 
-		// Build corner slice extensions starting at edge.Length
-		var sliceEW = cliffEW.CliffBuilder.BuildCliff(new Range(cliffEW.Edge.Length, cliffEW.Edge.Length + cornerSize))
+		var meetingPoint = corner.MeetingPoint();
+
+		// Determine which end of each edge this corner is at, and slice accordingly
+		bool ewAtStart = cliffEW.Edge.Start == meetingPoint;
+		bool nsAtStart = cliffNS.Edge.Start == meetingPoint;
+
+		// Choose a slice range for the corner such that the corner slice will be
+		// 1) directly adjacent to the main cliff slice and
+		// 2) on the correct side of the main cliff slice
+		Range ewRange = new Range(CORNER_OVERLAP, CORNER_OVERLAP + cornerSize - 1)
+			.Shift(ewAtStart ? -cornerSize : cliffEW.Edge.Length);
+
+		Range nsRange = new Range(CORNER_OVERLAP, CORNER_OVERLAP + cornerSize - 1)
+			.Shift(nsAtStart ? -cornerSize : cliffNS.Edge.Length);
+
+		var sliceEW = cliffEW.CliffBuilder.BuildCliff(ewRange)
 			.TranslateTo(XZ.Zero)
 			.Crop(theSquare);
 
-		var sliceNS = cliffNS.CliffBuilder.BuildCliff(new Range(cliffNS.Edge.Length, cliffNS.Edge.Length + cornerSize))
+		var sliceNS = cliffNS.CliffBuilder.BuildCliff(nsRange)
 			.TranslateTo(XZ.Zero)
 			.Crop(theSquare);
 
@@ -155,7 +179,10 @@ sealed class AdditiveHillBuilder
 			result.Put(xz, new Elevation(Math.Min(elevEW.Y, elevNS.Y)));
 		}
 
-		var target = GetTargetLoc(corner, cornerSize);
+		// Translate to final position
+		int xFactor = nsAtStart ? -1 : 0;
+		int zFactor = ewAtStart ? -1 : 0;
+		var target = meetingPoint.Add(cornerSize * xFactor, cornerSize * zFactor);
 		return result.TranslateTo(target);
 	}
 
@@ -174,14 +201,5 @@ sealed class AdditiveHillBuilder
 			default:
 				throw new Exception($"Assert fail: {edge.InsideDirection}");
 		}
-	}
-
-
-	private static XZ GetTargetLoc(Corner corner, int cornerSize)
-	{
-		var meetingPoint = corner.MeetingPoint();
-		int xFactor = corner.NorthOrSouthEdge.Start == meetingPoint ? -1 : 0;
-		int zFactor = corner.EastOrWestEdge.Start == meetingPoint ? -1 : 0;
-		return meetingPoint.Add(cornerSize * xFactor, cornerSize * zFactor);
 	}
 }

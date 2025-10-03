@@ -27,6 +27,7 @@ sealed class CliffBuilder : AdditiveHillBuilder.ICliffBuilder
 	private readonly Elevation maxElevation;
 	private readonly FencepostShifter.Settings shifterSettings;
 	private readonly JauntSettings jauntSettings;
+	public required int steepness { get; init; } = 1; // must be >= 1
 
 	// TODO these should all be configurable:
 	const int minFenceLength = 1;
@@ -34,7 +35,6 @@ sealed class CliffBuilder : AdditiveHillBuilder.ICliffBuilder
 	const int maxNudge = 4;
 	const int maxLaneCount = 5;
 	private readonly PRNG prng = PRNG.Create(new Random());
-	const int steepness = 2; // must be >=1
 
 	public CliffBuilder(int totalLength, Elevation min, Elevation max)
 	{
@@ -143,7 +143,10 @@ sealed class CliffBuilder : AdditiveHillBuilder.ICliffBuilder
 
 	AdditiveHillBuilder.ICliffBuilder AdditiveHillBuilder.ICliffBuilder.AnotherOne(int width)
 	{
-		return new CliffBuilder(width, minElevation, maxElevation);
+		return new CliffBuilder(width, minElevation, maxElevation)
+		{
+			steepness = this.steepness,
+		};
 	}
 
 	class SimpleLayer : ILayer
