@@ -21,39 +21,41 @@ public class HillBuilderTests
 		var region = tagger.GetRegions(tag).Single();
 
 		const int elevation = 3;
-		const int fillElevation = 44;
+		const int fillElevation = 9;
 
 		var builder = new TestCliffBuilder() { Elevation = elevation };
 		var result = AdditiveHillBuilder.BuildHill(region, new Elevation(fillElevation), builder);
-		Assert.IsNotNull(result);
 
-		// The center tile should all be filled
-		for (int x = scale; x < scale * 2; x++)
-		{
-			for (int z = scale; z < scale * 2; z++)
+		// Print for visual inspection during development
+		Console.WriteLine("Full hill:");
+		Console.WriteLine(SamplerAssert.PrintElevations(result));
+
+		// The center tile (5x5 square from [5,5] to [9,9]) should all be filled with max elevation
+		SamplerAssert.AllSatisfy(result,
+			(xz, elev) =>
 			{
-				Assert.AreEqual(fillElevation, result.Sample(new XZ(x, z)).Y);
-			}
-		}
+				bool isCenter = xz.X >= scale && xz.X < scale * 2 && xz.Z >= scale && xz.Z < scale * 2;
+				return !isCenter || elev.Y == fillElevation;
+			},
+			"Center region should be filled with max elevation");
 
-		// check top left corner
-		for (int z = 0; z < scale; z++)
-		{
-			for (int x = 0; x < scale; x++)
-			{
-				int actual = result.Sample(new XZ(x, z)).Y;
+		// Expected pattern for the full 11x11 hill:
+		// Outer ring: elevation 1, next ring: 2, next: 3, center 5x5: fillElevation (9)
+		string expectedPattern = @"
+11111111111
+12222222221
+12333333321
+12399999321
+12399999321
+12399999321
+12399999321
+12399999321
+12333333321
+12222222221
+11111111111".Trim();
 
-				int distance = Math.Max(4 - x, 4 - z);
-				if (distance < elevation)
-				{
-					Assert.AreEqual(elevation - distance, actual);
-				}
-				else
-				{
-					Assert.AreEqual(-1, actual);
-				}
-			}
-		}
+		SamplerAssert.MatchesPattern(result, expectedPattern,
+			c => new Elevation(int.Parse(c.ToString())));
 	}
 
 	[TestMethod]
