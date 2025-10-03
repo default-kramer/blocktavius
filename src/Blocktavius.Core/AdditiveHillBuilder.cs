@@ -63,7 +63,7 @@ public abstract class AdditiveHillBuilder
 			cliffs.Add(BuildOutsideCorner(corner, cliffEW, cliffNS));
 		}
 
-		Rect fullBounds = Rect.Union([region.Bounds], cliffs.Select(s => s.Bounds));
+		Rect fullBounds = Rect.Union([region.MaybeBetterBounds], cliffs.Select(s => s.Bounds));
 		var sampler = new MutableArray2D<Elevation>(fullBounds, new Elevation(-1));
 
 		foreach (var cliff in cliffs)

@@ -78,6 +78,16 @@ public sealed record Region
 	public required IReadOnlyList<Edge> Edges { get; init; }
 	public required Rect Bounds { get; init; }
 
+	/// <summary>
+	/// The bounds seem to be off by one? I think the tile tagger is to blame.
+	/// For example, if you have tileSize=5 and tag the (1,1) tile, the resulting
+	/// region bounds is Rect((5,5), (11,11)) which seems totally wrong...
+	/// Note that the <see cref="Contains"/> method returns FALSE for all (x,10) and (10,z)
+	/// in that example so maybe it's simply that the bounds are off by one?
+	/// Anyway, until I figure that out, this property is a workaround.
+	/// </summary>
+	public Rect MaybeBetterBounds => Bounds with { end = Bounds.end.Add(-1, -1) };
+
 	public bool Contains(XZ xz) => unscaledTiles.Contains(xz.Unscale(scale));
 
 	internal IReadOnlyList<Corner> ComputeCorners()

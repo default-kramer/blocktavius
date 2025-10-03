@@ -89,6 +89,21 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 		{
 			sampler = Core.Generators.Hills.WinsomeHill.BuildWinsomeHills(regions.Single(), prng, elevation, Math.Max(1, steepness));
 		}
+		else if (mode == 2)
+		{
+			var settings = new Core.Generators.Hills.PlainHill.Settings
+			{
+				MaxElevation = this.elevation,
+				MinElevation = this.elevation - 10,
+				Steepness = this.steepness,
+			};
+			if (!settings.Validate(out settings))
+			{
+				this.Elevation = settings.MaxElevation;
+				this.Steepness = settings.Steepness;
+			}
+			sampler = Core.Generators.Hills.PlainHill.BuildPlainHill(regions.Single(), settings);
+		}
 		else
 		{
 			sampler = Core.Generators.Hills.QuaintHill.BuildQuaintHills(regions, prng, elevation);
