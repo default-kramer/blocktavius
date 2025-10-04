@@ -344,20 +344,18 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 	private readonly int reservedSpacePerCorner;
 	private readonly int totalLength;
 	private readonly Config config;
-	private readonly Elevation minElevation;
 	private readonly Elevation maxElevation;
 
 	// Cache the full normalized cliff so all slices come from the same source
-	private MutableArray2D<Elevation>? cachedFullCliff;
+	private MutableArray2D<Elevation>? __cachedFullCliff;
 
-	public AdamantCliffBuilder(int mainLength, int reservedSpacePerCorner, Elevation min, Elevation max, PRNG prng, Config? config = null)
+	public AdamantCliffBuilder(int mainLength, int reservedSpacePerCorner, Elevation max, PRNG prng, Config? config = null)
 	{
 		this.prng = prng;
 		this.mainLength = mainLength;
 		this.reservedSpacePerCorner = reservedSpacePerCorner;
 		this.totalLength = mainLength + reservedSpacePerCorner * 2;
 		this.config = config ?? new Config();
-		this.minElevation = min;
 		this.maxElevation = max;
 	}
 
@@ -381,13 +379,14 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		return SliceFromFullCliff(slice);
 	}
 
-	private void EnsureFullCliffBuilt()
+	private MutableArray2D<Elevation> EnsureFullCliffBuilt()
 	{
-		if (cachedFullCliff == null)
+		if (__cachedFullCliff == null)
 		{
 			var (layers, shims) = BuildLayers();
-			cachedFullCliff = CreateFullCliff(layers, shims);
+			__cachedFullCliff = CreateFullCliff(layers, shims);
 		}
+		return __cachedFullCliff;
 	}
 
 	private I2DSampler<Elevation> SliceFromFullCliff(Range range)
@@ -397,7 +396,8 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 			throw new ArgumentOutOfRangeException(nameof(range));
 		}
 
-		var fullBounds = cachedFullCliff!.Bounds;
+		var cliff = EnsureFullCliffBuilt();
+		var fullBounds = cliff.Bounds;
 		var sliceBounds = new Rect(new XZ(range.xMin, 0), new XZ(range.xMax + 1, fullBounds.Size.Z));
 		var slice = new MutableArray2D<Elevation>(sliceBounds, new Elevation(-1));
 
@@ -405,7 +405,7 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		{
 			if (fullBounds.Contains(xz))
 			{
-				slice.Put(xz, cachedFullCliff.Sample(xz));
+				slice.Put(xz, cliff.Sample(xz));
 			}
 		}
 

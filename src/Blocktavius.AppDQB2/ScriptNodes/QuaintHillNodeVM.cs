@@ -127,7 +127,6 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 				Prng = prng,
 				CornerDebug = CornerDebug,
 				MaxElevation = Elevation,
-				MinElevation = Elevation - 30,
 			};
 			sampler = AdamantHill.BuildAdamantHills(regions.Single(), settings);
 		}

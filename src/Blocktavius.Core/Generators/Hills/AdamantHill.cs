@@ -11,7 +11,6 @@ public static class AdamantHill
 	{
 		public required PRNG Prng { get; init; }
 		public required int MaxElevation { get; init; }
-		public required int MinElevation { get; init; }
 		public int CornerDebug { get; set; } = 0;
 
 		/// <summary>
@@ -29,7 +28,6 @@ public static class AdamantHill
 	{
 		var builder = new AdamantHillBuilder
 		{
-			MinElevation = new Elevation(settings.MinElevation),
 			MaxElevation = new Elevation(settings.MaxElevation),
 			Prng = settings.Prng.AdvanceAndClone(),
 			CornerDebug = settings.CornerDebug,
@@ -40,7 +38,6 @@ public static class AdamantHill
 
 	sealed class AdamantHillBuilder : AdditiveHillBuilder
 	{
-		public required Elevation MinElevation { get; init; }
 		public required Elevation MaxElevation { get; init; }
 		public required PRNG Prng { get; init; }
 		public AdamantCliffBuilder.Config? CliffConfig { get; init; }
@@ -58,7 +55,6 @@ public static class AdamantHill
 			return new AdamantCliffBuilder(
 				mainLength: edge.Length,
 				reservedSpacePerCorner: cornerReservedSpace,
-				min: MinElevation,
 				max: MaxElevation,
 				prng: Prng,
 				config: CliffConfig
