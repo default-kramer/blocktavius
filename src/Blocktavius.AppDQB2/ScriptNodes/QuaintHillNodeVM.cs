@@ -1,4 +1,5 @@
 ﻿using Blocktavius.Core;
+using Blocktavius.Core.Generators.Hills;
 using Blocktavius.DQB2;
 using System;
 using System.Collections.Generic;
@@ -94,11 +95,19 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 		}
 		else if (mode == 1)
 		{
-			sampler = Core.Generators.Hills.WinsomeHill.BuildWinsomeHills(regions.Single(), prng, elevation, Math.Max(1, steepness), CornerDebug);
+			var settings = new WinsomeHill.Settings
+			{
+				Prng = prng,
+				MaxElevation = Elevation,
+				MinElevation = Elevation - 30,
+				Steepness = Steepness,
+				CornerDebug = CornerDebug,
+			};
+			sampler = WinsomeHill.BuildWinsomeHills(regions.Single(), settings);
 		}
 		else if (mode == 2)
 		{
-			var settings = new Core.Generators.Hills.PlainHill.Settings
+			var settings = new PlainHill.Settings
 			{
 				MaxElevation = this.elevation,
 				MinElevation = this.elevation - 10,
@@ -109,11 +118,11 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 				this.Elevation = settings.MaxElevation;
 				this.Steepness = settings.Steepness;
 			}
-			sampler = Core.Generators.Hills.PlainHill.BuildPlainHill(regions.Single(), settings);
+			sampler = PlainHill.BuildPlainHill(regions.Single(), settings);
 		}
 		else
 		{
-			sampler = Core.Generators.Hills.QuaintHill.BuildQuaintHills(regions, prng, elevation);
+			sampler = QuaintHill.BuildQuaintHills(regions, prng, elevation);
 		}
 
 		// TODO can I avoid this pitfall?
