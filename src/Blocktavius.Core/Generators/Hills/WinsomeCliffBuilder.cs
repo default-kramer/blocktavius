@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Blocktavius.Core;
+namespace Blocktavius.Core.Generators.Hills;
 
-sealed class CliffBuilder : AdditiveHillBuilder.ICliffBuilder
+sealed class WinsomeCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 {
 	interface ILayer
 	{
@@ -39,7 +39,7 @@ sealed class CliffBuilder : AdditiveHillBuilder.ICliffBuilder
 	const int maxLaneCount = 5;
 
 
-	public CliffBuilder(int mainLength, int reservedSpacePerCorner, Elevation min, Elevation max, PRNG prng)
+	public WinsomeCliffBuilder(int mainLength, int reservedSpacePerCorner, Elevation min, Elevation max, PRNG prng)
 	{
 		this.prng = prng;
 		this.mainLength = mainLength;
