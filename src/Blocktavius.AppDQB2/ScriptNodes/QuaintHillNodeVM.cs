@@ -58,6 +58,13 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 
 	private string? prngSeed = null;
 
+	private int cornerDebug;
+	public int CornerDebug
+	{
+		get => cornerDebug;
+		set => ChangeProperty(ref cornerDebug, value);
+	}
+
 	public override StageMutation? BuildMutation(StageRebuildContext context)
 	{
 		if (area == null || Block == null)
@@ -87,7 +94,7 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 		}
 		else if (mode == 1)
 		{
-			sampler = Core.Generators.Hills.WinsomeHill.BuildWinsomeHills(regions.Single(), prng, elevation, Math.Max(1, steepness));
+			sampler = Core.Generators.Hills.WinsomeHill.BuildWinsomeHills(regions.Single(), prng, elevation, Math.Max(1, steepness), CornerDebug);
 		}
 		else if (mode == 2)
 		{
