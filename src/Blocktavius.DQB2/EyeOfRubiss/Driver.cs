@@ -47,6 +47,7 @@ public sealed class Driver : IDisposable
 		procManager.ShutdownEyeOfRubiss();
 	}
 
+	private bool setCamera = true;
 	public async Task WriteStageAsync(IStage stage)
 	{
 		await writeLock.WaitAsync().ConfigureAwait(false);
@@ -59,7 +60,8 @@ public sealed class Driver : IDisposable
 				chunkTasks.Add(WriteChunkFile(chunk, driverDir));
 			}
 
-			var driverFileContent = BuildDriverFileContent(stage);
+			var driverFileContent = BuildDriverFileContent(stage, setCamera);
+			setCamera = false;
 			await Task.WhenAll(chunkTasks).ConfigureAwait(false);
 			driverFileContent.WriteToFile(driverFile);
 		}
@@ -84,7 +86,7 @@ public sealed class Driver : IDisposable
 		return $"chunk.{corner.X}.{corner.Z}.bin";
 	}
 
-	private static DriverFileModel BuildDriverFileContent(IStage stage)
+	private static DriverFileModel BuildDriverFileContent(IStage stage, bool setCamera)
 	{
 		var offsets = stage.ChunksInUse;
 
@@ -99,8 +101,8 @@ public sealed class Driver : IDisposable
 		{
 			UniqueValue = Guid.NewGuid().ToString(),
 			ChunkInfos = chunkInfos.ToList(),
-			SetCameraX = 1024,
-			SetCameraZ = 1024,
+			SetCameraX = setCamera ? 1024 : null,
+			SetCameraZ = setCamera ? 1024 : null,
 		};
 
 		return content;
