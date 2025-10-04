@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 
-namespace Blocktavius.Core.Generators.Cliffs;
+namespace Blocktavius.Core.Generators.Hills;
 
 /// <summary>
 /// Direct port of QuaintCliff algorithm to work with AdditiveHillBuilder.
@@ -225,7 +225,7 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 					foreach (var point in shim.Points)
 					{
 						nextPoints[point.xz.X] = point;
-					};
+					}
 					backstop = new Backstop(nextPoints);
 
 					return true;

@@ -1,4 +1,3 @@
-using Blocktavius.Core.Generators.Cliffs;
 using System;
 
 namespace Blocktavius.Core.Generators.Hills;
