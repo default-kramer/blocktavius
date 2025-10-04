@@ -20,11 +20,17 @@ namespace Blocktavius.Core.Generators.Hills;
 /// (This is a natural consequence of cornering.
 ///  Also <see cref="FillAlcoves"/> causes Z-flatness.)
 /// So we may introduce "shims" to counteract this.
+///
+/// NOTE: At one time, I had in mind to store the layerId in the sampler which could
+/// be used to choose different blocks per layer. I don't know if I ever tested that.
+/// Either way, it has become low priority, but should still be possible if desired someday.
 /// </remarks>
 public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 {
 	public sealed record Config
 	{
+		public static Config Default => new();
+
 		/// <summary>
 		/// Minimum separation (range is inclusive).
 		/// The "separation" is calculated for every X, how much the Y value (elevation)
@@ -349,13 +355,13 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 	// Cache the full normalized cliff so all slices come from the same source
 	private MutableArray2D<Elevation>? __cachedFullCliff;
 
-	public AdamantCliffBuilder(int mainLength, int reservedSpacePerCorner, Elevation max, PRNG prng, Config? config = null)
+	public AdamantCliffBuilder(int mainLength, int reservedSpacePerCorner, Elevation max, PRNG prng, Config config)
 	{
 		this.prng = prng;
 		this.mainLength = mainLength;
 		this.reservedSpacePerCorner = reservedSpacePerCorner;
 		this.totalLength = mainLength + reservedSpacePerCorner * 2;
-		this.config = config ?? new Config();
+		this.config = config;
 		this.maxElevation = max;
 	}
 

@@ -127,6 +127,8 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 				Prng = prng,
 				CornerDebug = CornerDebug,
 				MaxElevation = Elevation,
+				CliffConfig = AdamantCliffBuilder.Config.Default,
+				// Perhaps steepness should control cliffConfig.MinSeparation?
 			};
 			sampler = AdamantHill.BuildAdamantHills(regions.Single(), settings);
 		}

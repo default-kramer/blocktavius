@@ -2,9 +2,6 @@ using System;
 
 namespace Blocktavius.Core.Generators.Hills;
 
-/// <summary>
-/// Hill generator using the Adamant cliff algorithm (Jaunt-based port of QuaintCliff).
-/// </summary>
 public static class AdamantHill
 {
 	public sealed record Settings
@@ -12,39 +9,26 @@ public static class AdamantHill
 		public required PRNG Prng { get; init; }
 		public required int MaxElevation { get; init; }
 		public int CornerDebug { get; set; } = 0;
-
-		/// <summary>
-		/// Configuration for the Adamant cliff algorithm.
-		/// If null, uses default configuration which matches QuaintCliff settings:
-		/// - MinSeparation = 1, MaxSeparation = 4
-		/// - RunWidthMin = 2, RunWidthMax = 5
-		/// - MaxLaneCount = 5
-		/// - UnacceptableZFlatness = 10, ShimMinOffset = 2
-		/// </summary>
-		public AdamantCliffBuilder.Config? CliffConfig { get; init; } = null;
+		public required AdamantCliffBuilder.Config CliffConfig { get; init; }
 	}
 
 	public static I2DSampler<Elevation> BuildAdamantHills(Region region, Settings settings)
 	{
 		var builder = new AdamantHillBuilder
 		{
-			MaxElevation = new Elevation(settings.MaxElevation),
-			Prng = settings.Prng.AdvanceAndClone(),
+			Settings = settings,
 			CornerDebug = settings.CornerDebug,
-			CliffConfig = settings.CliffConfig,
 		};
 		return builder.BuildHill(region);
 	}
 
 	sealed class AdamantHillBuilder : AdditiveHillBuilder
 	{
-		public required Elevation MaxElevation { get; init; }
-		public required PRNG Prng { get; init; }
-		public AdamantCliffBuilder.Config? CliffConfig { get; init; }
+		public required Settings Settings { get; init; }
 
 		protected override bool ShouldFillRegion(out Elevation elevation)
 		{
-			elevation = MaxElevation;
+			elevation = new Elevation(Settings.MaxElevation);
 			return true;
 		}
 
@@ -55,9 +39,9 @@ public static class AdamantHill
 			return new AdamantCliffBuilder(
 				mainLength: edge.Length,
 				reservedSpacePerCorner: cornerReservedSpace,
-				max: MaxElevation,
-				prng: Prng,
-				config: CliffConfig
+				max: new Elevation(Settings.MaxElevation),
+				prng: Settings.Prng,
+				config: Settings.CliffConfig
 			);
 		}
 	}
