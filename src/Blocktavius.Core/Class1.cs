@@ -130,9 +130,9 @@ public record Rect(XZ start, XZ end)
 
 	public IEnumerable<XZ> Enumerate()
 	{
-		for (int x = start.X; x < end.X; x++)
+		for (int z = start.Z; z < end.Z; z++)
 		{
-			for (int z = start.Z; z < end.Z; z++)
+			for (int x = start.X; x < end.X; x++)
 			{
 				yield return new XZ(x, z);
 			}
