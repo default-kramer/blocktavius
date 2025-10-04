@@ -8,14 +8,24 @@ namespace Blocktavius.Core.Generators.Hills;
 
 public static class WinsomeHill
 {
-	public static I2DSampler<Elevation> BuildWinsomeHills(Region region, PRNG prng, int maxElevation, int steepness)
+	public sealed record Settings
+	{
+		public required PRNG Prng { get; init; }
+		public required int MaxElevation { get; init; }
+		public required int MinElevation { get; init; }
+		public required int Steepness { get; init; }
+		public int CornerDebug { get; set; } = 0;
+	}
+
+	public static I2DSampler<Elevation> BuildWinsomeHills(Region region, Settings settings)
 	{
 		var builder = new WinsomeHillBuilder()
 		{
-			MinElevation = new Elevation(maxElevation - 30),
-			MaxElevation = new Elevation(maxElevation),
-			Steepness = steepness,
-			Prng = prng.AdvanceAndClone(),
+			MinElevation = new Elevation(settings.MinElevation),
+			MaxElevation = new Elevation(settings.MaxElevation),
+			Steepness = settings.Steepness,
+			Prng = settings.Prng.AdvanceAndClone(),
+			CornerDebug = settings.CornerDebug,
 		};
 		return builder.BuildHill(region);
 	}

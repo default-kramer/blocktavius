@@ -13,6 +13,8 @@ namespace Blocktavius.Core;
 /// </summary>
 public abstract class AdditiveHillBuilder
 {
+	public int CornerDebug { get; set; }
+
 	public interface ICliffBuilder
 	{
 		/// <summary>
@@ -124,11 +126,14 @@ public abstract class AdditiveHillBuilder
 		bool ewAtStart = ewItem.Edge.Start == meetingPoint;
 		bool nsAtStart = nsItem.Edge.Start == meetingPoint;
 
-		var sliceEW = ewItem.CliffBuilder.BuildCornerCliff(left: ewAtStart, cornerSize)
+		bool ewLeft = ewItem.Edge.InsideDirection == CardinalDirection.East ? ewAtStart : !ewAtStart;
+		bool nsLeft = nsItem.Edge.InsideDirection == CardinalDirection.North ? nsAtStart : !nsAtStart;
+
+		var sliceEW = ewItem.CliffBuilder.BuildCornerCliff(ewLeft, cornerSize)
 			.TranslateTo(XZ.Zero)
 			.Crop(theSquare);
 
-		var sliceNS = nsItem.CliffBuilder.BuildCornerCliff(left: nsAtStart, cornerSize)
+		var sliceNS = nsItem.CliffBuilder.BuildCornerCliff(nsLeft, cornerSize)
 			.TranslateTo(XZ.Zero)
 			.Crop(theSquare);
 
@@ -139,6 +144,24 @@ public abstract class AdditiveHillBuilder
 
 		sliceEW = Rotate(ewItem.Edge, sliceEW);
 		sliceNS = Rotate(nsItem.Edge, sliceNS);
+
+		if (CornerDebug == 0) { } // no debug
+		else if (CornerDebug % 2 == 0)
+		{
+			sliceEW = new ConstantSampler<Elevation>
+			{
+				Bounds = sliceEW.Bounds,
+				Value = new Elevation(int.MaxValue)
+			};
+		}
+		else
+		{
+			sliceNS = new ConstantSampler<Elevation>
+			{
+				Bounds = sliceNS.Bounds,
+				Value = new Elevation(int.MaxValue)
+			};
+		}
 
 		var result = new MutableArray2D<Elevation>(theSquare, new Elevation(-1));
 
