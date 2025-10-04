@@ -27,6 +27,12 @@ namespace Blocktavius.Core.Generators.Hills;
 /// </remarks>
 public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 {
+	public static I2DSampler<Elevation> Generate(PRNG prng, int width, int height)
+	{
+		var builder = new AdamantCliffBuilder(width, reservedSpacePerCorner: 0, new Elevation(height), prng, Config.Default);
+		return builder.BuildMainCliff(width);
+	}
+
 	public sealed record Config
 	{
 		public static Config Default => new();

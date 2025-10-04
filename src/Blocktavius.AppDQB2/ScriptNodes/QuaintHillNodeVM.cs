@@ -120,7 +120,7 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 			}
 			sampler = PlainHill.BuildPlainHill(regions.Single(), settings);
 		}
-		else if (mode == 3)
+		else
 		{
 			var settings = new AdamantHill.Settings
 			{
@@ -131,10 +131,6 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 				// Perhaps steepness should control cliffConfig.MinSeparation?
 			};
 			sampler = AdamantHill.BuildAdamantHills(regions.Single(), settings);
-		}
-		else
-		{
-			sampler = QuaintHill.BuildQuaintHills(regions, prng, elevation);
 		}
 
 		// TODO can I avoid this pitfall?
