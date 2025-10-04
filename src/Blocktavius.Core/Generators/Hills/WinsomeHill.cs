@@ -47,7 +47,7 @@ public static class WinsomeHill
 		{
 			const int cornerReservedSpace = 200; // TODO: we just hope it's enough!
 
-			return new CliffBuilder(mainLength: edge.Length, cornerReservedSpace, MinElevation, MaxElevation, Prng)
+			return new WinsomeCliffBuilder(mainLength: edge.Length, cornerReservedSpace, MinElevation, MaxElevation, Prng)
 			{
 				steepness = Steepness,
 			};

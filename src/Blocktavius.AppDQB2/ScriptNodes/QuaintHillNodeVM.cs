@@ -120,6 +120,18 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 			}
 			sampler = PlainHill.BuildPlainHill(regions.Single(), settings);
 		}
+		else if (mode == 3)
+		{
+			var settings = new AdamantHill.Settings
+			{
+				Prng = prng,
+				CornerDebug = CornerDebug,
+				MaxElevation = Elevation,
+				CliffConfig = AdamantCliffBuilder.Config.Default,
+				// Perhaps steepness should control cliffConfig.MinSeparation?
+			};
+			sampler = AdamantHill.BuildAdamantHills(regions.Single(), settings);
+		}
 		else
 		{
 			sampler = QuaintHill.BuildQuaintHills(regions, prng, elevation);
