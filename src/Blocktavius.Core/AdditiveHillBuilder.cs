@@ -83,6 +83,9 @@ public abstract class AdditiveHillBuilder
 
 		if (ShouldFillRegion(out var fillElevation))
 		{
+			// Backfill any gaps between cliffs and region interior
+			BackfillCliffs(sampler, region, fillElevation);
+
 			foreach (var xz in region.Bounds.Enumerate())
 			{
 				if (region.Contains(xz))
@@ -98,6 +101,61 @@ public abstract class AdditiveHillBuilder
 	protected abstract bool ShouldFillRegion(out Elevation elevation);
 
 	protected abstract ICliffBuilder CreateCliffBuilder(Edge edge);
+
+	/// <summary>
+	/// Fills gaps between cliffs and the region interior to ensure cliffs reach the plateau.
+	/// Called after building cliffs but before filling the region interior.
+	/// Default implementation fills empty cells from the region boundary outward until
+	/// hitting cliff data, similar to QuaintCliff's backfill approach.
+	/// </summary>
+	protected virtual void BackfillCliffs(MutableArray2D<Elevation> sampler, Region region, Elevation fillElevation)
+	{
+		// For each X,Z position in bounds, if it's empty, walk from the region edge outward
+		// and fill until we hit cliff data
+		foreach (var edge in region.Edges)
+		{
+			BackfillEdge(sampler, edge, fillElevation);
+		}
+	}
+
+	private void BackfillEdge(MutableArray2D<Elevation> sampler, Edge edge, Elevation fillElevation)
+	{
+		// Walk along the edge, and for each position, fill outward from region toward cliff
+		var alongEdge = Direction.Parse(edge.StepDirection).Step;
+		var outsideDirection = edge.InsideDirection switch
+		{
+			CardinalDirection.North => CardinalDirection.South,
+			CardinalDirection.South => CardinalDirection.North,
+			CardinalDirection.East => CardinalDirection.West,
+			CardinalDirection.West => CardinalDirection.East,
+			_ => throw new Exception($"Invalid inside direction: {edge.InsideDirection}")
+		};
+		var outward = Direction.Parse(outsideDirection).Step;
+
+		for (int i = 0; i < edge.Length; i++)
+		{
+			var edgePos = edge.Start.Add(alongEdge.X * i, alongEdge.Z * i);
+			var current = edgePos.Add(outward);
+
+			// Fill outward from region boundary until we hit existing cliff data
+			while (sampler.Bounds.Contains(current))
+			{
+				var elevation = sampler.Sample(current);
+
+				// Only fill truly empty cells (no cliff data)
+				if (elevation.Y < 0)
+				{
+					sampler.Put(current, fillElevation);
+					current = current.Add(outward);
+				}
+				else
+				{
+					// Hit cliff data - stop here, don't overwrite it
+					break;
+				}
+			}
+		}
+	}
 
 	private EdgeCliff BuildMainCliff(Edge edge)
 	{
