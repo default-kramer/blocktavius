@@ -5,47 +5,63 @@ using System.Linq;
 
 namespace Blocktavius.Core.Generators.Hills;
 
-/// <summary>
-/// Direct port of QuaintCliff algorithm to work with AdditiveHillBuilder.
-/// Maintains the tight coupling between Y (elevation) and Z (contour) that makes QuaintCliff work.
-/// </summary>
+/// <remarks>
+/// This algorithm operates by constructing layers one at a time.
+/// The width of all layers is equal and constant.
+/// Each successive layer will satisfy
+/// * currentLayer[x].Y must be less than previousLayer[x].Y
+/// * currentLayer[x].NorthernmostPoint.Z == 1 + previousLayer[x].SouthernmostPoint.Z
+/// These goals are the main reason the <see cref="Backstop"/> class exists.
+/// Also, we can create a starter backstop to generate the first layer
+/// (which will have no previous layer).
+///
+/// But wait, there's more!
+/// The backstop tends toward Z-flatness as more layers are added.
+/// (This is a natural consequence of cornering.
+///  Also <see cref="FillAlcoves"/> causes Z-flatness.)
+/// So we may introduce "shims" to counteract this.
+/// </remarks>
 public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 {
 	public sealed record Config
 	{
 		/// <summary>
-		/// Minimum separation between layers (inclusive).
-		/// Default matches QuaintCliff.
+		/// Minimum separation (range is inclusive).
+		/// The "separation" is calculated for every X, how much the Y value (elevation)
+		/// drops compared to the same X in the previous layer.
+		/// The formula is `separation(N,X) = Layers[N-1][X].Y - Layers[N][X].Y`
 		/// </summary>
 		public int MinSeparation { get; init; } = 1;
 
 		/// <summary>
-		/// Maximum separation between layers (inclusive).
-		/// Default matches QuaintCliff.
+		/// Maximum separation (range is inclusive).
+		/// See <see cref="MinSeparation"/>.
 		/// </summary>
 		public int MaxSeparation { get; init; } = 4;
 
 		/// <summary>
-		/// Minimum run length. Default matches QuaintCliff's RunWidthMin.
+		/// Minimum run length.
+		/// Layers are built one run at a time.
+		/// Each run of a layer chooses a Y value (elevation) that is +1 or -1 from the previous run.
+		/// (Note that Y also changes whenever Z changes, so it's more accurate to define
+		///  "adjusted Y" = Y+Z and say that each run chooses an "adjusted Y" that is +1 or -1
+		///  from the previous run.)
 		/// </summary>
 		public int RunWidthMin { get; init; } = 2;
-
-		/// <summary>
-		/// Maximum run length (inclusive). Default matches QuaintCliff's RunWidthMax.
-		/// </summary>
 		public int RunWidthMax { get; init; } = 5;
-
 		internal int RunWidthRand => (RunWidthMax + 1) - RunWidthMin;
 
 		/// <summary>
 		/// When the contour (Z) stays unchanged for at least this many steps,
-		/// we consider it "too flat" and add a shim. Default matches QuaintCliff.
+		/// we consider it "too flat" and add a shim to introduce some jaggedness.
+		/// (This would be called "run length max" in Jaunt terminology.)
 		/// </summary>
 		public int UnacceptableZFlatness { get; init; } = 10;
 
 		/// <summary>
-		/// Minimum distance from the edge before we can place a shim.
-		/// Default matches QuaintCliff.
+		/// When a run is too long (<see cref="UnacceptableZFlatness"/>), we add a shim.
+		/// This parameter defines the maximum range this shim can occupy relative
+		/// to that unacceptably long run, for example [longRun.Start+2, longRun.End-2].
 		/// </summary>
 		public int ShimMinOffset { get; init; } = 2;
 	}
@@ -55,7 +71,18 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		public bool Include => y > 0;
 	}
 
-	private record struct Cell(Point point, bool corner, int layerId)
+	/// <summary>
+	/// When dealing with corners, we will need to populate 2 Z coords at a given X coord.
+	/// For example, here is how a run of width 5 with a corner at `run[2]` would look
+	///    _ _ c x x
+	///    x x x _ _
+	///
+	/// In that example, the cell at `run[2]` will have
+	/// * bool corner: true
+	/// * a Z coordinate matching the cells to its left
+	/// * a special <see cref="NorthernmostPoint"/> for the "c" spot in the diagram above.
+	/// </summary>
+	record struct Cell(Point point, bool corner, int layerId)
 	{
 		private Point CornerPoint() => new Point(point.xz.Add(0, -1), point.y + 1);
 
@@ -69,6 +96,7 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		}
 
 		public Point SouthernmostPoint => point;
+
 		public Point NorthernmostPoint => corner ? CornerPoint() : point;
 
 		public Cell ConvertToCorner()
@@ -82,7 +110,11 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		}
 	}
 
-	private sealed class Backstop
+	/// <summary>
+	/// "Generate next layer" is almost* a function of the backstop.
+	/// (* "almost", because we also use the shared PRNG and the width constant.)
+	/// </summary>
+	sealed class Backstop
 	{
 		private readonly IReadOnlyList<Point> points;
 
@@ -102,6 +134,10 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 			return separation < config.MinSeparation || separation > config.MaxSeparation;
 		}
 
+		/// <summary>
+		/// Don't end a run where the Z coordinate changes for aesthetic reasons.
+		/// (And maybe for correctness too??)
+		/// </summary>
 		public bool CanEndRunAt(int xEnd)
 		{
 			if (xEnd == points.Count)
@@ -115,6 +151,9 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 			return points[xEnd].xz.Z == points[xEnd - 1].xz.Z;
 		}
 
+		/// <summary>
+		/// Returns all possible Y values that the first cell of the next layer could start at
+		/// </summary>
 		public IEnumerable<int> InitialYChoices(Config config)
 		{
 			var anchor = this.points[0];
@@ -213,6 +252,9 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 
 				if (best.Count > 0)
 				{
+					// Decreasing Y here can cause the algorithm to get stuck, so we use the same Y.
+					// (IMO, this also looks better than decreasing Y.)
+					// But if you wanted, you could lower all shims as a post-processing step...
 					shim = new Shim()
 					{
 						Start = best[0].xz.Add(0, 1),
@@ -263,7 +305,7 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		}
 	}
 
-	private sealed class Layer
+	sealed class Layer
 	{
 		public required int LayerId { get; init; }
 		private readonly IReadOnlyList<Cell> cells;
@@ -284,11 +326,9 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		public int MaxZ => cells.Select(cell => cell.SouthernmostPoint.xz.Z).Max();
 
 		public IEnumerable<Point> Points => cells.SelectMany(cell => cell.Points());
-
-		public IReadOnlyList<Cell> Cells => cells;
 	}
 
-	private sealed class Shim
+	sealed class Shim
 	{
 		public required XZ Start { get; init; }
 		public required int Width { get; init; }
@@ -468,6 +508,8 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		var layers = new List<Layer>();
 		var shims = new List<Shim>();
 
+		// We increment layerId *before* generating the layer
+		// so that it remains correct for any shims that may follow.
 		int layerId = -1;
 
 		var backstop = GenerateInitialBackstop();
@@ -573,6 +615,19 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		throw new Exception($"failed to generate layer! tried y=[{string.Join(',', yChoices)}]");
 	}
 
+	/// <summary>
+	/// An "alcove" is an inset gap.
+	/// For example, here is what an alcove having <paramref name="alcoveWidth"/> 2 looks like:
+	///    _ _ _ _ c x x c _ _ _ _
+	///    x x x x x _ _ x x x x x
+	///
+	/// It is *essential* that we fill alcoves having width 2 or less.
+	/// Otherwise we might get stuck later on.
+	/// We will replace alcove cells with corner cells.
+	/// So the example above would get replaced by this:
+	///    _ _ _ _ c c c c _ _ _ _
+	///    x x x x x x x x x x x x
+	/// </summary>
 	private static bool IsAlcove(IReadOnlyList<Cell> cells, int start, int alcoveWidth)
 	{
 		int zStart = cells[start].SouthernmostPoint.xz.Z;
@@ -638,6 +693,12 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		}
 	}
 
+	/// <summary>
+	/// Holds the state needed to generate a single run.
+	/// If we succeed, we recurse.
+	/// If we cannot, we backtrack to an earlier state and rely on the mutable state
+	/// of the shared PRNG to explore other possible recursions.
+	/// </summary>
 	record struct LayerGenerator(Shared shared, int xStart, int y)
 	{
 		public bool Execute()
