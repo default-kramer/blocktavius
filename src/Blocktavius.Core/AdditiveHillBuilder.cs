@@ -13,6 +13,8 @@ namespace Blocktavius.Core;
 /// </summary>
 public abstract class AdditiveHillBuilder
 {
+	public int CornerDebug { get; set; } = 0;
+
 	public interface ICliffBuilder
 	{
 		/// <summary>
@@ -63,7 +65,7 @@ public abstract class AdditiveHillBuilder
 			cliffs.Add(BuildOutsideCorner(corner, cliffEW, cliffNS));
 		}
 
-		Rect fullBounds = Rect.Union([region.MaybeBetterBounds], cliffs.Select(s => s.Bounds));
+		Rect fullBounds = Rect.Union([region.Bounds], cliffs.Select(s => s.Bounds));
 		var sampler = new MutableArray2D<Elevation>(fullBounds, new Elevation(-1));
 
 		foreach (var cliff in cliffs)
@@ -118,17 +120,38 @@ public abstract class AdditiveHillBuilder
 		int cornerSize = Math.Max(ewItem.MainCliff.Bounds.Size.Z, nsItem.MainCliff.Bounds.Size.Z);
 		var theSquare = new Rect(XZ.Zero, new XZ(cornerSize, cornerSize));
 
+		// The meeting point is where edges originally met (and where the corner cliff goes)
 		var meetingPoint = corner.MeetingPoint();
 
-		// Determine which end of each edge this corner is at, and slice accordingly
-		bool ewAtStart = ewItem.Edge.Start == meetingPoint;
-		bool nsAtStart = nsItem.Edge.Start == meetingPoint;
+		// Edges may have been moved, so check against original meeting point with compensation
+		var ewEdge = ewItem.Edge;
+		var nsEdge = nsItem.Edge;
 
-		var sliceEW = ewItem.CliffBuilder.BuildCornerCliff(left: ewAtStart, cornerSize)
+		// Determine which end of each edge is at the corner (accounting for movement)
+		var ewComp = ewEdge.InsideDirection switch
+		{
+			CardinalDirection.North => new XZ(0, 1),
+			CardinalDirection.West => new XZ(1, 0),
+			_ => XZ.Zero
+		};
+		var nsComp = nsEdge.InsideDirection switch
+		{
+			CardinalDirection.North => new XZ(0, 1),
+			CardinalDirection.West => new XZ(1, 0),
+			_ => XZ.Zero
+		};
+
+		bool ewAtStart = ewEdge.Start.Add(ewComp) == meetingPoint;
+		bool nsAtStart = nsEdge.Start.Add(nsComp) == meetingPoint;
+
+		bool ewLeft = ewEdge.InsideDirection == CardinalDirection.East ? ewAtStart : !ewAtStart;
+		bool nsLeft = nsEdge.InsideDirection == CardinalDirection.North ? nsAtStart : !nsAtStart;
+
+		var sliceEW = ewItem.CliffBuilder.BuildCornerCliff(ewLeft, cornerSize)
 			.TranslateTo(XZ.Zero)
 			.Crop(theSquare);
 
-		var sliceNS = nsItem.CliffBuilder.BuildCornerCliff(left: nsAtStart, cornerSize)
+		var sliceNS = nsItem.CliffBuilder.BuildCornerCliff(nsLeft, cornerSize)
 			.TranslateTo(XZ.Zero)
 			.Crop(theSquare);
 
@@ -140,14 +163,24 @@ public abstract class AdditiveHillBuilder
 		sliceEW = Rotate(ewItem.Edge, sliceEW);
 		sliceNS = Rotate(nsItem.Edge, sliceNS);
 
+		if (CornerDebug == 0) { } // no debug
+		else if (CornerDebug % 2 == 0)
+		{
+			sliceEW = new MutableArray2D<Elevation>(sliceEW.Bounds, new Elevation(int.MaxValue));
+		}
+		else
+		{
+			sliceNS = new MutableArray2D<Elevation>(sliceNS.Bounds, new Elevation(int.MaxValue));
+		}
+
 		var result = new MutableArray2D<Elevation>(theSquare, new Elevation(-1));
 
 		// Combine using min (lower elevation wins at outside corners)
 		foreach (var xz in theSquare.Enumerate())
 		{
-			var elevEW = sliceEW.Sample(xz);
-			var elevNS = sliceNS.Sample(xz);
-			result.Put(xz, new Elevation(Math.Min(elevEW.Y, elevNS.Y)));
+			var elevEW = sliceEW.Sample(xz).Y;
+			var elevNS = sliceNS.Sample(xz).Y;
+			result.Put(xz, new Elevation(Math.Min(elevEW, elevNS)));
 		}
 
 		// Translate to final position
@@ -177,18 +210,43 @@ public abstract class AdditiveHillBuilder
 	private static I2DSampler<Elevation> TransformMainCliff(EdgeCliff ec)
 	{
 		var (edge, mainCliff) = (ec.Edge, ec.MainCliff);
+		// Edges are now inside the region. Cliffs need to be placed 1 step outside (opposite to InsideDirection).
+
+		// Step 1: Rotate the cliff to face the correct direction
+		// Step 2: Move it 1 step opposite to InsideDirection to place it outside
+		// Step 3: Adjust for the cliff's depth (rotated bounds may have shifted origin)
+
+		XZ outsideOffset = edge.InsideDirection switch
+		{
+			CardinalDirection.North => new XZ(0, 1),   // Move south (opposite of north)
+			CardinalDirection.South => new XZ(0, -1),  // Move north (opposite of south)
+			CardinalDirection.East => new XZ(-1, 0),   // Move west (opposite of east)
+			CardinalDirection.West => new XZ(1, 0),    // Move east (opposite of west)
+			_ => throw new Exception($"Assert fail: {edge.InsideDirection}")
+		};
+
 		switch (edge.InsideDirection)
 		{
-			case CardinalDirection.North:
-				return mainCliff.TranslateTo(edge.Start);
 			case CardinalDirection.South:
-				return mainCliff.Rotate(180)
-					.TranslateTo(edge.Start.Add(0, -mainCliff.Bounds.Size.Z));
+			case CardinalDirection.North:
+				// For N/S edges, cliff extends in Z direction
+				// Inside=South (North edge): cliff extends north, needs 180° rotation and depth adjustment
+				// Inside=North (South edge): cliff extends south, no rotation needed
+				var rotation = edge.InsideDirection == CardinalDirection.South ? 180 : 0;
+				var zAdjust = rotation == 180 ? -(mainCliff.Bounds.Size.Z - 1) : 0;
+				var rotated = mainCliff.Rotate(rotation);
+				var target = edge.Start.Add(outsideOffset).Add(0, zAdjust);
+				return rotated.TranslateTo(target);
 			case CardinalDirection.East:
-				return mainCliff.Rotate(90)
-					.TranslateTo(edge.Start.Add(-mainCliff.Bounds.Size.Z, 0));
 			case CardinalDirection.West:
-				return mainCliff.Rotate(270).TranslateTo(edge.Start);
+				// For E/W edges, cliff extends in X direction
+				// Inside=East (West edge): cliff extends west, needs 90° rotation and depth adjustment
+				// Inside=West (East edge): cliff extends east, needs 270° rotation
+				rotation = edge.InsideDirection == CardinalDirection.East ? 90 : 270;
+				var xAdjust = rotation == 90 ? -(mainCliff.Bounds.Size.Z - 1) : 0;
+				rotated = mainCliff.Rotate(rotation);
+				target = edge.Start.Add(outsideOffset).Add(xAdjust, 0);
+				return rotated.TranslateTo(target);
 			default:
 				throw new Exception($"Assert fail: {edge.InsideDirection}");
 		}

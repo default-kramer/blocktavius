@@ -33,7 +33,7 @@ sealed class CliffBuilder : AdditiveHillBuilder.ICliffBuilder
 	private readonly PRNG prng;
 
 	// TODO these should all be configurable:
-	const int minFenceLength = 1;
+	const int minFenceLength = 2;
 	const int maxFenceLength = 8;
 	const int maxNudge = 4;
 	const int maxLaneCount = 5;

@@ -15,6 +15,8 @@ public sealed record Edge
 	public required int Length { get; init; }
 
 	public XZ End => Start.Add(Direction.Parse(StepDirection).Step.Scale(Length));
+	public XZ Max => Start.Add(Direction.Parse(StepDirection).Step.Scale(Length - 1));
+	public XZ Min => Start;
 
 	internal Edge Scale(XZ scale)
 	{
@@ -28,9 +30,25 @@ public sealed record Edge
 			lengthScale = scale.Z;
 		}
 
+		var scaledStart = this.Start.Scale(scale);
+
+		// Move South/East edges inside the region
+		// In unscaled space, South/East edges are positioned outside (exclusive)
+		// In scaled space, we want all edges inside (inclusive at the last row/column)
+		if (InsideDirection == CardinalDirection.North)
+		{
+			// South edge - move one step north to be inside
+			scaledStart = scaledStart.Add(0, -1);
+		}
+		else if (InsideDirection == CardinalDirection.West)
+		{
+			// East edge - move one step west to be inside
+			scaledStart = scaledStart.Add(-1, 0);
+		}
+
 		return new Edge()
 		{
-			Start = this.Start.Scale(scale),
+			Start = scaledStart,
 			InsideDirection = this.InsideDirection,
 			StepDirection = this.StepDirection,
 			Length = this.Length * lengthScale,
@@ -53,15 +71,9 @@ public sealed record Edge
 
 enum CornerType { Inside, Outside };
 
-sealed record Corner(Edge NorthOrSouthEdge, Edge EastOrWestEdge, CornerType CornerType)
+sealed record Corner(Edge NorthOrSouthEdge, Edge EastOrWestEdge, CornerType CornerType, XZ OriginalMeetingPoint)
 {
-	public XZ MeetingPoint() => SameOrNull(NorthOrSouthEdge.Start, EastOrWestEdge.Start)
-		?? SameOrNull(NorthOrSouthEdge.Start, EastOrWestEdge.End)
-		?? SameOrNull(NorthOrSouthEdge.End, EastOrWestEdge.Start)
-		?? SameOrNull(NorthOrSouthEdge.End, EastOrWestEdge.End)
-		?? throw new Exception("assert fail");
-
-	private static XZ? SameOrNull(XZ a, XZ b) => a == b ? a : null;
+	public XZ MeetingPoint() => OriginalMeetingPoint;
 }
 
 public sealed record Region
@@ -78,33 +90,37 @@ public sealed record Region
 	public required IReadOnlyList<Edge> Edges { get; init; }
 	public required Rect Bounds { get; init; }
 
-	/// <summary>
-	/// The bounds seem to be off by one? I think the tile tagger is to blame.
-	/// For example, if you have tileSize=5 and tag the (1,1) tile, the resulting
-	/// region bounds is Rect((5,5), (11,11)) which seems totally wrong...
-	/// Note that the <see cref="Contains"/> method returns FALSE for all (x,10) and (10,z)
-	/// in that example so maybe it's simply that the bounds are off by one?
-	/// Anyway, until I figure that out, this property is a workaround.
-	/// </summary>
-	public Rect MaybeBetterBounds => Bounds with { end = Bounds.end.Add(-1, -1) };
-
 	public bool Contains(XZ xz) => unscaledTiles.Contains(xz.Unscale(scale));
 
 	internal IReadOnlyList<Corner> ComputeCorners()
 	{
-		var startLookup = Edges.GroupBy(e => e.Start).ToDictionary(g => g.Key, g => g.ToList());
-		var endLookup = Edges.GroupBy(e => e.End).ToDictionary(g => g.Key, g => g.ToList());
+		// Helper to get original (pre-scale-adjustment) position for corner detection
+		XZ GetOriginalPos(Edge e, bool useEnd)
+		{
+			var pos = useEnd ? e.End : e.Start;
+			// South/East edges were moved -1 during scaling, compensate back to original
+			if (e.InsideDirection == CardinalDirection.North)
+				pos = pos.Add(0, 1);
+			else if (e.InsideDirection == CardinalDirection.West)
+				pos = pos.Add(1, 0);
+			return pos;
+		}
+
+		var startLookup = Edges.GroupBy(e => GetOriginalPos(e, false)).ToDictionary(g => g.Key, g => g.ToList());
+		var endLookup = Edges.GroupBy(e => GetOriginalPos(e, true)).ToDictionary(g => g.Key, g => g.ToList());
 
 		// add empty lists so we can always put Start or End into either dictionary safely
 		foreach (var edge in Edges)
 		{
-			if (!startLookup.ContainsKey(edge.End))
+			var origEnd = GetOriginalPos(edge, true);
+			var origStart = GetOriginalPos(edge, false);
+			if (!startLookup.ContainsKey(origEnd))
 			{
-				startLookup[edge.End] = new List<Edge>();
+				startLookup[origEnd] = new List<Edge>();
 			}
-			if (!endLookup.ContainsKey(edge.Start))
+			if (!endLookup.ContainsKey(origStart))
 			{
-				endLookup[edge.Start] = new List<Edge>();
+				endLookup[origStart] = new List<Edge>();
 			}
 		}
 
@@ -112,11 +128,14 @@ public sealed record Region
 
 		foreach (var edge in Edges)
 		{
-			void maybeAdd(Edge? other, CornerType type)
+			var edgeOrigStart = GetOriginalPos(edge, false);
+			var edgeOrigEnd = GetOriginalPos(edge, true);
+
+			void maybeAdd(Edge? other, XZ meetingPoint, CornerType type)
 			{
 				if (other != null)
 				{
-					corners.Add(new Corner(edge, other, type));
+					corners.Add(new Corner(edge, other, type, meetingPoint));
 				}
 			}
 
@@ -127,16 +146,16 @@ public sealed record Region
 				  xxxx|
 				  ----O
 				*/
-				var found = endLookup[edge.End].FirstOrDefault(e => e.InsideDirection == CardinalDirection.West);
-				maybeAdd(found, CornerType.Outside);
+				var found = endLookup[edgeOrigEnd].FirstOrDefault(e => e.InsideDirection == CardinalDirection.West);
+				maybeAdd(found, edgeOrigEnd, CornerType.Outside);
 
 				/*
 				  |xxxx
 				  |xxxx
 				  O----
 				 */
-				found = endLookup[edge.Start].FirstOrDefault(x => x.InsideDirection == CardinalDirection.East);
-				maybeAdd(found, CornerType.Outside);
+				found = endLookup[edgeOrigStart].FirstOrDefault(x => x.InsideDirection == CardinalDirection.East);
+				maybeAdd(found, edgeOrigStart, CornerType.Outside);
 
 				/*
 				 xxxxxx
@@ -145,8 +164,8 @@ public sealed record Region
 				    |xx
 				    |xx
 				 */
-				found = startLookup[edge.End].FirstOrDefault(x => x.InsideDirection == CardinalDirection.East);
-				maybeAdd(found, CornerType.Inside);
+				found = startLookup[edgeOrigEnd].FirstOrDefault(x => x.InsideDirection == CardinalDirection.East);
+				maybeAdd(found, edgeOrigEnd, CornerType.Inside);
 
 				/*
 				  xxxxxx
@@ -155,8 +174,8 @@ public sealed record Region
 				  xx|
 				  xx|
 				 */
-				found = startLookup[edge.Start].FirstOrDefault(x => x.InsideDirection == CardinalDirection.West);
-				maybeAdd(found, CornerType.Inside);
+				found = startLookup[edgeOrigStart].FirstOrDefault(x => x.InsideDirection == CardinalDirection.West);
+				maybeAdd(found, edgeOrigStart, CornerType.Inside);
 			}
 			else if (edge.InsideDirection == CardinalDirection.South)
 			{
@@ -165,16 +184,16 @@ public sealed record Region
 				  |xxxx
 				  |xxxx
 				 */
-				var found = startLookup[edge.Start].FirstOrDefault(e => e.InsideDirection == CardinalDirection.East);
-				maybeAdd(found, CornerType.Outside);
+				var found = startLookup[edgeOrigStart].FirstOrDefault(e => e.InsideDirection == CardinalDirection.East);
+				maybeAdd(found, edgeOrigStart, CornerType.Outside);
 
 				/*
 				  ----O
 				  xxxx|
 				  xxxx|
 				 */
-				found = startLookup[edge.End].FirstOrDefault(e => e.InsideDirection == CardinalDirection.West);
-				maybeAdd(found, CornerType.Outside);
+				found = startLookup[edgeOrigEnd].FirstOrDefault(e => e.InsideDirection == CardinalDirection.West);
+				maybeAdd(found, edgeOrigEnd, CornerType.Outside);
 
 				/*
 				     |xx
@@ -183,8 +202,8 @@ public sealed record Region
 				  xxxxxx
 				  xxxxxx
 				 */
-				found = endLookup[edge.End].FirstOrDefault(e => e.InsideDirection == CardinalDirection.East);
-				maybeAdd(found, CornerType.Inside);
+				found = endLookup[edgeOrigEnd].FirstOrDefault(e => e.InsideDirection == CardinalDirection.East);
+				maybeAdd(found, edgeOrigEnd, CornerType.Inside);
 
 				/*
 				  xx|
@@ -193,8 +212,8 @@ public sealed record Region
 				  xxxxxx
 				  xxxxxx
 				 */
-				found = endLookup[edge.Start].FirstOrDefault(e => e.InsideDirection == CardinalDirection.West);
-				maybeAdd(found, CornerType.Inside);
+				found = endLookup[edgeOrigStart].FirstOrDefault(e => e.InsideDirection == CardinalDirection.West);
+				maybeAdd(found, edgeOrigStart, CornerType.Inside);
 			}
 		}
 
@@ -297,7 +316,15 @@ public sealed class TileTagger<TTag> where TTag : notnull
 		var scaledEdges = CombineEdges(unscaledSegments)
 			.Select(edge => edge.Scale(scale))
 			.ToList();
-		var scaledBounds = Rect.GetBounds(scaledEdges.Select(e => e.End).Concat(scaledEdges.Select(e => e.Start)));
+
+		// All edges are now inside the region, so use Min/Max for inclusive bounds
+		var allPoints = scaledEdges.Select(e => e.Min).Concat(scaledEdges.Select(e => e.Max));
+		int minX = allPoints.Min(p => p.X);
+		int minZ = allPoints.Min(p => p.Z);
+		int maxX = allPoints.Max(p => p.X);
+		int maxZ = allPoints.Max(p => p.Z);
+		// Rect end is exclusive, so add 1 to max values
+		var scaledBounds = new Rect(new XZ(minX, minZ), new XZ(maxX + 1, maxZ + 1));
 
 		return new Region(unscaledTiles, scale)
 		{
@@ -335,7 +362,7 @@ public sealed class TileTagger<TTag> where TTag : notnull
 				Length = 1,
 			});
 
-			// South empty? Then go SW -> SE
+			// South empty? Then go SW -> SE (positioned outside in unscaled space)
 			TestAndAdd(Direction.South, new Edge()
 			{
 				InsideDirection = CardinalDirection.North,
@@ -353,7 +380,7 @@ public sealed class TileTagger<TTag> where TTag : notnull
 				Length = 1,
 			});
 
-			// East empty? Then go NE -> SE
+			// East empty? Then go NE -> SE (positioned outside in unscaled space)
 			TestAndAdd(Direction.East, new Edge()
 			{
 				InsideDirection = CardinalDirection.West,

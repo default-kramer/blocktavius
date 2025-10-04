@@ -105,13 +105,7 @@ ooooooooo".Replace("M", "8").Replace("+", "5").Replace("o", "2").Trim();
 		var start = new XZ(scale, scale);
 		var end = new XZ(scale * 2, scale * 2);
 
-		// This decision by the tile tagger is questionable...
-		const int YUCK = 1;
-		Assert.AreEqual(new Rect(start, end.Add(YUCK, YUCK)), region.Bounds,
-			"If this assertion fails, the Tile Tagger has likely been improved! You can now remove the workaround in the Additive Hill!");
-
-		// The additive hill works around the tile tagger's decision.
-		// This isn't very visible unless minElevation=maxElevation (which is what I wanted to test anyway).
+		Assert.AreEqual(new Rect(start, end), region.Bounds);
 		const int elevation = 42;
 		var settings = new PlainHill.Settings
 		{
