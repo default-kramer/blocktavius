@@ -405,17 +405,7 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		var cliff = EnsureFullCliffBuilt();
 		var fullBounds = cliff.Bounds;
 		var sliceBounds = new Rect(new XZ(range.xMin, 0), new XZ(range.xMax + 1, fullBounds.Size.Z));
-		var slice = new MutableArray2D<Elevation>(sliceBounds, new Elevation(-1));
-
-		foreach (var xz in sliceBounds.Enumerate())
-		{
-			if (fullBounds.Contains(xz))
-			{
-				slice.Put(xz, cliff.Sample(xz));
-			}
-		}
-
-		return slice;
+		return cliff.Crop(sliceBounds);
 	}
 
 	private MutableArray2D<Elevation> CreateFullCliff(List<Layer> layers, List<Shim> shims)
