@@ -66,6 +66,34 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 		set => ChangeProperty(ref cornerDebug, value);
 	}
 
+	private int bubbleFactor = 3;
+	public int BubbleFactor
+	{
+		get => bubbleFactor;
+		set => ChangeProperty(ref bubbleFactor, value);
+	}
+
+	private int bubbleScale = 6;
+	public int BubbleScale
+	{
+		get => bubbleScale;
+		set => ChangeProperty(ref bubbleScale, value);
+	}
+
+	private int minBubbleChance = 10;
+	public int MinBubbleChance
+	{
+		get => minBubbleChance;
+		set => ChangeProperty(ref minBubbleChance, value);
+	}
+
+	private int smoothness = 3;
+	public int Smoothness
+	{
+		get => smoothness;
+		set => ChangeProperty(ref smoothness, value);
+	}
+
 	public override StageMutation? BuildMutation(StageRebuildContext context)
 	{
 		if (area == null || Block == null)
@@ -75,6 +103,10 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 
 		var tagger = area.BuildTagger();
 		var regions = tagger.GetRegions(true);
+		if (regions.Count == 0)
+		{
+			return null;
+		}
 
 		PRNG prng;
 		if (lockRandomSeed && prngSeed != null)
@@ -120,7 +152,7 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 			}
 			sampler = PlainHill.BuildPlainHill(regions.Single(), settings);
 		}
-		else
+		else if (mode == 3)
 		{
 			var settings = new AdamantHill.Settings
 			{
@@ -131,6 +163,27 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 				// Perhaps steepness should control cliffConfig.MinSeparation?
 			};
 			sampler = AdamantHill.BuildAdamantHills(regions.Single(), settings);
+		}
+		else
+		{
+			var settings = new BUBBLER.Settings
+			{
+				Prng = prng,
+				MaxElevation = Elevation,
+				MinElevation = 30,
+				Where = regions.First().Bounds.start,
+				BubbleFactor = BubbleFactor,
+				Scale = BubbleScale,
+				MinBubbleChance = MinBubbleChance / 100m,
+				Smoothness = Smoothness,
+			};
+			settings.Validate(out settings);
+			Elevation = settings.MaxElevation;
+			BubbleFactor = settings.BubbleFactor;
+			BubbleScale = settings.Scale;
+			MinBubbleChance = Convert.ToInt32(settings.MinBubbleChance * 100);
+			Smoothness = settings.Smoothness;
+			sampler = BUBBLER.Build(settings);
 		}
 
 		// TODO can I avoid this pitfall?
