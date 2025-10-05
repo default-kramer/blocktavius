@@ -8,6 +8,15 @@ namespace Blocktavius.Core.Generators.Hills;
 
 sealed class WinsomeCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 {
+	public static I2DSampler<Elevation> Generate(PRNG prng, int length, int elevation)
+	{
+		AdditiveHillBuilder.ICliffBuilder builder = new WinsomeCliffBuilder(length, 0, new Elevation(0), new Elevation(elevation), prng)
+		{
+			steepness = 1,
+		};
+		return builder.BuildMainCliff(length);
+	}
+
 	interface ILayer
 	{
 		Jaunt Jaunt { get; }
