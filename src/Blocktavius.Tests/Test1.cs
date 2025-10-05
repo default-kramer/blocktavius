@@ -52,7 +52,7 @@ namespace Blocktavius.Tests
 			var prng = PRNG.Create(new Random());
 			Console.WriteLine(prng.Serialize());
 
-			for (int i = 0; i < 1000; i++)
+			for (int i = 0; i < 98765; i++)
 			{
 				var cliff = Core.Generators.Hills.AdamantCliffBuilder.Generate(prng, 100, 60);
 				Assert.IsNotNull(cliff);
