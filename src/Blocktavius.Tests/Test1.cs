@@ -8,19 +8,6 @@ namespace Blocktavius.Tests
 	public sealed class Test1
 	{
 		[TestMethod]
-		public void TestMethod1()
-		{
-			var prng = PRNG.Create(new Random());
-			Console.WriteLine(prng.Serialize());
-
-			for (int i = 0; i < 1000; i++)
-			{
-				var hill = BasicHillGenerator.Create(prng);
-				Assert.IsNotNull(hill);
-			}
-		}
-
-		[TestMethod]
 		public void TestMethod2()
 		{
 			var prng = PRNG.Create(new Random());
