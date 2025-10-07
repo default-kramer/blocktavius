@@ -120,12 +120,7 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 		}
 
 		I2DSampler<Elevation> sampler;
-		if (mode == 0)
-		{
-			sampler = Core.Generators.CornerShifterHill.BuildNewHill(regions.Single().Bounds, prng, new Elevation(elevation - 10), new Elevation(elevation));
-
-		}
-		else if (mode == 1)
+		if (mode == 1)
 		{
 			var settings = new WinsomeHill.Settings
 			{
