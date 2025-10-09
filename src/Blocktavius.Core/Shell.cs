@@ -16,7 +16,7 @@ namespace Blocktavius.Core;
 /// The XZ of an outside corner will have only one shell item with an ordinal (diagonal) direction.
 ///
 /// Inside corners are more complicated.
-/// The XZ will get three shell items, for example East, SouthEast, and South.
+/// The XZ will get (at least) three shell items, for example East, SouthEast, and South.
 /// Here is an example ASCII drawing of an inside corner.
 /// In this drawing, % means "in the area" and lower case letters (a - f) are part of the shell:
 ///     a%%
@@ -39,7 +39,7 @@ namespace Blocktavius.Core;
 readonly record struct ShellItem
 {
 	/// <summary>
-	/// This XZ is not inside the area.
+	/// This XZ is *not* inside the area.
 	/// </summary>
 	public required XZ XZ { get; init; }
 
@@ -81,53 +81,103 @@ static class ShellLogic
 
 	public static IReadOnlyList<Shell> ComputeShells(IArea area)
 	{
-		var outsidePoints = ComputeOutsidePoints(area);
-		var shellPointsMap = FindAllShellItems(area);
+		// 1. Find Area Islands
+		var pointToIslandId = FindIslands(area);
 
-		// Step 3: Group shells and determine IsHole.
-		var searchBounds = ExpandBounds(area);
-		var resultShells = new List<Shell>();
-		var visitedShellPoints = new HashSet<XZ>();
+		// 2. Find all shell items using the two-pass method
+		var allShellItemsMap = FindAllShellItems(area);
 
-		foreach (var startPoint in shellPointsMap.Keys)
+		// 3. Group shell items by the area island they are adjacent to
+		var shellItemsByIsland = new Dictionary<int, List<ShellItem>>();
+		foreach (var list in allShellItemsMap.Values)
 		{
-			if (visitedShellPoints.Contains(startPoint))
+			foreach (var item in list)
 			{
-				continue;
-			}
-
-			var currentComponentItems = new List<ShellItem>();
-			var componentQueue = new Queue<XZ>();
-
-			componentQueue.Enqueue(startPoint);
-			visitedShellPoints.Add(startPoint);
-
-			while (componentQueue.Count > 0)
-			{
-				var currentPoint = componentQueue.Dequeue();
-				currentComponentItems.AddRange(shellPointsMap[currentPoint]);
-
-				foreach (var direction in allDirections)
+				var adjacentAreaPoint = item.XZ.Add(item.InsideDirection.Step);
+				if (pointToIslandId.TryGetValue(adjacentAreaPoint, out var islandId))
 				{
-					var neighbor = currentPoint.Add(direction.Step);
-					if (shellPointsMap.ContainsKey(neighbor) && visitedShellPoints.Add(neighbor))
+					if (!shellItemsByIsland.TryGetValue(islandId, out var items))
 					{
-						componentQueue.Enqueue(neighbor);
+						items = new List<ShellItem>();
+						shellItemsByIsland[islandId] = items;
 					}
+					items.Add(item);
 				}
 			}
-
-			bool isHole = !outsidePoints.Contains(startPoint);
-
-			resultShells.Add(new Shell
-			{
-				Area = area,
-				ShellItems = currentComponentItems,
-				IsHole = isHole
-			});
 		}
 
-		return resultShells;
+		// 4. Process each island's shells
+		var finalShells = new List<Shell>();
+		var outsidePoints = ComputeOutsidePoints(area); // For hole detection
+
+		foreach (var islandItems in shellItemsByIsland.Values)
+		{
+			var localShellPointsMap = islandItems.GroupBy(i => i.XZ).ToDictionary(g => g.Key, g => g.ToList());
+			var visitedShellPoints = new HashSet<XZ>();
+
+			foreach (var startPoint in localShellPointsMap.Keys)
+			{
+				if (visitedShellPoints.Add(startPoint))
+				{
+					var componentQueue = new Queue<XZ>();
+					componentQueue.Enqueue(startPoint);
+					var currentComponentItems = new List<ShellItem>();
+
+					while (componentQueue.Count > 0)
+					{
+						var current = componentQueue.Dequeue();
+						currentComponentItems.AddRange(localShellPointsMap[current]);
+						foreach (var dir in allDirections)
+						{
+							var neighbor = current.Add(dir.Step);
+							if (localShellPointsMap.ContainsKey(neighbor) && visitedShellPoints.Add(neighbor))
+							{
+								componentQueue.Enqueue(neighbor);
+							}
+						}
+					}
+
+					bool isHole = !outsidePoints.Contains(startPoint);
+					finalShells.Add(new Shell { Area = area, ShellItems = currentComponentItems, IsHole = isHole });
+				}
+			}
+		}
+
+		return finalShells;
+	}
+
+	/// <summary>
+	/// Constructs a dictionary such that every key is inside the area.
+	/// Keys that share the same value belong to the same island.
+	/// </summary>
+	private static Dictionary<XZ, int> FindIslands(IArea area)
+	{
+		var pointToIslandId = new Dictionary<XZ, int>();
+		var visitedAreaPoints = new HashSet<XZ>();
+		int islandCount = 0;
+		foreach (var xz in area.Bounds.Enumerate().Where(area.InArea))
+		{
+			if (visitedAreaPoints.Add(xz))
+			{
+				var queue = new Queue<XZ>();
+				queue.Enqueue(xz);
+				while (queue.Count > 0)
+				{
+					var current = queue.Dequeue();
+					pointToIslandId[current] = islandCount;
+					foreach (var dir in allDirections)
+					{
+						var neighbor = current.Add(dir.Step);
+						if (area.InArea(neighbor) && visitedAreaPoints.Add(neighbor))
+						{
+							queue.Enqueue(neighbor);
+						}
+					}
+				}
+				islandCount++;
+			}
+		}
+		return pointToIslandId;
 	}
 
 	/// <summary>
@@ -155,7 +205,7 @@ static class ShellLogic
 			}
 		}
 
-		for (int z = searchBounds.start.Z + 1; z < searchBounds.end.Z - 1; z++)
+		for (int z = searchBounds.start.Z; z < searchBounds.end.Z; z++)
 		{
 			var left = new XZ(searchBounds.start.X, z);
 			if (!area.InArea(left) && outsidePoints.Add(left))
@@ -194,26 +244,55 @@ static class ShellLogic
 		var searchBounds = ExpandBounds(area);
 		var shellPointsMap = new Dictionary<XZ, List<ShellItem>>();
 
-		foreach (var xz in searchBounds.Enumerate())
+		// Pass 1: Find primary shell items using "cardinal preference", meaning that
+		// if an XZ has a cardinal item all its potential ordinal items will be skipped/dropped.
+		// The result is that all ordinal items will be outside corners after this pass.
+		foreach (var p in searchBounds.Enumerate())
 		{
-			if (area.InArea(xz))
+			if (area.InArea(p)) continue;
+
+			var adjacencies = new List<Direction>();
+			foreach (var dir in allDirections)
 			{
-				continue;
+				if (area.InArea(p.Add(dir.Step)))
+				{
+					adjacencies.Add(dir);
+				}
 			}
 
-			List<ShellItem>? items = null;
-			foreach (var direction in allDirections)
+			if (adjacencies.Count == 0) continue;
+
+			var items = new List<ShellItem>();
+			var hasCardinal = adjacencies.Any(dir => dir.IsCardinal);
+
+			foreach (var direction in adjacencies)
 			{
-				var neighbor = xz.Add(direction.Step);
-				if (area.InArea(neighbor))
-				{
-					if (items == null)
-					{
-						items = new();
-						shellPointsMap[xz] = items;
-					}
-					items.Add(new ShellItem { XZ = xz, InsideDirection = direction });
-				}
+				if (hasCardinal && direction.IsOrdinal) continue;
+				items.Add(new ShellItem { XZ = p, InsideDirection = direction });
+			}
+
+			if (items.Count > 0)
+			{
+				shellPointsMap[p] = items;
+			}
+		}
+
+		// Pass 2: Manufacture inside corners wherever 2 (or more) cardinals occupy the same XZ
+		foreach (var p in shellPointsMap.Keys)
+		{
+			var items = shellPointsMap[p];
+			var cardinals = items.Where(i => i.InsideDirection.IsCardinal).Select(i => i.InsideDirection).ToHashSet();
+
+			if (cardinals.Count >= 2)
+			{
+				if (cardinals.Contains(Direction.North) && cardinals.Contains(Direction.East))
+					items.Add(new ShellItem { XZ = p, InsideDirection = Direction.NorthEast });
+				if (cardinals.Contains(Direction.East) && cardinals.Contains(Direction.South))
+					items.Add(new ShellItem { XZ = p, InsideDirection = Direction.SouthEast });
+				if (cardinals.Contains(Direction.South) && cardinals.Contains(Direction.West))
+					items.Add(new ShellItem { XZ = p, InsideDirection = Direction.SouthWest });
+				if (cardinals.Contains(Direction.West) && cardinals.Contains(Direction.North))
+					items.Add(new ShellItem { XZ = p, InsideDirection = Direction.NorthWest });
 			}
 		}
 

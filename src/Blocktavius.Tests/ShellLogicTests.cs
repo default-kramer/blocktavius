@@ -53,7 +53,7 @@ namespace Blocktavius.Tests
 
 			var shellPoints = shell.ShellItems.Select(i => i.XZ).ToHashSet();
 			Assert.AreEqual(16, shellPoints.Count);
-			Assert.AreEqual(32, shell.ShellItems.Count);
+			Assert.AreEqual(16, shell.ShellItems.Count);
 		}
 
 		[TestMethod]
@@ -81,7 +81,7 @@ namespace Blocktavius.Tests
 			var outerShell = shells.Single(s => !s.IsHole);
 			var innerShell = shells.Single(s => s.IsHole);
 
-			Assert.AreEqual(56, outerShell.ShellItems.Count);
+			Assert.AreEqual(24, outerShell.ShellItems.Count);
 
 			Assert.AreEqual(1, innerShell.ShellItems.Select(i => i.XZ).Distinct().Count());
 			Assert.AreEqual(new XZ(2, 2), innerShell.ShellItems[0].XZ);
@@ -93,11 +93,12 @@ namespace Blocktavius.Tests
 		{
 			// ARRANGE
 			// L-shape area
+			//
 			// Z v
-			// 0  % . .
-			// 1  % % %
-			//    -----> X
-			//    0 1 2
+			// 0 | % . .
+			// 1 | % % %
+			//    -------> X
+			//     0 1 2
 			var areaPoints = new List<XZ>
 			{
 				new XZ(0, 0),
@@ -115,13 +116,12 @@ namespace Blocktavius.Tests
 			var shell = shells[0];
 
 			var insideCornerItems = shell.ShellItems.Where(i => i.XZ == new XZ(1, 0)).ToList();
-			Assert.AreEqual(4, insideCornerItems.Count);
+			Assert.AreEqual(3, insideCornerItems.Count);
 
 			var directions = insideCornerItems.Select(i => i.InsideDirection).ToHashSet();
 			Assert.IsTrue(directions.Contains(Direction.West));
 			Assert.IsTrue(directions.Contains(Direction.South));
 			Assert.IsTrue(directions.Contains(Direction.SouthWest));
-			Assert.IsTrue(directions.Contains(Direction.SouthEast));
 		}
 
 		[TestMethod]
