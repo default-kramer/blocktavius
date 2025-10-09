@@ -191,4 +191,23 @@ public static class Util
 	{
 		return new ElevationAdjuster() { decorated = sampler, Adjustment = deltaY };
 	}
+
+	sealed class Projection2D<TFrom, TTo> : I2DSampler<TTo>
+	{
+		public required I2DSampler<TFrom> From { get; init; }
+		public required Func<TFrom, TTo> Project { get; init; }
+
+		public Rect Bounds => From.Bounds;
+
+		public TTo Sample(XZ xz) => Project(From.Sample(xz));
+	}
+
+	public static I2DSampler<TTo> Project<TFrom, TTo>(this I2DSampler<TFrom> from, Func<TFrom, TTo> func)
+	{
+		return new Projection2D<TFrom, TTo>
+		{
+			From = from,
+			Project = func,
+		};
+	}
 }

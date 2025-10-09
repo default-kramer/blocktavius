@@ -229,6 +229,17 @@ public sealed class TileTagger<TTag> where TTag : notnull
 		return regions.Select(r => BuildRegion(r, Scale)).ToList();
 	}
 
+	public IEnumerable<Rect> GetIndividualTiles(TTag tag)
+	{
+		foreach (var xz in array.Bounds.Enumerate())
+		{
+			if (array.Sample(xz).Contains(tag))
+			{
+				yield return new Rect(xz.Scale(Scale), xz.Add(1, 1).Scale(Scale));
+			}
+		}
+	}
+
 	/// <summary>
 	/// Output is unscaled.
 	/// Each hashset contains the unscaled coordinates of tiles which belong in the same region.

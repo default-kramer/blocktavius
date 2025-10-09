@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Blocktavius.DQB2.Mutations;
 
-class PutHillMutation : StageMutation
+sealed class PutHillMutation : StageMutation
 {
 	public required I2DSampler<int> Sampler { get; init; }
 	public required ushort Block { get; init; }
@@ -21,7 +21,7 @@ class PutHillMutation : StageMutation
 				var elevation = Sampler.Sample(xz);
 				if (elevation > 0)
 				{
-					for (int y = 0; y < elevation; y++)
+					for (int y = 1; y <= elevation; y++)
 					{
 						chunk.SetBlock(new Point(xz, y), Block);
 					}

@@ -50,6 +50,7 @@ sealed class ScriptVM : ViewModelBase
 {
 	public ScriptVM()
 	{
+		Nodes.Add(new ScriptNodes.PutGroundNodeVM());
 		Nodes.Add(new ScriptNodes.QuaintHillNodeVM());
 	}
 

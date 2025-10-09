@@ -30,4 +30,27 @@ public abstract class StageMutation
 			Sampler = sampler,
 		};
 	}
+
+	public static StageMutation Combine(IReadOnlyList<StageMutation> mutations)
+	{
+		return new CompositeMutation { Mutations = mutations };
+	}
+
+	public static StageMutation Combine(params StageMutation[] mutations)
+	{
+		return new CompositeMutation { Mutations = mutations };
+	}
+
+	sealed class CompositeMutation : StageMutation
+	{
+		public required IReadOnlyList<StageMutation> Mutations { get; init; }
+
+		internal override void Apply(IMutableStage stage)
+		{
+			foreach (var m in Mutations)
+			{
+				m.Apply(stage);
+			}
+		}
+	}
 }

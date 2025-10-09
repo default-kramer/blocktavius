@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Blocktavius.Core;
 
-sealed class ConstantSampler<T> : I2DSampler<T>
+public sealed class ConstantSampler<T> : I2DSampler<T>
 {
 	public required Rect Bounds { get; init; }
 	public required T Value { get; init; }
