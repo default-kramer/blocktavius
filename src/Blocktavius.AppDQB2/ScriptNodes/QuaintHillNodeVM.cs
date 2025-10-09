@@ -119,7 +119,7 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 			prngSeed = prng.Serialize();
 		}
 
-		I2DSampler<Elevation> sampler;
+		I2DSampler<int> sampler;
 		if (mode == 1)
 		{
 			var settings = new WinsomeHill.Settings

@@ -169,25 +169,25 @@ public static class Util
 
 	public static I2DSampler<T> Crop<T>(this I2DSampler<T> sampler, Rect newBounds) => new Cropper<T>(sampler, newBounds);
 
-	sealed class ElevationAdjuster : I2DSampler<Elevation>
+	sealed class ElevationAdjuster : I2DSampler<int>
 	{
-		public required I2DSampler<Elevation> decorated { get; init; }
+		public required I2DSampler<int> decorated { get; init; }
 		public required int Adjustment { get; init; }
 
 		public Rect Bounds => decorated.Bounds;
 
-		public Elevation Sample(XZ xz)
+		public int Sample(XZ xz)
 		{
 			var elevation = decorated.Sample(xz);
-			if (elevation.Y >= 0)
+			if (elevation >= 0)
 			{
-				return new Elevation(elevation.Y + Adjustment);
+				return elevation + Adjustment;
 			}
 			return elevation;
 		}
 	}
 
-	public static I2DSampler<Elevation> AdjustElevation(this I2DSampler<Elevation> sampler, int deltaY)
+	public static I2DSampler<int> AdjustElevation(this I2DSampler<int> sampler, int deltaY)
 	{
 		return new ElevationAdjuster() { decorated = sampler, Adjustment = deltaY };
 	}

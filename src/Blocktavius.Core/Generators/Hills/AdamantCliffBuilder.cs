@@ -27,9 +27,9 @@ namespace Blocktavius.Core.Generators.Hills;
 /// </remarks>
 public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 {
-	public static I2DSampler<Elevation> Generate(PRNG prng, int width, int height, Config? config = null)
+	public static I2DSampler<int> Generate(PRNG prng, int width, int height, Config? config = null)
 	{
-		var builder = new AdamantCliffBuilder(width, reservedSpacePerCorner: 0, new Elevation(height), prng, config ?? Config.Default);
+		var builder = new AdamantCliffBuilder(width, reservedSpacePerCorner: 0, height, prng, config ?? Config.Default);
 		return builder.BuildMainCliff(width);
 	}
 
@@ -356,12 +356,12 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 	private readonly int reservedSpacePerCorner;
 	private readonly int totalLength;
 	private readonly Config config;
-	private readonly Elevation maxElevation;
+	private readonly int maxElevation;
 
 	// Cache the full normalized cliff so all slices come from the same source
-	private MutableArray2D<Elevation>? __cachedFullCliff;
+	private MutableArray2D<int>? __cachedFullCliff;
 
-	public AdamantCliffBuilder(int mainLength, int reservedSpacePerCorner, Elevation max, PRNG prng, Config config)
+	public AdamantCliffBuilder(int mainLength, int reservedSpacePerCorner, int max, PRNG prng, Config config)
 	{
 		this.prng = prng;
 		this.mainLength = mainLength;
@@ -371,14 +371,14 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		this.maxElevation = max;
 	}
 
-	public I2DSampler<Elevation> BuildMainCliff(int length)
+	public I2DSampler<int> BuildMainCliff(int length)
 	{
 		EnsureFullCliffBuilt();
 		var slice = Range.FromStartAndLength(reservedSpacePerCorner, length);
 		return SliceFromFullCliff(slice);
 	}
 
-	public I2DSampler<Elevation> BuildCornerCliff(bool left, int length)
+	public I2DSampler<int> BuildCornerCliff(bool left, int length)
 	{
 		if (length > reservedSpacePerCorner)
 		{
@@ -391,7 +391,7 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		return SliceFromFullCliff(slice);
 	}
 
-	private MutableArray2D<Elevation> EnsureFullCliffBuilt()
+	private MutableArray2D<int> EnsureFullCliffBuilt()
 	{
 		if (__cachedFullCliff == null)
 		{
@@ -401,7 +401,7 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		return __cachedFullCliff;
 	}
 
-	private I2DSampler<Elevation> SliceFromFullCliff(Range range)
+	private I2DSampler<int> SliceFromFullCliff(Range range)
 	{
 		if (range.xMin < 0 || range.xMax > totalLength - 1)
 		{
@@ -414,7 +414,7 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		return cliff.Crop(sliceBounds);
 	}
 
-	private MutableArray2D<Elevation> CreateFullCliff(List<Layer> layers, List<Shim> shims)
+	private MutableArray2D<int> CreateFullCliff(List<Layer> layers, List<Shim> shims)
 	{
 		var allPoints = layers.SelectMany(l => l.Points)
 			.Concat(shims.SelectMany(s => s.Points))
@@ -422,19 +422,19 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 
 		if (!allPoints.Any())
 		{
-			return new MutableArray2D<Elevation>(new Rect(new XZ(0, 0), new XZ(totalLength, 1)), new Elevation(-1));
+			return new MutableArray2D<int>(new Rect(new XZ(0, 0), new XZ(totalLength, 1)), -1);
 		}
 
 		int zEnd = 1 + allPoints.Max(p => p.xz.Z);
 
 		var box = new Rect(new XZ(0, 0), new XZ(totalLength, zEnd));
-		var array = new MutableArray2D<Elevation>(box, new Elevation(-1));
+		var array = new MutableArray2D<int>(box, -1);
 
 		foreach (var layer in layers)
 		{
 			foreach (var point in layer.Points.Where(p => p.Include))
 			{
-				array.Put(point.xz, new Elevation(point.y));
+				array.Put(point.xz, point.y);
 			}
 		}
 
@@ -442,7 +442,7 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		{
 			foreach (var point in shim.Points.Where(p => p.Include))
 			{
-				array.Put(point.xz, new Elevation(point.y));
+				array.Put(point.xz, point.y);
 			}
 		}
 
@@ -450,7 +450,7 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		for (int x = 0; x < totalLength; x++)
 		{
 			var xz = new XZ(x, 0);
-			while (array.Bounds.Contains(xz) && array.Sample(xz).Y < 0)
+			while (array.Bounds.Contains(xz) && array.Sample(xz) < 0)
 			{
 				array.Put(xz, maxElevation);
 				xz = xz.Add(0, 1);
@@ -463,7 +463,7 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		return array;
 	}
 
-	private void NormalizeElevations(MutableArray2D<Elevation> sampler)
+	private void NormalizeElevations(MutableArray2D<int> sampler)
 	{
 		// Find the maximum deficit at Z=0 (how much we need to lift everything)
 		int maxDeficit = 0;
@@ -473,9 +473,9 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 			if (sampler.Bounds.Contains(northEdge))
 			{
 				var current = sampler.Sample(northEdge);
-				if (current.Y >= 0) // ignore empty cells
+				if (current >= 0) // ignore empty cells
 				{
-					int deficit = maxElevation.Y - current.Y;
+					int deficit = maxElevation - current;
 					maxDeficit = Math.Max(maxDeficit, deficit);
 				}
 			}
@@ -487,9 +487,9 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 			foreach (var xz in sampler.Bounds.Enumerate())
 			{
 				var elev = sampler.Sample(xz);
-				if (elev.Y >= 0) // only adjust non-empty cells
+				if (elev >= 0) // only adjust non-empty cells
 				{
-					sampler.Put(xz, new Elevation(elev.Y + maxDeficit));
+					sampler.Put(xz, elev + maxDeficit);
 				}
 			}
 		}
@@ -498,7 +498,7 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		foreach (var xz in sampler.Bounds.Enumerate())
 		{
 			var elev = sampler.Sample(xz);
-			if (elev.Y > maxElevation.Y)
+			if (elev > maxElevation)
 			{
 				sampler.Put(xz, maxElevation);
 			}
@@ -552,7 +552,7 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 
 			for (; x < xEnd; x++)
 			{
-				points.Add(new Point(new XZ(x, z), maxElevation.Y + config.MinSeparation));
+				points.Add(new Point(new XZ(x, z), maxElevation + config.MinSeparation));
 			}
 
 			int dz;

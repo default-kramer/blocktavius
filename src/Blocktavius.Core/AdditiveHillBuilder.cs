@@ -22,7 +22,7 @@ public abstract class AdditiveHillBuilder
 		/// The returned sampler must orient the cliff such that North is tall and South is short.
 		/// (Translation doesn't matter; it will be repositioned.)
 		/// </summary>
-		public I2DSampler<Elevation> BuildMainCliff(int length);
+		public I2DSampler<int> BuildMainCliff(int length);
 
 		/// <summary>
 		/// Produces an extension of the main cliff to be used to construct a corner.
@@ -35,7 +35,7 @@ public abstract class AdditiveHillBuilder
 		/// with left:true. We then use a math.min operation on the two
 		/// cliffs to produce reasonable-looking outside corner.
 		/// </remarks>
-		public I2DSampler<Elevation> BuildCornerCliff(bool left, int length);
+		public I2DSampler<int> BuildCornerCliff(bool left, int length);
 	}
 
 	sealed class EdgeCliff
@@ -43,12 +43,12 @@ public abstract class AdditiveHillBuilder
 		public required Edge Edge { get; init; }
 
 		// We call CliffBuilder.BuildMainCliff(...) immediately and keep the result here
-		public required I2DSampler<Elevation> MainCliff { get; init; }
+		public required I2DSampler<int> MainCliff { get; init; }
 
 		public required ICliffBuilder CliffBuilder { get; init; }
 	}
 
-	public I2DSampler<Elevation> BuildHill(Region region)
+	public I2DSampler<int> BuildHill(Region region)
 	{
 		var corners = region.ComputeCorners();
 		var outsideCorners = corners.Where(c => c.CornerType == CornerType.Outside).ToList();
@@ -56,7 +56,7 @@ public abstract class AdditiveHillBuilder
 		var edgeCliffs = region.Edges.Select(BuildMainCliff).ToList();
 
 		// these list will contain all edge cliffs and corner cliffs, all translated
-		List<I2DSampler<Elevation>> cliffs = edgeCliffs.Select(TransformMainCliff).ToList();
+		List<I2DSampler<int>> cliffs = edgeCliffs.Select(TransformMainCliff).ToList();
 
 		foreach (var corner in outsideCorners)
 		{
@@ -66,7 +66,7 @@ public abstract class AdditiveHillBuilder
 		}
 
 		Rect fullBounds = Rect.Union([region.MaybeBetterBounds], cliffs.Select(s => s.Bounds));
-		var sampler = new MutableArray2D<Elevation>(fullBounds, new Elevation(-1));
+		var sampler = new MutableArray2D<int>(fullBounds, -1);
 
 		foreach (var cliff in cliffs)
 		{
@@ -74,7 +74,7 @@ public abstract class AdditiveHillBuilder
 			{
 				var sample = cliff.Sample(xz);
 				var exist = sampler.Sample(xz);
-				if (sample.Y > exist.Y)
+				if (sample > exist)
 				{
 					sampler.Put(xz, sample);
 				}
@@ -95,7 +95,7 @@ public abstract class AdditiveHillBuilder
 		return sampler;
 	}
 
-	protected abstract bool ShouldFillRegion(out Elevation elevation);
+	protected abstract bool ShouldFillRegion(out int elevation);
 
 	protected abstract ICliffBuilder CreateCliffBuilder(Edge edge);
 
@@ -113,7 +113,7 @@ public abstract class AdditiveHillBuilder
 		};
 	}
 
-	private I2DSampler<Elevation> BuildOutsideCorner(Corner corner, EdgeCliff ewItem, EdgeCliff nsItem)
+	private I2DSampler<int> BuildOutsideCorner(Corner corner, EdgeCliff ewItem, EdgeCliff nsItem)
 	{
 		// Determine the corner size - should be large enough to cover both cliff depths.
 		// We will build a square having this side length.
@@ -148,29 +148,29 @@ public abstract class AdditiveHillBuilder
 		if (CornerDebug == 0) { } // no debug
 		else if (CornerDebug % 2 == 0)
 		{
-			sliceEW = new ConstantSampler<Elevation>
+			sliceEW = new ConstantSampler<int>
 			{
 				Bounds = sliceEW.Bounds,
-				Value = new Elevation(int.MaxValue)
+				Value = int.MaxValue,
 			};
 		}
 		else
 		{
-			sliceNS = new ConstantSampler<Elevation>
+			sliceNS = new ConstantSampler<int>
 			{
 				Bounds = sliceNS.Bounds,
-				Value = new Elevation(int.MaxValue)
+				Value = int.MaxValue,
 			};
 		}
 
-		var result = new MutableArray2D<Elevation>(theSquare, new Elevation(-1));
+		var result = new MutableArray2D<int>(theSquare, -1);
 
 		// Combine using min (lower elevation wins at outside corners)
 		foreach (var xz in theSquare.Enumerate())
 		{
 			var elevEW = sliceEW.Sample(xz);
 			var elevNS = sliceNS.Sample(xz);
-			result.Put(xz, new Elevation(Math.Min(elevEW.Y, elevNS.Y)));
+			result.Put(xz, Math.Min(elevEW, elevNS));
 		}
 
 		// Translate to final position
@@ -197,7 +197,7 @@ public abstract class AdditiveHillBuilder
 		}
 	}
 
-	private static I2DSampler<Elevation> TransformMainCliff(EdgeCliff ec)
+	private static I2DSampler<int> TransformMainCliff(EdgeCliff ec)
 	{
 		var (edge, mainCliff) = (ec.Edge, ec.MainCliff);
 		switch (edge.InsideDirection)

@@ -38,8 +38,8 @@ public class PlainHillTests
 		SamplerAssert.AllSatisfy(result,
 			(xz, elev) =>
 			{
-				if (region.Contains(xz)) { return elev.Y == settings.MaxElevation; }
-				else { return elev.Y < settings.MaxElevation; }
+				if (region.Contains(xz)) { return elev == settings.MaxElevation; }
+				else { return elev < settings.MaxElevation; }
 			},
 			"Center region should be filled with max elevation");
 
@@ -57,8 +57,7 @@ public class PlainHillTests
 -ooooooooo-
 -----------".Replace("M", "4").Replace("+", "3").Replace("o", "2").Replace("-", "1").Trim();
 
-		SamplerAssert.MatchesPattern(result, expectedPattern,
-			c => new Elevation(int.Parse(c.ToString())));
+		SamplerAssert.MatchesPattern(result, expectedPattern, c => int.Parse(c.ToString()));
 
 
 		// ---------------------------------------
@@ -88,8 +87,7 @@ o+MMMMM+o
 o+++++++o
 ooooooooo".Replace("M", "8").Replace("+", "5").Replace("o", "2").Trim();
 
-		SamplerAssert.MatchesPattern(result, expectedPattern,
-			c => new Elevation(int.Parse(c.ToString())));
+		SamplerAssert.MatchesPattern(result, expectedPattern, c => int.Parse(c.ToString()));
 	}
 
 	[TestMethod]
@@ -126,6 +124,6 @@ ooooooooo".Replace("M", "8").Replace("+", "5").Replace("o", "2").Trim();
 		Console.WriteLine(SamplerAssert.PrintElevations(result));
 
 		Assert.AreEqual(new Rect(start, end), result.Bounds);
-		SamplerAssert.AllSatisfy(result, (xz, elev) => elev.Y == elevation);
+		SamplerAssert.AllSatisfy(result, (xz, elev) => elev == elevation);
 	}
 }

@@ -50,9 +50,9 @@ public static class SamplerAssert
 	/// <summary>
 	/// Print an Elevation sampler showing Y values.
 	/// </summary>
-	public static string PrintElevations(I2DSampler<Elevation> sampler, int cellWidth = 3)
+	public static string PrintElevations(I2DSampler<int> sampler, int cellWidth = 3)
 	{
-		return Print(sampler, e => e.Y == -1 ? "." : e.Y.ToString(), cellWidth);
+		return Print(sampler, e => e == -1 ? "." : e.ToString(), cellWidth);
 	}
 
 	/// <summary>
@@ -122,14 +122,14 @@ public static class SamplerAssert
 	/// More flexible than pattern matching for spot-checking specific coordinates.
 	/// </summary>
 	public static void ElevationsAt(
-		I2DSampler<Elevation> sampler,
+		I2DSampler<int> sampler,
 		params (int x, int z, int expectedY)[] expectations)
 	{
 		var errors = new List<string>();
 
 		foreach (var (x, z, expectedY) in expectations)
 		{
-			var actualY = sampler.Sample(new XZ(x, z)).Y;
+			var actualY = sampler.Sample(new XZ(x, z));
 			if (actualY != expectedY)
 			{
 				errors.Add($"  At ({x},{z}): expected {expectedY}, got {actualY}");

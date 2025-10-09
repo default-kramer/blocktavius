@@ -2,13 +2,7 @@
 
 namespace Blocktavius.Core;
 
-public interface IHaveElevation
-{
-	int Y { get; }
-}
-
-public record struct Elevation(int Y) : IHaveElevation;
-public record struct Point(XZ xz, int Y) : IHaveElevation { }
+public record struct Point(XZ xz, int Y);
 
 public record struct XZ(int X, int Z)
 {

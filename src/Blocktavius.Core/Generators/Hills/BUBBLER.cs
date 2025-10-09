@@ -55,7 +55,7 @@ public static class BUBBLER
 		}
 	}
 
-	public static I2DSampler<Elevation> Build(Settings settings)
+	public static I2DSampler<int> Build(Settings settings)
 	{
 		if (!settings.Validate(out _))
 		{
@@ -134,16 +134,16 @@ public static class BUBBLER
 			.ToList();
 	}
 
-	private static MutableArray2D<Elevation> Construct(IReadOnlyList<(XZ xz, int elev)> include, int scale)
+	private static MutableArray2D<int> Construct(IReadOnlyList<(XZ xz, int elev)> include, int scale)
 	{
 		var unscaledBounds = Rect.GetBounds(include.Select(item => item.xz));
 		var size = unscaledBounds.Size.Scale(scale);
 		var bounds = new Rect(unscaledBounds.start, unscaledBounds.start.Add(size));
-		var array = new MutableArray2D<Elevation>(bounds, new Elevation(-1));
+		var array = new MutableArray2D<int>(bounds, -1);
 		foreach (var item in include)
 		{
 			var point = item.xz.Subtract(unscaledBounds.start).Scale(scale).Add(unscaledBounds.start);
-			var elev = new Elevation(item.elev);
+			var elev = item.elev;
 			for (int z = 0; z < scale; z++)
 			{
 				for (int x = 0; x < scale; x++)
@@ -155,15 +155,15 @@ public static class BUBBLER
 		return array;
 	}
 
-	private static MutableArray2D<Elevation> Smooth(MutableArray2D<Elevation> array, int minElevation)
+	private static MutableArray2D<int> Smooth(MutableArray2D<int> array, int minElevation)
 	{
-		var smoothed = new MutableArray2D<Elevation>(array.Bounds, new Elevation(-1));
+		var smoothed = new MutableArray2D<int>(array.Bounds, -1);
 		foreach (var xz in array.Bounds.Enumerate())
 		{
 			(int count, int sum) = (0, 0);
 			void look(XZ xz, int weight)
 			{
-				int sample = Math.Max(minElevation, array.Sample(xz).Y);
+				int sample = Math.Max(minElevation, array.Sample(xz));
 				count += weight;
 				sum += sample * weight;
 			}
@@ -179,7 +179,7 @@ public static class BUBBLER
 			look(xz.Add(1, 1), 2);
 			if (count > 0)
 			{
-				smoothed.Put(xz, new Elevation(sum / count));
+				smoothed.Put(xz, sum / count);
 			}
 		}
 		return smoothed;

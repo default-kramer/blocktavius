@@ -22,9 +22,9 @@ public abstract class StageMutation
 		}
 	}
 
-	public static StageMutation CreateHills<T>(I2DSampler<T> sampler, ushort block) where T : IHaveElevation
+	public static StageMutation CreateHills(I2DSampler<int> sampler, ushort block)
 	{
-		return new Mutations.PutHillMutation<T>()
+		return new Mutations.PutHillMutation()
 		{
 			Block = block,
 			Sampler = sampler,

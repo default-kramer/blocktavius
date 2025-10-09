@@ -35,7 +35,7 @@ public static class PlainHill
 		}
 	}
 
-	public static I2DSampler<Elevation> BuildPlainHill(Region region, Settings settings)
+	public static I2DSampler<int> BuildPlainHill(Region region, Settings settings)
 	{
 		if (!settings.Validate(out _))
 		{
@@ -54,9 +54,9 @@ public static class PlainHill
 
 		protected override ICliffBuilder CreateCliffBuilder(Edge edge) => CliffBuilder;
 
-		protected override bool ShouldFillRegion(out Elevation elevation)
+		protected override bool ShouldFillRegion(out int elevation)
 		{
-			elevation = new Elevation(CliffBuilder.Settings.MaxElevation);
+			elevation = CliffBuilder.Settings.MaxElevation;
 			return true;
 		}
 	}
@@ -65,9 +65,9 @@ public static class PlainHill
 	{
 		public required Settings Settings { get; init; }
 
-		public I2DSampler<Elevation> BuildCornerCliff(bool left, int length) => BuildMainCliff(length);
+		public I2DSampler<int> BuildCornerCliff(bool left, int length) => BuildMainCliff(length);
 
-		public I2DSampler<Elevation> BuildMainCliff(int length)
+		public I2DSampler<int> BuildMainCliff(int length)
 		{
 			return new PlainCliffSampler()
 			{
@@ -77,19 +77,19 @@ public static class PlainHill
 		}
 	}
 
-	sealed class PlainCliffSampler : I2DSampler<Elevation>
+	sealed class PlainCliffSampler : I2DSampler<int>
 	{
 		public required int Length { get; init; }
 		public required Settings Settings { get; init; }
 
 		public Rect Bounds => new Rect(XZ.Zero, new XZ(Length, Settings.StepCount));
 
-		public Elevation Sample(XZ xz)
+		public int Sample(XZ xz)
 		{
 			// Max elevation is used for the plateau; the cliff should begin
 			// one step down from that. So add 1 to Z here:
 			int elevation = Settings.MaxElevation - (xz.Z + 1) * Settings.Steepness;
-			return new Elevation(elevation);
+			return elevation;
 		}
 	}
 }

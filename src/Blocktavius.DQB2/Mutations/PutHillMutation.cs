@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 
 namespace Blocktavius.DQB2.Mutations;
 
-class PutHillMutation<TElevation> : StageMutation where TElevation : IHaveElevation
+class PutHillMutation : StageMutation
 {
-	public required I2DSampler<TElevation> Sampler { get; init; }
+	public required I2DSampler<int> Sampler { get; init; }
 	public required ushort Block { get; init; }
 
 	internal override void Apply(IMutableStage stage)
@@ -18,7 +18,7 @@ class PutHillMutation<TElevation> : StageMutation where TElevation : IHaveElevat
 		{
 			foreach (var xz in chunk.Offset.Bounds.Intersection(Sampler.Bounds).Enumerate())
 			{
-				var elevation = Sampler.Sample(xz).Y;
+				var elevation = Sampler.Sample(xz);
 				if (elevation > 0)
 				{
 					for (int y = 0; y < elevation; y++)

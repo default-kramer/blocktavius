@@ -8,9 +8,9 @@ namespace Blocktavius.Core.Generators.Hills;
 
 sealed class WinsomeCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 {
-	public static I2DSampler<Elevation> Generate(PRNG prng, int length, int elevation)
+	public static I2DSampler<int> Generate(PRNG prng, int length, int elevation)
 	{
-		AdditiveHillBuilder.ICliffBuilder builder = new WinsomeCliffBuilder(length, 0, new Elevation(0), new Elevation(elevation), prng)
+		AdditiveHillBuilder.ICliffBuilder builder = new WinsomeCliffBuilder(length, 0, 0, elevation, prng)
 		{
 			steepness = 1,
 		};
@@ -21,10 +21,10 @@ sealed class WinsomeCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 	{
 		Jaunt Jaunt { get; }
 		int OffsetZ { get; }
-		Elevation MinElevation { get; }
-		Elevation MaxElevation { get; }
+		int MinElevation { get; }
+		int MaxElevation { get; }
 
-		void Write(MutableArray2D<Elevation> array);
+		void Write(MutableArray2D<int> array);
 	}
 
 	/// <summary>
@@ -34,8 +34,8 @@ sealed class WinsomeCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 	private readonly int mainLength;
 	private readonly int reservedSpacePerCorner;
 	private int totalLength => mainLength + reservedSpacePerCorner + reservedSpacePerCorner;
-	private readonly Elevation minElevation;
-	private readonly Elevation maxElevation;
+	private readonly int minElevation;
+	private readonly int maxElevation;
 	private readonly FencepostShifter.Settings shifterSettings;
 	private readonly JauntSettings jauntSettings;
 	public required int steepness { get; init; } = 1; // must be >= 1
@@ -48,7 +48,7 @@ sealed class WinsomeCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 	const int maxLaneCount = 5;
 
 
-	public WinsomeCliffBuilder(int mainLength, int reservedSpacePerCorner, Elevation min, Elevation max, PRNG prng)
+	public WinsomeCliffBuilder(int mainLength, int reservedSpacePerCorner, int min, int max, PRNG prng)
 	{
 		this.prng = prng;
 		this.mainLength = mainLength;
@@ -79,7 +79,7 @@ sealed class WinsomeCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		{
 			Jaunt = jaunt,
 			MaxElevation = maxElevation,
-			MinElevation = new Elevation(maxElevation.Y - steepness + 1),
+			MinElevation = maxElevation - steepness + 1,
 			OffsetZ = 0,
 		};
 	}
@@ -90,8 +90,8 @@ sealed class WinsomeCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		return new SimpleLayer()
 		{
 			Jaunt = shifted,
-			MaxElevation = new Elevation(prevLayer.MinElevation.Y - 1),
-			MinElevation = new Elevation(prevLayer.MinElevation.Y - steepness),
+			MaxElevation = prevLayer.MinElevation - 1,
+			MinElevation = prevLayer.MinElevation - steepness,
 			OffsetZ = prevLayer.OffsetZ + 1,
 		};
 
@@ -118,7 +118,7 @@ sealed class WinsomeCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 	/// as necessary to reach the requested <paramref name="floor"/>.
 	/// This allows callers to request a smaller slice of the full width.
 	/// </summary>
-	private I2DSampler<Elevation> Build(Elevation floor, Range range)
+	private I2DSampler<int> Build(int floor, Range range)
 	{
 		if (range.xMin < 0 || range.xMax > totalLength - 1)
 		{
@@ -126,17 +126,17 @@ sealed class WinsomeCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		}
 
 		var elevation = maxElevation;
-		while (layers.Count == 0 || layers.Peek().MaxElevation.Y > floor.Y)
+		while (layers.Count == 0 || layers.Peek().MaxElevation > floor)
 		{
 			layers.Push(CreateLayer());
 		}
 
 		// Find the first relevant layer for the requested floor
-		var firstLayer = layers.Index().First(l => l.Item.MinElevation.Y > floor.Y);
+		var firstLayer = layers.Index().First(l => l.Item.MinElevation > floor);
 		int zMax = firstLayer.Item.OffsetZ + firstLayer.Item.Jaunt.NumRuns;
 
 		var bounds = new Rect(new XZ(range.xMin, 0), new XZ(range.xMax + 1, zMax + 1));
-		var sampler = new MutableArray2D<Elevation>(bounds, new Elevation(-1));
+		var sampler = new MutableArray2D<int>(bounds, -1);
 
 		// Writing the lower elevations before the higher ones means we don't have
 		// to worry about overwriting the work of previous layers.
@@ -148,13 +148,13 @@ sealed class WinsomeCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 		return sampler;
 	}
 
-	I2DSampler<Elevation> AdditiveHillBuilder.ICliffBuilder.BuildMainCliff(int length)
+	I2DSampler<int> AdditiveHillBuilder.ICliffBuilder.BuildMainCliff(int length)
 	{
 		var slice = Range.FromStartAndLength(reservedSpacePerCorner, length);
 		return Build(minElevation, slice);
 	}
 
-	I2DSampler<Elevation> AdditiveHillBuilder.ICliffBuilder.BuildCornerCliff(bool left, int length)
+	I2DSampler<int> AdditiveHillBuilder.ICliffBuilder.BuildCornerCliff(bool left, int length)
 	{
 		if (length > reservedSpacePerCorner)
 		{
@@ -170,10 +170,10 @@ sealed class WinsomeCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 	{
 		public required Jaunt Jaunt { get; init; }
 		public required int OffsetZ { get; init; }
-		public required Elevation MinElevation { get; init; }
-		public required Elevation MaxElevation { get; init; }
+		public required int MinElevation { get; init; }
+		public required int MaxElevation { get; init; }
 
-		public void Write(MutableArray2D<Elevation> array)
+		public void Write(MutableArray2D<int> array)
 		{
 			var bounds = array.Bounds;
 			var jauntAsList = Jaunt.ToCoords(new XZ(0, OffsetZ)).ToList();

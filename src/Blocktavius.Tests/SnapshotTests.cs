@@ -39,7 +39,7 @@ namespace Blocktavius.Tests
 			AssertMatches(cliff, "WinsomeCliff01.png");
 		}
 
-		private static void AssertMatches(I2DSampler<Elevation> cliff, string imageName)
+		private static void AssertMatches(I2DSampler<int> cliff, string imageName)
 		{
 			var snapshotImage = CreateImageFromSampler(cliff);
 			var snapshotPath = GetSnapshotPath(imageName);
@@ -65,7 +65,7 @@ namespace Blocktavius.Tests
 			return Path.Combine(snapshotDir, fileName);
 		}
 
-		private static Bitmap CreateImageFromSampler(I2DSampler<Elevation> sampler)
+		private static Bitmap CreateImageFromSampler(I2DSampler<int> sampler)
 		{
 			var bounds = sampler.Bounds;
 			var width = bounds.Size.X;
@@ -91,7 +91,7 @@ namespace Blocktavius.Tests
 			{
 				for (int x = 0; x < width; x++)
 				{
-					var elevation = sampler.Sample(new XZ(x + bounds.start.X, z + bounds.start.Z)).Y;
+					var elevation = sampler.Sample(new XZ(x + bounds.start.X, z + bounds.start.Z));
 					if (elevation >= 0)
 					{
 						minY = Math.Min(minY, elevation);
@@ -107,7 +107,7 @@ namespace Blocktavius.Tests
 			{
 				for (int x = 0; x < width; x++)
 				{
-					var elevation = sampler.Sample(new XZ(x + bounds.start.X, z + bounds.start.Z)).Y;
+					var elevation = sampler.Sample(new XZ(x + bounds.start.X, z + bounds.start.Z));
 					byte grayValue = 0;
 					if (elevation >= 0)
 					{

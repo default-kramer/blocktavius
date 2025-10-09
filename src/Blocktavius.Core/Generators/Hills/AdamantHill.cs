@@ -12,7 +12,7 @@ public static class AdamantHill
 		public required AdamantCliffBuilder.Config CliffConfig { get; init; }
 	}
 
-	public static I2DSampler<Elevation> BuildAdamantHills(Region region, Settings settings)
+	public static I2DSampler<int> BuildAdamantHills(Region region, Settings settings)
 	{
 		var builder = new AdamantHillBuilder
 		{
@@ -26,9 +26,9 @@ public static class AdamantHill
 	{
 		public required Settings Settings { get; init; }
 
-		protected override bool ShouldFillRegion(out Elevation elevation)
+		protected override bool ShouldFillRegion(out int elevation)
 		{
-			elevation = new Elevation(Settings.MaxElevation);
+			elevation = Settings.MaxElevation;
 			return true;
 		}
 
@@ -39,7 +39,7 @@ public static class AdamantHill
 			return new AdamantCliffBuilder(
 				mainLength: edge.Length,
 				reservedSpacePerCorner: cornerReservedSpace,
-				max: new Elevation(Settings.MaxElevation),
+				max: Settings.MaxElevation,
 				prng: Settings.Prng,
 				config: Settings.CliffConfig
 			);
