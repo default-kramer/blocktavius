@@ -1,48 +1,10 @@
-﻿using System.Collections.Immutable;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Blocktavius.Core;
-
-public record struct Point(XZ xz, int Y);
-
-public record struct XZ(int X, int Z)
-{
-	public static XZ Zero => new XZ(0, 0);
-
-	public XZ Add(int dx, int dz) => new XZ(X + dx, Z + dz);
-
-	public XZ Add(XZ xz) => Add(xz.X, xz.Z);
-
-	public XZ Step(Direction direction) => Add(direction.Step);
-
-	public XZ Step(Direction direction, int steps) => Add(direction.Step.Scale(steps));
-
-	public XZ Subtract(XZ xz) => new XZ(X - xz.X, Z - xz.Z);
-
-	public XZ Scale(int factor) => new XZ(X * factor, Z * factor);
-
-	public XZ Scale(XZ scale) => new XZ(X * scale.X, Z * scale.Z);
-
-	public XZ Unscale(XZ scale) => new XZ(X / scale.X, Z / scale.Z);
-
-	public IEnumerable<XZ> CardinalNeighbors()
-	{
-		yield return Add(1, 0);
-		yield return Add(-1, 0);
-		yield return Add(0, 1);
-		yield return Add(0, -1);
-	}
-
-	public IEnumerable<XZ> Walk(Direction direction, int steps)
-	{
-		var current = this;
-		while (steps > 0)
-		{
-			yield return current;
-			current = current.Step(direction);
-			steps--;
-		}
-	}
-}
 
 public record Rect(XZ start, XZ end)
 {
@@ -166,52 +128,5 @@ public record Rect(XZ start, XZ end)
 		}
 
 		return new Rect(new XZ(x0, z0), new XZ(x1, z1));
-	}
-}
-
-public interface I2DSampler<out T>
-{
-	Rect Bounds { get; }
-	T Sample(XZ xz);
-}
-
-public sealed class MutableArray2D<T> : I2DSampler<T>
-{
-	private readonly T[] array;
-	private readonly T defaultValue;
-	public Rect Bounds { get; }
-
-	public MutableArray2D(Rect bounds, T defaultValue)
-	{
-		this.defaultValue = defaultValue;
-		Bounds = bounds;
-		array = new T[bounds.Size.X * bounds.Size.Z];
-		array.AsSpan().Fill(defaultValue);
-	}
-
-	public T this[XZ xz]
-	{
-		get => array[Bounds.GetIndex(xz) ?? throw new ArgumentOutOfRangeException(nameof(xz))];
-		set => Put(xz, value);
-	}
-
-	public T Sample(XZ xz)
-	{
-		var index = Bounds.GetIndex(xz);
-		if (index.HasValue)
-		{
-			return array[index.Value];
-		}
-		return defaultValue;
-	}
-
-	public void Put(XZ xz, T value)
-	{
-		var index = Bounds.GetIndex(xz);
-		if (!index.HasValue)
-		{
-			throw new ArgumentOutOfRangeException(nameof(xz));
-		}
-		array[index.Value] = value;
 	}
 }
