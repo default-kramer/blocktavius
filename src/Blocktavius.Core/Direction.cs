@@ -75,6 +75,7 @@ public sealed class Direction
 	public Direction TurnLeft45 => lookup[(index + count - 1) % count];
 	public Direction TurnRight45 => lookup[(index + 1) % count];
 	public Direction TurnRight90 => lookup[(index + 2) % count];
+	public Direction Turn180 => lookup[(index + 4) % count];
 
 
 	public bool IsCardinal => Step.X == 0 || Step.Z == 0;

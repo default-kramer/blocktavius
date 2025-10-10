@@ -69,6 +69,8 @@ static class ShellLogic
 	/// <summary>
 	/// The metaphor here is walking around the area, keeping your right hand on the wall.
 	/// So insideDir is also the direction your right hand is pointing.
+	/// Also, insideDir will always be a cardinal direction because corners do not get
+	/// their own dedicated state.
 	/// </summary>
 	readonly record struct WalkState(XZ shellPosition, Direction insideDir)
 	{
@@ -113,18 +115,27 @@ static class ShellLogic
 		}
 	}
 
-	static List<ShellItem> DoOneLap(IArea area, WalkState start)
+	static bool TryBuildShell(IArea area, IslandInfo island, out List<ShellItem> items)
 	{
-		if (area.InArea(start.shellPosition) || !area.InArea(start.shellPosition.Step(start.insideDir)))
+		items = new();
+		if (island.MustIncludeStates.Count == 0)
 		{
-			throw new Exception("Assert fail - initial walk state is not valid");
+			return false;
 		}
 
-		List<ShellItem> items = new();
-		WalkState current = start;
-		do { current = current.Advance(area, items); }
+		var start = island.MustIncludeStates
+			.OrderBy(s => s.shellPosition.Z)
+			.ThenBy(s => s.shellPosition.X)
+			.First();
+
+		var current = start;
+		do
+		{
+			island.MustIncludeStates.Remove(current);
+			current = current.Advance(area, items);
+		}
 		while (current != start);
-		return items;
+		return true;
 	}
 
 	private static readonly Direction[] allDirections = new[]
@@ -156,14 +167,15 @@ static class ShellLogic
 
 		foreach (var island in islands)
 		{
-			var start = new WalkState(island.StartPoint.Add(0, -1), Direction.South);
-			var items = DoOneLap(area, start);
-			shells.Add(new Shell()
+			while (TryBuildShell(area, island, out var items))
 			{
-				Area = area,
-				ShellItems = items,
-				IsHole = !outsidePoints.Contains(items[0].XZ),
-			});
+				shells.Add(new Shell()
+				{
+					Area = area,
+					ShellItems = items,
+					IsHole = !outsidePoints.Contains(items[0].XZ),
+				});
+			}
 		}
 
 		return shells;
@@ -174,10 +186,10 @@ static class ShellLogic
 		public required int IslandId { get; init; }
 
 		/// <summary>
-		/// The most North point inside the area, using East as tiebreaker.
-		/// Mutable for convenience of implementation only.
+		/// Also for hole detection. If we build a shell and didn't cover all
+		/// of these states, there must be another hole in the island.
 		/// </summary>
-		public required XZ StartPoint { get; set; }
+		public HashSet<WalkState> MustIncludeStates { get; init; } = new();
 	}
 
 	private static List<IslandInfo> FindIslands(IArea area)
@@ -192,7 +204,6 @@ static class ShellLogic
 				var island = new IslandInfo
 				{
 					IslandId = infos.Count,
-					StartPoint = xz
 				};
 				infos.Add(island);
 
@@ -201,17 +212,22 @@ static class ShellLogic
 				while (queue.Count > 0)
 				{
 					var current = queue.Dequeue();
-					if (current.Z < island.StartPoint.Z || (current.Z == island.StartPoint.Z && current.X < island.StartPoint.X))
-					{
-						island.StartPoint = current;
-					}
-
 					foreach (var dir in allDirections)
 					{
 						var neighbor = current.Add(dir.Step);
-						if (area.InArea(neighbor) && visitedAreaPoints.Add(neighbor))
+						if (area.InArea(neighbor))
 						{
-							queue.Enqueue(neighbor);
+							if (visitedAreaPoints.Add(neighbor))
+							{
+								queue.Enqueue(neighbor);
+							}
+						}
+						else if (dir.IsCardinal)
+						{
+							// Walk states "skip over" ordinal dirs (corners).
+							// Even if that weren't true, we still wouldn't want to include the diagonals
+							// that are technically present on straightaways.
+							island.MustIncludeStates.Add(new WalkState(neighbor, dir.Turn180));
 						}
 					}
 				}
