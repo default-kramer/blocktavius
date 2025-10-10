@@ -166,6 +166,17 @@ namespace Blocktavius.Tests
 			Assert.AreEqual(4, shellItems.Where(i => i.InsideDirection.IsOrdinal).Count());
 		}
 
+		private static void AssertDirs(Shell shell, params Direction[] insideDirs)
+		{
+			int limit = Math.Min(insideDirs.Length, shell.ShellItems.Count);
+			for (int i = 0; i < limit; i++)
+			{
+				Assert.AreEqual(insideDirs[i], shell.ShellItems[i].InsideDirection, $"At index {i}");
+			}
+
+			Assert.AreEqual(insideDirs.Length, shell.ShellItems.Count, "Shell Items had wrong count");
+		}
+
 		[TestMethod]
 		public void outside_corner_regression()
 		{
@@ -183,10 +194,24 @@ namespace Blocktavius.Tests
 
 			var shells = ShellLogic.ComputeShells(area);
 			Assert.AreEqual(1, shells.Count);
-			var items = shells.Single().ShellItems;
-			Assert.AreEqual(18, items.Where(i => i.InsideDirection.IsCardinal).Count());
-			Assert.IsTrue(items.Any(i => i.XZ == new XZ(1, 1) && i.InsideDirection == Direction.SouthEast));
-			Assert.AreEqual(10, items.Where(i => i.InsideDirection.IsOrdinal).Count());
+			var shell = shells.Single();
+			Assert.AreEqual(new XZ(0, -1), shell.ShellItems[0].XZ);
+			AssertDirs(shells.Single(),
+				// newline when Z changes:
+				Direction.South, Direction.South, Direction.SouthWest,
+				Direction.West,
+				Direction.NorthWest, Direction.North, Direction.NorthWest, Direction.West,
+				Direction.West, Direction.SouthWest, Direction.South, Direction.SouthEast, Direction.East,
+				Direction.SouthEast, Direction.South, Direction.SouthWest,
+				Direction.West,
+				Direction.West,
+				Direction.NorthWest, Direction.North, Direction.North, Direction.North, Direction.NorthEast,
+				Direction.East,
+				Direction.East,
+				Direction.East,
+				Direction.East,
+				Direction.SouthEast
+			);
 		}
 	}
 }
