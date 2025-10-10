@@ -58,6 +58,10 @@ public sealed class Direction
 	{
 		IReadOnlyList<Direction> init(params Direction[] allDirs)
 		{
+			if (allDirs.Length != count)
+			{
+				throw new Exception("Assert fail");
+			}
 			return allDirs.OrderBy(d => d.index).ToList();
 		}
 
