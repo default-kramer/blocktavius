@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace Blocktavius.Core;
 
+// These values are chosen such that -1 is a 45 degree turn left and +1 is a 45 degree turn right.
 public enum CardinalDirection
 {
 	North = 1,
@@ -24,18 +25,57 @@ public enum OrdinalDirection
 
 public sealed class Direction
 {
-	private Direction() { }
+	private readonly int index;
+	private readonly string name;
 
-	public static readonly Direction North = new() { Step = new XZ(0, -1) };
-	public static readonly Direction East = new() { Step = new XZ(1, 0) };
-	public static readonly Direction South = new() { Step = new XZ(0, 1) };
-	public static readonly Direction West = new() { Step = new XZ(-1, 0) };
-	public static readonly Direction NorthEast = new() { Step = new XZ(1, -1) };
-	public static readonly Direction SouthEast = new() { Step = new XZ(1, 1) };
-	public static readonly Direction SouthWest = new() { Step = new XZ(-1, 1) };
-	public static readonly Direction NorthWest = new() { Step = new XZ(-1, -1) };
+	private Direction(CardinalDirection cardinal)
+	{
+		this.index = GetIndex(cardinal);
+		this.name = Enum.GetName(typeof(CardinalDirection), cardinal) ?? cardinal.ToString();
+	}
+	private Direction(OrdinalDirection ordinal)
+	{
+		this.index = GetIndex(ordinal);
+		this.name = Enum.GetName(typeof(OrdinalDirection), ordinal) ?? ordinal.ToString();
+	}
+
+	public static readonly Direction North = new(CardinalDirection.North) { Step = new(0, -1) };
+	public static readonly Direction East = new(CardinalDirection.East) { Step = new(1, 0) };
+	public static readonly Direction South = new(CardinalDirection.South) { Step = new(0, 1) };
+	public static readonly Direction West = new(CardinalDirection.West) { Step = new(-1, 0) };
+	public static readonly Direction NorthEast = new(OrdinalDirection.NorthEast) { Step = new(1, -1) };
+	public static readonly Direction SouthEast = new(OrdinalDirection.SouthEast) { Step = new(1, 1) };
+	public static readonly Direction SouthWest = new(OrdinalDirection.SouthWest) { Step = new(-1, 1) };
+	public static readonly Direction NorthWest = new(OrdinalDirection.NorthWest) { Step = new(-1, -1) };
+
+	const int count = 8;
+	private static readonly IReadOnlyList<Direction> lookup;
+
+	private static int GetIndex(CardinalDirection direction) => (int)direction - 1;
+	private static int GetIndex(OrdinalDirection direction) => (int)direction - 1;
+
+	static Direction()
+	{
+		IReadOnlyList<Direction> init(params Direction[] allDirs)
+		{
+			var array = new Direction[count];
+			foreach (var dir in allDirs)
+			{
+				array[dir.index] = dir;
+			}
+			return array;
+		}
+
+		lookup = init(North, East, South, West, NorthEast, SouthEast, SouthWest, NorthWest);
+	}
 
 	public required XZ Step { get; init; }
+
+	public Direction TurnLeft90 => lookup[(index + count - 2) % count];
+	public Direction TurnLeft45 => lookup[(index + count - 1) % count];
+	public Direction TurnRight45 => lookup[(index + 1) % count];
+	public Direction TurnRight90 => lookup[(index + 2) % count];
+
 
 	public bool IsCardinal => Step.X == 0 || Step.Z == 0;
 	public bool IsOrdinal => !IsCardinal;
@@ -48,25 +88,18 @@ public sealed class Direction
 		yield return West;
 	}
 
-	private static Direction ParseAny(int direction)
+	private static Direction ParseAny<T>(int index, T direction)
 	{
-		switch (direction)
+		if (index < 0 || index >= count)
 		{
-			case (int)CardinalDirection.North: return North;
-			case (int)CardinalDirection.East: return East;
-			case (int)CardinalDirection.South: return South;
-			case (int)CardinalDirection.West: return West;
-			case (int)OrdinalDirection.NorthEast: return NorthEast;
-			case (int)OrdinalDirection.SouthEast: return SouthEast;
-			case (int)OrdinalDirection.SouthWest: return SouthWest;
-			case (int)OrdinalDirection.NorthWest: return NorthWest;
-			default: throw new ArgumentException($"invalid direction: {direction}");
+			throw new ArgumentException($"invalid direction: {direction}");
 		}
+		return lookup[index];
 	}
 
 	public static Direction Parse(CardinalDirection direction)
 	{
-		var result = ParseAny((int)direction);
+		var result = ParseAny(GetIndex(direction), direction);
 		if (!result.IsCardinal)
 		{
 			throw new ArgumentException($"invalid cardinal direction: {direction}");
@@ -76,11 +109,13 @@ public sealed class Direction
 
 	public static Direction Parse(OrdinalDirection direction)
 	{
-		var result = ParseAny((int)direction);
+		var result = ParseAny(GetIndex(direction), direction);
 		if (!result.IsOrdinal)
 		{
 			throw new ArgumentException($"invalid ordinal direction: {direction}");
 		}
 		return result;
 	}
+
+	public override string ToString() => name;
 }

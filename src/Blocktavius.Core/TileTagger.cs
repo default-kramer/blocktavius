@@ -50,7 +50,7 @@ public sealed record Edge
 	}
 }
 
-enum CornerType { Inside, Outside };
+enum CornerType { None, Inside, Outside };
 
 sealed record Corner(Edge NorthOrSouthEdge, Edge EastOrWestEdge, CornerType CornerType)
 {

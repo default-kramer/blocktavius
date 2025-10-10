@@ -186,7 +186,7 @@ namespace Blocktavius.Tests
 			var items = shells.Single().ShellItems;
 			Assert.AreEqual(18, items.Where(i => i.InsideDirection.IsCardinal).Count());
 			Assert.IsTrue(items.Any(i => i.XZ == new XZ(1, 1) && i.InsideDirection == Direction.SouthEast));
-			Assert.AreEqual(9, items.Where(i => i.InsideDirection.IsOrdinal).Count());
+			Assert.AreEqual(10, items.Where(i => i.InsideDirection.IsOrdinal).Count());
 		}
 	}
 }
