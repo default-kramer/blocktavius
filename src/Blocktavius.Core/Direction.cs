@@ -58,12 +58,7 @@ public sealed class Direction
 	{
 		IReadOnlyList<Direction> init(params Direction[] allDirs)
 		{
-			var array = new Direction[count];
-			foreach (var dir in allDirs)
-			{
-				array[dir.index] = dir;
-			}
-			return array;
+			return allDirs.OrderBy(d => d.index).ToList();
 		}
 
 		lookup = init(North, East, South, West, NorthEast, SouthEast, SouthWest, NorthWest);
