@@ -165,5 +165,28 @@ namespace Blocktavius.Tests
 			Assert.AreEqual(8, shellItems.Where(i => i.InsideDirection.IsCardinal).Count());
 			Assert.AreEqual(4, shellItems.Where(i => i.InsideDirection.IsOrdinal).Count());
 		}
+
+		[TestMethod]
+		public void outside_corner_regression()
+		{
+			// 1,1 should be an outside corner pointing to 2,2.
+			// It wasn't because it is also a normal edge pointing to 1,0 and the "cardinal preference"
+			// logic short-circuited this.
+			var areaPoints = new List<XZ>
+			{
+				new XZ(0, 0), new XZ(1, 0),
+				new XZ(0, 1),
+				new XZ(0, 2), /*skip 1, 2*/ new XZ(2, 2),
+				new XZ(0, 3), new XZ(1, 3), new XZ(2, 3),
+			};
+			var area = new TestArea(areaPoints);
+
+			var shells = ShellLogic.ComputeShells(area);
+			Assert.AreEqual(1, shells.Count);
+			var items = shells.Single().ShellItems;
+			Assert.AreEqual(18, items.Where(i => i.InsideDirection.IsCardinal).Count());
+			Assert.IsTrue(items.Any(i => i.XZ == new XZ(1, 1) && i.InsideDirection == Direction.SouthEast));
+			Assert.AreEqual(9, items.Where(i => i.InsideDirection.IsOrdinal).Count());
+		}
 	}
 }
