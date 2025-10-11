@@ -32,7 +32,8 @@ abstract class ViewModelBaseWithCustomTypeDescriptor : ViewModelBase, ICustomTyp
 {
 	sealed record FlattenedProp
 	{
-		public required ViewModelBase FromObject { get; init; }
+		public required WeakReference<ViewModelBase> FromObjectRef { get; init; }
+		public ViewModelBase? FromObject => FromObjectRef.TryGetTarget(out var vm) ? vm : null;
 		public required string OriginalName { get; init; }
 		public required string FlatName { get; init; }
 	}
@@ -46,7 +47,7 @@ abstract class ViewModelBaseWithCustomTypeDescriptor : ViewModelBase, ICustomTyp
 
 		// Get the default properties for this type, without using custom descriptors
 		var defaultProps = TypeDescriptor.GetProperties(this, true);
-		var flattenedProps = new List<PropertyDescriptor>();
+		var allProps = new List<PropertyDescriptor>();
 
 		foreach (PropertyDescriptor prop in defaultProps)
 		{
@@ -59,6 +60,7 @@ abstract class ViewModelBaseWithCustomTypeDescriptor : ViewModelBase, ICustomTyp
 					var childVM = childObject as ViewModelBase;
 					if (childVM != null)
 					{
+						// subscribe so we can forward the PropertyChanged events
 						childVM.Subscribe(subscriptionKey, this);
 					}
 
@@ -70,12 +72,12 @@ abstract class ViewModelBaseWithCustomTypeDescriptor : ViewModelBase, ICustomTyp
 						{
 							this.flattenedProps.Add(new FlattenedProp
 							{
-								FromObject = childVM,
+								FromObjectRef = new WeakReference<ViewModelBase>(childVM),
 								OriginalName = childProp.Name,
 								FlatName = flatName,
 							});
 						}
-						flattenedProps.Add(new ForwardingPropertyDescriptor(flatName, childProp)
+						allProps.Add(new ForwardingPropertyDescriptor(flatName, childProp)
 						{
 							childComponent = childObject,
 							customCategory = flattenAttr.CategoryName,
@@ -85,11 +87,11 @@ abstract class ViewModelBaseWithCustomTypeDescriptor : ViewModelBase, ICustomTyp
 			}
 			else
 			{
-				flattenedProps.Add(prop);
+				allProps.Add(prop);
 			}
 		}
 
-		return new PropertyDescriptorCollection(flattenedProps.ToArray());
+		return new PropertyDescriptorCollection(allProps.ToArray());
 	}
 
 	protected override void OnSubscribedPropertyChanged(ViewModelBase sender, PropertyChangedEventArgs e)
