@@ -58,7 +58,7 @@ sealed record Shell
 	public required bool IsHole { get; init; }
 }
 
-interface IArea
+public interface IArea
 {
 	Rect Bounds { get; }
 	bool InArea(XZ xz);

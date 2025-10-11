@@ -63,7 +63,7 @@ sealed record Corner(Edge NorthOrSouthEdge, Edge EastOrWestEdge, CornerType Corn
 	private static XZ? SameOrNull(XZ a, XZ b) => a == b ? a : null;
 }
 
-public sealed record Region
+public sealed record Region : IArea
 {
 	private readonly IReadOnlySet<XZ> unscaledTiles;
 	private readonly XZ scale;
@@ -88,6 +88,8 @@ public sealed record Region
 	public Rect MaybeBetterBounds => Bounds with { end = Bounds.end.Add(-1, -1) };
 
 	public bool Contains(XZ xz) => unscaledTiles.Contains(xz.Unscale(scale));
+
+	public bool InArea(XZ xz) => Contains(xz);
 
 	internal IReadOnlyList<Corner> ComputeCorners()
 	{

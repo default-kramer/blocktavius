@@ -159,6 +159,16 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 			};
 			sampler = AdamantHill.BuildAdamantHills(regions.Single(), settings);
 		}
+		else if (mode == 4)
+		{
+			var settings = new CornerPusherHill.Settings
+			{
+				Prng = prng,
+				MinElevation = 30,
+				MaxElevation = Elevation,
+			};
+			sampler = CornerPusherHill.BuildHill(settings, regions.First());
+		}
 		else
 		{
 			var settings = new BUBBLER.Settings
