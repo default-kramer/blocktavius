@@ -26,7 +26,7 @@ public interface IBlockProviderVM
 	ushort? UniformBlockId { get; }
 }
 
-abstract class ScriptNodeVM : ViewModelBase
+abstract class ScriptNodeVM : ViewModelBaseWithCustomTypeDescriptor
 {
 	private bool isSelected = false;
 	[Browsable(false)]

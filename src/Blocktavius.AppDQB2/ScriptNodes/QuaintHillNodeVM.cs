@@ -1,4 +1,5 @@
-﻿using Blocktavius.Core;
+﻿using Blocktavius.AppDQB2.ScriptNodes.HillDesigners;
+using Blocktavius.Core;
 using Blocktavius.Core.Generators.Hills;
 using Blocktavius.DQB2;
 using System;
@@ -13,7 +14,33 @@ namespace Blocktavius.AppDQB2.ScriptNodes;
 
 sealed class QuaintHillNodeVM : ScriptNodeVM
 {
+	const string Common = "_Common";
+
+	private HillType? selectedHillType;
+	[Category(Common)]
+	[ItemsSource(typeof(HillType.PropGridItemsSource))]
+	[RefreshProperties(RefreshProperties.All)]
+	public HillType? SelectedHillType
+	{
+		get => selectedHillType;
+		set
+		{
+			ChangeProperty(ref selectedHillType, value);
+			HillDesigner = value?.CreateNewDesigner();
+		}
+	}
+
+	private IHillDesigner? hillDesigner;
+	[Category(Common)]
+	[FlattenProperties(CategoryName = "ZZZ")]
+	public IHillDesigner? HillDesigner
+	{
+		get => hillDesigner;
+		private set => ChangeProperty(ref hillDesigner, value);
+	}
+
 	private int elevation;
+	[Category(Common)]
 	public int Elevation
 	{
 		get => elevation;
@@ -21,6 +48,7 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 	}
 
 	private int steepness = 1;
+	[Category(Common)]
 	public int Steepness
 	{
 		get => steepness;
@@ -29,6 +57,7 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 
 	private IAreaVM? area;
 	[ItemsSource(typeof(Global.LayersItemsSource))]
+	[Category(Common)]
 	public IAreaVM? Area
 	{
 		get => area;
@@ -37,6 +66,7 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 
 	private IBlockProviderVM? blockProvider = Blockdata.AnArbitraryBlockVM;
 	[Editor(typeof(PropGridEditors.BlockProviderEditor), typeof(PropGridEditors.BlockProviderEditor))]
+	[Category(Common)]
 	public IBlockProviderVM? Block
 	{
 		get => blockProvider;
@@ -44,13 +74,19 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 	}
 
 	private int mode;
+	[RefreshProperties(RefreshProperties.All)]
+	[Category(Common)]
 	public int Mode
 	{
 		get => mode;
-		set => ChangeProperty(ref mode, value);
+		set
+		{
+			ChangeProperty(ref mode, value);
+		}
 	}
 
 	private bool lockRandomSeed;
+	[Category(Common)]
 	public bool LockRandomSeed
 	{
 		get => lockRandomSeed;
@@ -60,6 +96,7 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 	private string? prngSeed = null;
 
 	private int cornerDebug;
+	[Category(Common)]
 	public int CornerDebug
 	{
 		get => cornerDebug;
@@ -67,6 +104,7 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 	}
 
 	private int bubbleFactor = 3;
+	[Category(Common)]
 	public int BubbleFactor
 	{
 		get => bubbleFactor;
@@ -74,6 +112,7 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 	}
 
 	private int bubbleScale = 6;
+	[Category(Common)]
 	public int BubbleScale
 	{
 		get => bubbleScale;
@@ -81,6 +120,7 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 	}
 
 	private int minBubbleChance = 10;
+	[Category(Common)]
 	public int MinBubbleChance
 	{
 		get => minBubbleChance;
@@ -88,6 +128,7 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 	}
 
 	private int smoothness = 3;
+	[Category(Common)]
 	public int Smoothness
 	{
 		get => smoothness;
@@ -119,84 +160,17 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 			prngSeed = prng.Serialize();
 		}
 
-		I2DSampler<int> sampler;
-		if (mode == 1)
+		if (hillDesigner != null && Block.UniformBlockId.HasValue)
 		{
-			var settings = new WinsomeHill.Settings
+			var hillContext = new HillDesignContext()
 			{
+				AreaVM = area,
+				FillBlockId = Block.UniformBlockId.Value,
+				ImageCoordTranslation = context.ImageCoordTranslation,
 				Prng = prng,
-				MaxElevation = Elevation,
-				MinElevation = Elevation - 30,
-				Steepness = Steepness,
-				CornerDebug = CornerDebug,
+				Elevation = elevation,
 			};
-			sampler = WinsomeHill.BuildWinsomeHills(regions.Single(), settings);
-		}
-		else if (mode == 2)
-		{
-			var settings = new PlainHill.Settings
-			{
-				MaxElevation = this.elevation,
-				MinElevation = this.elevation - 10,
-				Steepness = this.steepness,
-			};
-			if (!settings.Validate(out settings))
-			{
-				this.Elevation = settings.MaxElevation;
-				this.Steepness = settings.Steepness;
-			}
-			sampler = PlainHill.BuildPlainHill(regions.Single(), settings);
-		}
-		else if (mode == 3)
-		{
-			var settings = new AdamantHill.Settings
-			{
-				Prng = prng,
-				CornerDebug = CornerDebug,
-				MaxElevation = Elevation,
-				CliffConfig = AdamantCliffBuilder.Config.Default,
-				// Perhaps steepness should control cliffConfig.MinSeparation?
-			};
-			sampler = AdamantHill.BuildAdamantHills(regions.Single(), settings);
-		}
-		else if (mode == 4)
-		{
-			var settings = new CornerPusherHill.Settings
-			{
-				Prng = prng,
-				MinElevation = 30,
-				MaxElevation = Elevation,
-			};
-			sampler = CornerPusherHill.BuildHill(settings, regions.First());
-		}
-		else
-		{
-			var settings = new BUBBLER.Settings
-			{
-				Prng = prng,
-				MaxElevation = Elevation,
-				MinElevation = 30,
-				Where = regions.First().Bounds.start,
-				BubbleFactor = BubbleFactor,
-				Scale = BubbleScale,
-				MinBubbleChance = MinBubbleChance / 100m,
-				Smoothness = Smoothness,
-			};
-			settings.Validate(out settings);
-			Elevation = settings.MaxElevation;
-			BubbleFactor = settings.BubbleFactor;
-			BubbleScale = settings.Scale;
-			MinBubbleChance = Convert.ToInt32(settings.MinBubbleChance * 100);
-			Smoothness = settings.Smoothness;
-			sampler = BUBBLER.Build(settings);
-		}
-
-		// TODO can I avoid this pitfall?
-		sampler = sampler.Translate(context.ImageCoordTranslation);
-
-		if (Block.UniformBlockId.HasValue)
-		{
-			return StageMutation.CreateHills(sampler, Block.UniformBlockId.Value);
+			return hillDesigner.CreateMutation(hillContext);
 		}
 
 		return null; // TODO support mottlers....
