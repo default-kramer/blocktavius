@@ -12,7 +12,7 @@ using Xceed.Wpf.Toolkit.PropertyGrid.Attributes;
 
 namespace Blocktavius.AppDQB2.ScriptNodes;
 
-sealed class QuaintHillNodeVM : ScriptNodeVM
+sealed class PutHillNodeVM : ScriptNodeVM
 {
 	const string Common = "_Common";
 
@@ -47,14 +47,6 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 		set => ChangeProperty(ref elevation, value);
 	}
 
-	private int steepness = 1;
-	[Category(Common)]
-	public int Steepness
-	{
-		get => steepness;
-		set => ChangeProperty(ref steepness, Math.Max(1, value));
-	}
-
 	private IAreaVM? area;
 	[ItemsSource(typeof(Global.LayersItemsSource))]
 	[Category(Common)]
@@ -73,18 +65,7 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 		set => ChangeProperty(ref blockProvider, value);
 	}
 
-	private int mode;
-	[RefreshProperties(RefreshProperties.All)]
-	[Category(Common)]
-	public int Mode
-	{
-		get => mode;
-		set
-		{
-			ChangeProperty(ref mode, value);
-		}
-	}
-
+	private string? prngSeed = null;
 	private bool lockRandomSeed;
 	[Category(Common)]
 	public bool LockRandomSeed
@@ -93,51 +74,9 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 		set => ChangeProperty(ref lockRandomSeed, value);
 	}
 
-	private string? prngSeed = null;
-
-	private int cornerDebug;
-	[Category(Common)]
-	public int CornerDebug
-	{
-		get => cornerDebug;
-		set => ChangeProperty(ref cornerDebug, value);
-	}
-
-	private int bubbleFactor = 3;
-	[Category(Common)]
-	public int BubbleFactor
-	{
-		get => bubbleFactor;
-		set => ChangeProperty(ref bubbleFactor, value);
-	}
-
-	private int bubbleScale = 6;
-	[Category(Common)]
-	public int BubbleScale
-	{
-		get => bubbleScale;
-		set => ChangeProperty(ref bubbleScale, value);
-	}
-
-	private int minBubbleChance = 10;
-	[Category(Common)]
-	public int MinBubbleChance
-	{
-		get => minBubbleChance;
-		set => ChangeProperty(ref minBubbleChance, value);
-	}
-
-	private int smoothness = 3;
-	[Category(Common)]
-	public int Smoothness
-	{
-		get => smoothness;
-		set => ChangeProperty(ref smoothness, value);
-	}
-
 	public override StageMutation? BuildMutation(StageRebuildContext context)
 	{
-		if (area == null || Block == null)
+		if (area == null || Block == null || hillDesigner == null)
 		{
 			return null;
 		}
@@ -160,7 +99,7 @@ sealed class QuaintHillNodeVM : ScriptNodeVM
 			prngSeed = prng.Serialize();
 		}
 
-		if (hillDesigner != null && Block.UniformBlockId.HasValue)
+		if (Block.UniformBlockId.HasValue)
 		{
 			var hillContext = new HillDesignContext()
 			{
