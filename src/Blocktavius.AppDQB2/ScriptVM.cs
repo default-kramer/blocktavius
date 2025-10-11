@@ -26,7 +26,7 @@ public interface IBlockProviderVM
 	ushort? UniformBlockId { get; }
 }
 
-abstract class ScriptNodeVM : ViewModelBase
+abstract class ScriptNodeVM : ViewModelBaseWithCustomTypeDescriptor
 {
 	private bool isSelected = false;
 	[Browsable(false)]
@@ -51,7 +51,7 @@ sealed class ScriptVM : ViewModelBase
 	public ScriptVM()
 	{
 		Nodes.Add(new ScriptNodes.PutGroundNodeVM());
-		Nodes.Add(new ScriptNodes.QuaintHillNodeVM());
+		Nodes.Add(new ScriptNodes.PutHillNodeVM());
 	}
 
 	public ObservableCollection<ScriptNodeVM> Nodes { get; } = new();

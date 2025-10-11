@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -35,6 +34,11 @@ interface IBlockList
 /// </summary>
 static class Global
 {
+	/// <summary>
+	/// We could allow this to be set using a command line flag or something.
+	/// </summary>
+	public static bool IsDebug => System.Diagnostics.Debugger.IsAttached;
+
 	private static ProjectVM currentProject = new ProjectVM();
 
 	public static void SetCurrentProject(ProjectVM project)
