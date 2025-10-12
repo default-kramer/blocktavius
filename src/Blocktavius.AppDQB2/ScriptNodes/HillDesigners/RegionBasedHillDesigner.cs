@@ -10,10 +10,12 @@ namespace Blocktavius.AppDQB2.ScriptNodes.HillDesigners;
 
 abstract class RegionBasedHillDesigner : ViewModelBase, IHillDesigner
 {
-	public virtual StageMutation? CreateMutation(HillDesignContext context)
+	public StageMutation? CreateMutation(HillDesignContext context)
 	{
-		// TODO can we apply the drawing offset here?
-		var regions = context.AreaVM.BuildTagger().GetRegions(true);
+		// apply ImageCoordTranslation now so each hill doesn't have to
+		var regions = context.AreaVM.BuildTagger().GetRegions(true, context.ImageCoordTranslation);
+		context = context with { ImageCoordTranslation = XZ.Zero };
+
 		if (regions.Count == 0)
 		{
 			return null;

@@ -22,7 +22,6 @@ sealed class CornerPusherHillDesigner : RegionBasedHillDesigner
 			MaxElevation = context.Elevation,
 		};
 		var sampler = CornerPusherHill.BuildHill(settings, region);
-		sampler = sampler.Translate(context.ImageCoordTranslation);
 		return StageMutation.CreateHills(sampler, context.FillBlockId);
 	}
 }

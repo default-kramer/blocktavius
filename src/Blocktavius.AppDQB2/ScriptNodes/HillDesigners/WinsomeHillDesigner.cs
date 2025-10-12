@@ -23,7 +23,6 @@ sealed class WinsomeHillDesigner : RegionBasedHillDesigner
 			CornerDebug = 0,
 		};
 		var sampler = WinsomeHill.BuildWinsomeHills(region, settings);
-		sampler = sampler.Translate(context.ImageCoordTranslation);
 		return StageMutation.CreateHills(sampler, context.FillBlockId);
 	}
 

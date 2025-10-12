@@ -23,7 +23,6 @@ sealed class AdamantHillDesigner : RegionBasedHillDesigner
 		};
 
 		var sampler = AdamantHill.BuildAdamantHills(region, settings);
-		sampler = sampler.Translate(context.ImageCoordTranslation);
 		return StageMutation.CreateHills(sampler, context.FillBlockId);
 	}
 }

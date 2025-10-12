@@ -24,7 +24,6 @@ sealed class PlainHillDesigner : RegionBasedHillDesigner
 			this.Steepness = settings.Steepness;
 		}
 		var sampler = PlainHill.BuildPlainHill(region, settings);
-		sampler = sampler.Translate(context.ImageCoordTranslation);
 		return StageMutation.CreateHills(sampler, context.FillBlockId);
 	}
 

@@ -31,7 +31,6 @@ sealed class BubblerHillDesigner : RegionBasedHillDesigner
 		MinBubbleChance = Convert.ToInt32(settings.MinBubbleChance * 100);
 		Smoothness = settings.Smoothness;
 		var sampler = BUBBLER.Build(settings);
-		sampler = sampler.Translate(context.ImageCoordTranslation);
 		return StageMutation.CreateHills(sampler, context.FillBlockId);
 	}
 

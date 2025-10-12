@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Blocktavius.AppDQB2.ScriptNodes.HillDesigners;
 
-public sealed class HillDesignContext
+public sealed record HillDesignContext
 {
 	public required IAreaVM AreaVM { get; init; }
 

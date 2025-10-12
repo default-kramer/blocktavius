@@ -15,6 +15,17 @@ public sealed record Edge
 
 	public XZ End => Start.Add(Direction.Parse(StepDirection).Step.Scale(Length));
 
+	public Edge Translate(XZ translation)
+	{
+		return new Edge
+		{
+			Start = this.Start.Add(translation),
+			InsideDirection = this.InsideDirection,
+			StepDirection = this.StepDirection,
+			Length = this.Length,
+		};
+	}
+
 	internal Edge Scale(XZ scale)
 	{
 		int lengthScale = 1;
@@ -65,17 +76,26 @@ sealed record Corner(Edge NorthOrSouthEdge, Edge EastOrWestEdge, CornerType Corn
 
 public sealed record Region : IArea
 {
-	private readonly IReadOnlySet<XZ> unscaledTiles;
-	private readonly XZ scale;
-
-	public Region(IReadOnlySet<XZ> unscaledTiles, XZ scale)
+	/// <summary>
+	/// The purpose of this struct is to make it clear that the translation will be applied on-demand
+	/// here, as opposed to everything else in Region which should have the translation pre-applied.
+	/// </summary>
+	public record struct Tiles(IReadOnlySet<XZ> unscaledTiles, XZ scale, XZ translation)
 	{
-		this.unscaledTiles = unscaledTiles;
-		this.scale = scale;
+		public bool InArea(XZ xz)
+		{
+			return unscaledTiles.Contains(xz.Subtract(translation).Unscale(scale));
+		}
 	}
 
-	public required IReadOnlyList<Edge> Edges { get; init; }
-	public required Rect Bounds { get; init; }
+	private readonly Tiles tiles;
+	public required IReadOnlyList<Edge> Edges { get; init; } // translation pre-applied
+	public required Rect Bounds { get; init; } // translation pre-applied
+
+	public Region(Tiles tiles)
+	{
+		this.tiles = tiles;
+	}
 
 	/// <summary>
 	/// The bounds seem to be off by one? I think the tile tagger is to blame.
@@ -87,9 +107,9 @@ public sealed record Region : IArea
 	/// </summary>
 	public Rect MaybeBetterBounds => Bounds with { end = Bounds.end.Add(-1, -1) };
 
-	public bool Contains(XZ xz) => unscaledTiles.Contains(xz.Unscale(scale));
+	public bool Contains(XZ xz) => tiles.InArea(xz);
 
-	public bool InArea(XZ xz) => Contains(xz);
+	public bool InArea(XZ xz) => tiles.InArea(xz);
 
 	internal IReadOnlyList<Corner> ComputeCorners()
 	{
@@ -225,10 +245,10 @@ public sealed class TileTagger<TTag> where TTag : notnull
 		array[loc] = array[loc].Add(tag);
 	}
 
-	public IReadOnlyList<Region> GetRegions(TTag tag)
+	public IReadOnlyList<Region> GetRegions(TTag tag, XZ translation)
 	{
 		var regions = FindRegionTiles(array, tag);
-		return regions.Select(r => BuildRegion(r, Scale)).ToList();
+		return regions.Select(r => BuildRegion(r, Scale, translation)).ToList();
 	}
 
 	public IEnumerable<Rect> GetIndividualTiles(TTag tag)
@@ -303,15 +323,17 @@ public sealed class TileTagger<TTag> where TTag : notnull
 	/// <summary>
 	/// Input is unscaled; output is scaled.
 	/// </summary>
-	private static Region BuildRegion(IReadOnlySet<XZ> unscaledTiles, XZ scale)
+	private static Region BuildRegion(IReadOnlySet<XZ> unscaledTiles, XZ scale, XZ translation)
 	{
 		var unscaledSegments = GetEdgeSegments(unscaledTiles);
 		var scaledEdges = CombineEdges(unscaledSegments)
 			.Select(edge => edge.Scale(scale))
+			.Select(edge => edge.Translate(translation))
 			.ToList();
 		var scaledBounds = Rect.GetBounds(scaledEdges.Select(e => e.End).Concat(scaledEdges.Select(e => e.Start)));
 
-		return new Region(unscaledTiles, scale)
+		var tiles = new Region.Tiles(unscaledTiles, scale, translation);
+		return new Region(tiles)
 		{
 			Bounds = scaledBounds,
 			Edges = scaledEdges,

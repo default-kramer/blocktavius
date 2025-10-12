@@ -81,13 +81,6 @@ sealed class PutHillNodeVM : ScriptNodeVM
 			return null;
 		}
 
-		var tagger = area.BuildTagger();
-		var regions = tagger.GetRegions(true);
-		if (regions.Count == 0)
-		{
-			return null;
-		}
-
 		PRNG prng;
 		if (lockRandomSeed && prngSeed != null)
 		{
