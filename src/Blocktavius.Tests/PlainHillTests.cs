@@ -19,7 +19,7 @@ public class PlainHillTests
 		const bool tag = true;
 		var tagger = new TileTagger<bool>(unscaledSize: new XZ(3, 3), scale: new XZ(scale, scale));
 		tagger.AddTag(new XZ(1, 1), tag);
-		var region = tagger.GetRegions(tag).Single();
+		var region = tagger.GetRegions(tag, XZ.Zero).Single();
 
 		var settings = new PlainHill.Settings
 		{
@@ -98,7 +98,7 @@ ooooooooo".Replace("M", "8").Replace("+", "5").Replace("o", "2").Trim();
 		const bool tag = true;
 		var tagger = new TileTagger<bool>(unscaledSize: new XZ(3, 3), scale: new XZ(scale, scale));
 		tagger.AddTag(new XZ(1, 1), tag);
-		var region = tagger.GetRegions(tag).Single();
+		var region = tagger.GetRegions(tag, XZ.Zero).Single();
 
 		var start = new XZ(scale, scale);
 		var end = new XZ(scale * 2, scale * 2);
