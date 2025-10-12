@@ -26,8 +26,36 @@ class ViewModelBase : INotifyPropertyChanged
 
 	protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
 	{
-		PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+		var args = new PropertyChangedEventArgs(propertyName);
+		PropertyChanged?.Invoke(this, args);
+
+		foreach (var kvp in subscribers.ToList()) // ToList() so we can mutate the dictionary if needed
+		{
+			if (kvp.Value.TryGetTarget(out var vm))
+			{
+				vm.OnSubscribedPropertyChanged(this, args);
+			}
+			else
+			{
+				subscribers.Remove(kvp.Key);
+			}
+		}
 	}
+
+	private readonly Dictionary<object, WeakReference<ViewModelBase>> subscribers = new();
+
+	/// <summary>
+	/// Subscribes to property changed events. The <paramref name="key"/> is held strongly,
+	/// but the <paramref name="subscriber"/> is held via a weak reference.
+	/// </summary>
+	protected internal void Subscribe(object key, ViewModelBase subscriber)
+	{
+		subscribers[key] = new WeakReference<ViewModelBase>(subscriber);
+	}
+
+	protected internal bool Unsubscribe(object key) => subscribers.Remove(key);
+
+	protected virtual void OnSubscribedPropertyChanged(ViewModelBase sender, PropertyChangedEventArgs e) { }
 }
 
 class TileSizeItemsSource : IItemsSource
