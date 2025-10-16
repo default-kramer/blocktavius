@@ -10,7 +10,7 @@ using System.Windows;
 
 namespace Blocktavius.AppDQB2;
 
-sealed class ExternalImageManager
+sealed class ExternalImageManager : IDisposable
 {
 	private readonly DirectoryInfo projectDir;
 	private readonly FileSystemWatcher watcher;
@@ -77,5 +77,12 @@ sealed class ExternalImageManager
 				ExternalImages.Insert(i, vm);
 			}
 		});
+	}
+
+	public void Dispose()
+	{
+		watcher?.Dispose();
+		ExternalImages?.Clear();
+		externalImageDict?.Clear();
 	}
 }

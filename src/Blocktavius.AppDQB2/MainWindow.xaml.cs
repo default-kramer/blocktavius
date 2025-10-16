@@ -11,16 +11,13 @@ namespace Blocktavius.AppDQB2
 	public partial class MainWindow : Window
 	{
 		private ProjectVM vm = new();
-		private ExternalImageManager imageManager;
 
 		public MainWindow()
 		{
 			InitializeComponent();
 
 			vm.StgdatFilePath = @"C:\Users\kramer\Documents\My Games\DRAGON QUEST BUILDERS II\Steam\76561198073553084\SD\STGDAT01.BIN";
-
-			imageManager = new ExternalImageManager(new DirectoryInfo(@"C:\Users\kramer\Documents\code\HermitsHeresy\examples\STB\"));
-			imageManager.ExternalImages.CollectionChanged += (a, b) => { Resync(vm, imageManager); };
+			vm.ProjectFilePath = @"C:\Users\kramer\Documents\code\HermitsHeresy\examples\STB\foo.blocktaviusproject";
 
 			vm.Layers.Add(LayerVM.BuildChunkMask());
 			vm.Layers.Add(new LayerVM());
@@ -31,21 +28,6 @@ namespace Blocktavius.AppDQB2
 
 			DataContext = vm;
 			Global.SetCurrentProject(vm);
-		}
-
-		// TODO!!! Should not recreate layers!
-		// Should allow user to choose an external image to create a new layer.
-		private static void Resync(ProjectVM vm, ExternalImageManager imageManager)
-		{
-			var old = vm.Layers.Where(l => l is ExternalImageLayerVM).ToList();
-			foreach (var layer in old)
-			{
-				vm.Layers.Remove(layer);
-			}
-			foreach (var image in imageManager.ExternalImages)
-			{
-				vm.Layers.Add(new ExternalImageLayerVM { Image = image });
-			}
 		}
 
 		protected override void OnClosed(EventArgs e)

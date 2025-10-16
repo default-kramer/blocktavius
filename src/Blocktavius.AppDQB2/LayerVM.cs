@@ -12,6 +12,8 @@ namespace Blocktavius.AppDQB2;
 interface ILayerVM
 {
 	string LayerName { get; }
+
+	IEnumerable<ExternalImageVM> ExternalImage { get; }
 }
 
 class LayerVM : ViewModelBase, ILayerVM, IAreaVM
@@ -19,6 +21,8 @@ class LayerVM : ViewModelBase, ILayerVM, IAreaVM
 	private TileGridPainterVM _painter;
 	private int tileSize;
 	private string _layerName = "New Layer";
+
+	IEnumerable<ExternalImageVM> ILayerVM.ExternalImage => Enumerable.Empty<ExternalImageVM>();
 
 	public LayerVM()
 	{

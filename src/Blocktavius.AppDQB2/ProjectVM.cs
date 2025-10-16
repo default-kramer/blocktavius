@@ -11,6 +11,7 @@ namespace Blocktavius.AppDQB2;
 sealed class ProjectVM : ViewModelBase, IBlockList
 {
 	private readonly StgdatLoader stgdatLoader = new();
+	private ExternalImageManager? imageManager = null;
 
 	IReadOnlyList<BlockVM> IBlockList.Blocks => Blockdata.AllBlockVMs;
 
@@ -29,8 +30,14 @@ sealed class ProjectVM : ViewModelBase, IBlockList
 		{
 			ChangeProperty(ref _projectFilePath, value);
 			OnPropertyChanged(nameof(ProjectFilePathToDisplay));
+			// TODO - here we should probably check if any images are still referenced by the project
+			// and keep those in the new image manager (probably without watching them though... and with a warning?)
+			imageManager?.Dispose();
+			imageManager = new ExternalImageManager(new System.IO.DirectoryInfo(System.IO.Path.GetDirectoryName(ProjectFilePath) ?? ".....fail"));
 		}
 	}
+
+	public ExternalImageManager? ImageManager() => imageManager;
 
 	public string ProjectFilePathToDisplay => string.IsNullOrWhiteSpace(_projectFilePath) ? "<< set during Save >>" : _projectFilePath;
 
@@ -131,5 +138,26 @@ sealed class ProjectVM : ViewModelBase, IBlockList
 
 		stage = workingStage;
 		return true;
+	}
+
+	public void OnImagesSelected(ImageChooserDialog.VM result)
+	{
+		foreach (var img in result.Images)
+		{
+			bool wasChecked = result.AlreadyChecked.Contains(img.ExternalImage);
+
+			if (img.IsChecked && !wasChecked)
+			{
+				Layers.Add(new ExternalImageLayerVM { Image = img.ExternalImage });
+			}
+			else if (!img.IsChecked && wasChecked)
+			{
+				var removeItems = this.Layers.Where(x => x.ExternalImage.Contains(img.ExternalImage)).ToList();
+				foreach (var item in removeItems)
+				{
+					Layers.Remove(item);
+				}
+			}
+		}
 	}
 }

@@ -44,7 +44,9 @@
                 <RowDefinition Height="Auto"></RowDefinition>
             </Grid.RowDefinitions>
             <ListView x:Name="lvLayers" ItemsSource="{Binding Layers}" SelectedItem="{Binding SelectedLayer}" DisplayMemberPath="LayerName"></ListView>
-            <pg:PropertyGrid Grid.Row="1" SelectedObject="{Binding SelectedLayer}"></pg:PropertyGrid>
+            <StackPanel Grid.Row="1">
+                <Button Click="ChooseImages_Click">Choose Images...</Button>
+            </StackPanel>
         </Grid>
     </Grid>
 </UserControl>
