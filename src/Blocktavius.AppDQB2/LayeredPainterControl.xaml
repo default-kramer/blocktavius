@@ -9,7 +9,7 @@
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"></ColumnDefinition>
+            <ColumnDefinition Width="200"></ColumnDefinition>
             <ColumnDefinition Width="Auto"></ColumnDefinition>
             <ColumnDefinition Width="*"></ColumnDefinition>
         </Grid.ColumnDefinitions>
@@ -22,14 +22,21 @@
             <Slider x:Name="sliderZoom" Grid.Row="1" Orientation="Vertical" Minimum="0.5" Maximum="3.0" Value="1"></Slider>
         </Grid>
         <ScrollViewer Grid.Column="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-            <StackPanel Orientation="Horizontal">
-                <StackPanel Orientation="Vertical">
-                    <StackPanel.LayoutTransform>
-                        <ScaleTransform ScaleX="{Binding ElementName=sliderZoom, Path=Value}" ScaleY="{Binding ElementName=sliderZoom, Path=Value}"></ScaleTransform>
-                    </StackPanel.LayoutTransform>
-                    <local:TileGridPainterControl DataContext="{Binding SelectedLayer.TileGridPainterVM}" />
-                </StackPanel>
-            </StackPanel>
+            <Grid>
+                <Grid.LayoutTransform>
+                    <ScaleTransform ScaleX="{Binding ElementName=sliderZoom, Path=Value}" ScaleY="{Binding ElementName=sliderZoom, Path=Value}" />
+                </Grid.LayoutTransform>
+                <ContentControl Content="{Binding SelectedLayer}" HorizontalAlignment="Left" VerticalAlignment="Top">
+                    <ContentControl.Resources>
+                        <DataTemplate DataType="{x:Type local:LayerVM}">
+                            <local:TileGridPainterControl DataContext="{Binding TileGridPainterVM}" />
+                        </DataTemplate>
+                        <DataTemplate DataType="{x:Type local:ExternalImageLayerVM}">
+                            <local:ExternalImagePainterControl />
+                        </DataTemplate>
+                    </ContentControl.Resources>
+                </ContentControl>
+            </Grid>
         </ScrollViewer>
         <Grid Grid.Column="0">
             <Grid.RowDefinitions>

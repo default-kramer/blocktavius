@@ -1,22 +1,7 @@
-﻿using Blocktavius.Core;
-using Blocktavius.DQB2;
-using Blocktavius.DQB2.EyeOfRubiss;
-using System;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
+﻿using System;
 using System.IO;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace Blocktavius.AppDQB2
 {
@@ -26,12 +11,16 @@ namespace Blocktavius.AppDQB2
 	public partial class MainWindow : Window
 	{
 		private ProjectVM vm = new();
+		private ExternalImageManager imageManager;
 
 		public MainWindow()
 		{
 			InitializeComponent();
 
 			vm.StgdatFilePath = @"C:\Users\kramer\Documents\My Games\DRAGON QUEST BUILDERS II\Steam\76561198073553084\SD\STGDAT01.BIN";
+
+			imageManager = new ExternalImageManager(new DirectoryInfo(@"C:\Users\kramer\Documents\code\HermitsHeresy\examples\STB\"));
+			imageManager.ExternalImages.CollectionChanged += (a, b) => { Resync(vm, imageManager); };
 
 			vm.Layers.Add(LayerVM.BuildChunkMask());
 			vm.Layers.Add(new LayerVM());
@@ -42,6 +31,21 @@ namespace Blocktavius.AppDQB2
 
 			DataContext = vm;
 			Global.SetCurrentProject(vm);
+		}
+
+		// TODO!!! Should not recreate layers!
+		// Should allow user to choose an external image to create a new layer.
+		private static void Resync(ProjectVM vm, ExternalImageManager imageManager)
+		{
+			var old = vm.Layers.Where(l => l is ExternalImageLayerVM).ToList();
+			foreach (var layer in old)
+			{
+				vm.Layers.Remove(layer);
+			}
+			foreach (var image in imageManager.ExternalImages)
+			{
+				vm.Layers.Add(new ExternalImageLayerVM { Image = image });
+			}
 		}
 
 		protected override void OnClosed(EventArgs e)

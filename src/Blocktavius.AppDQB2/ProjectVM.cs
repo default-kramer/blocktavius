@@ -41,10 +41,10 @@ sealed class ProjectVM : ViewModelBase, IBlockList
 		set => ChangeProperty(ref _includeStgdatInPreview, value);
 	}
 
-	public ObservableCollection<LayerVM> Layers { get; } = new ObservableCollection<LayerVM>();
+	public ObservableCollection<ILayerVM> Layers { get; } = new ObservableCollection<ILayerVM>();
 
-	private LayerVM? _selectedLayer;
-	public LayerVM? SelectedLayer
+	private ILayerVM? _selectedLayer;
+	public ILayerVM? SelectedLayer
 	{
 		get => _selectedLayer;
 		set => ChangeProperty(ref _selectedLayer, value);
