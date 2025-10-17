@@ -104,11 +104,15 @@ sealed class ExternalImageVM : ViewModelBase
 	/// </summary>
 	private static BitmapSource LoadBitmapAndNormalize(string fullPath)
 	{
+		byte[] buffer = File.ReadAllBytes(fullPath);
 		var originalBitmap = new BitmapImage();
-		originalBitmap.BeginInit();
-		originalBitmap.CacheOption = BitmapCacheOption.OnLoad;
-		originalBitmap.UriSource = new Uri(fullPath);
-		originalBitmap.EndInit();
+		using (var stream = new MemoryStream(buffer))
+		{
+			originalBitmap.BeginInit();
+			originalBitmap.CacheOption = BitmapCacheOption.OnLoad;
+			originalBitmap.StreamSource = stream;
+			originalBitmap.EndInit();
+		}
 		originalBitmap.Freeze();
 
 		// Gemini says "Even though modern high-DPI ("Retina") displays have much higher pixel densities,

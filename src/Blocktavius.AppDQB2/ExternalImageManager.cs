@@ -25,10 +25,12 @@ sealed class ExternalImageManager : IDisposable
 		this.watcher = new FileSystemWatcher(projectDir.FullName, filter);
 
 		watcher.IncludeSubdirectories = true;
+		watcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.DirectoryName;
 		watcher.EnableRaisingEvents = true;
 		watcher.Created += OnWatcherEvent;
 		watcher.Changed += OnWatcherEvent;
 		watcher.Deleted += OnWatcherEvent;
+		watcher.Renamed += OnWatcherRenamed;
 
 		DiscoverExistingImages();
 	}
@@ -45,6 +47,11 @@ sealed class ExternalImageManager : IDisposable
 	}
 
 	private void OnWatcherEvent(object sender, FileSystemEventArgs e)
+	{
+		ProcessImageFile(e.FullPath);
+	}
+
+	private void OnWatcherRenamed(object sender, RenamedEventArgs e)
 	{
 		ProcessImageFile(e.FullPath);
 	}
