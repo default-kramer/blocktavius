@@ -18,6 +18,7 @@ sealed class ExternalImageManager : IDisposable
 	private readonly ConcurrentDictionary<string, ExternalImageVM> externalImageDict = new();
 	private readonly object locker = new();
 	const string filter = "*.bmp";
+	const string extension = ".bmp";
 
 	public ExternalImageManager(DirectoryInfo projectDir)
 	{
@@ -58,6 +59,11 @@ sealed class ExternalImageManager : IDisposable
 
 	private void ProcessImageFile(string fullPath)
 	{
+		if (!string.Equals(Path.GetExtension(fullPath), extension, StringComparison.OrdinalIgnoreCase))
+		{
+			return;
+		}
+
 		var newId = Guid.NewGuid();
 		string dictKey = fullPath.ToLowerInvariant();
 		string relativePath = Path.GetRelativePath(projectDir.FullName, fullPath);
