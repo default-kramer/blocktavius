@@ -12,15 +12,13 @@ abstract class RegionBasedHillDesigner : ViewModelBase, IHillDesigner
 {
 	public StageMutation? CreateMutation(HillDesignContext context)
 	{
-		// apply ImageCoordTranslation now so each hill doesn't have to
-		var regions = context.AreaVM.BuildTagger().GetRegions(true, context.ImageCoordTranslation);
-		context = context with { ImageCoordTranslation = XZ.Zero };
-
-		if (regions.Count == 0)
+		if (context.AreaVM.IsRegional(out var tagger))
 		{
-			return null;
+			var regions = tagger.GetRegions(true, context.ImageCoordTranslation);
+			context = context with { ImageCoordTranslation = XZ.Zero };
+			return CreateMutation(context, regions);
 		}
-		return CreateMutation(context, regions);
+		return null;
 	}
 
 	public virtual StageMutation? CreateMutation(HillDesignContext context, IReadOnlyList<Region> regions)

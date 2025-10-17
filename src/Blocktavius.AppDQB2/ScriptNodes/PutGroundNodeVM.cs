@@ -42,12 +42,11 @@ sealed class PutGroundNodeVM : ScriptNodeVM
 
 	public override StageMutation? BuildMutation(StageRebuildContext context)
 	{
-		if (area == null)
+		if (area == null || !area.IsRegional(out var tagger))
 		{
 			return null;
 		}
 
-		var tagger = area.BuildTagger();
 		var tiles = tagger.GetIndividualTiles(true)
 			.Select(r => r.Translate(context.ImageCoordTranslation))
 			.ToList();

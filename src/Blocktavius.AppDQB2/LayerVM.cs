@@ -9,7 +9,7 @@ using Xceed.Wpf.Toolkit.PropertyGrid.Attributes;
 
 namespace Blocktavius.AppDQB2;
 
-interface ILayerVM
+interface ILayerVM : IAreaVM
 {
 	string LayerName { get; }
 	bool IsVisible { get; set; }
@@ -17,7 +17,7 @@ interface ILayerVM
 	IEnumerable<ExternalImageVM> ExternalImage { get; }
 }
 
-class LayerVM : ViewModelBase, ILayerVM, IAreaVM
+class LayerVM : ViewModelBase, ILayerVM
 {
 	private TileGridPainterVM _painter;
 	private int tileSize;
@@ -26,6 +26,12 @@ class LayerVM : ViewModelBase, ILayerVM, IAreaVM
 	{
 		area = null!;
 		return false;
+	}
+
+	public bool IsRegional(out TileTagger<bool> tagger)
+	{
+		tagger = BuildTagger();
+		return true;
 	}
 
 	IEnumerable<ExternalImageVM> ILayerVM.ExternalImage => Enumerable.Empty<ExternalImageVM>();

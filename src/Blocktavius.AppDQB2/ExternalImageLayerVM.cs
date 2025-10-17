@@ -6,7 +6,7 @@ using System.Windows.Media.Imaging;
 
 namespace Blocktavius.AppDQB2;
 
-sealed class ExternalImageLayerVM : ViewModelBase, ILayerVM, IAreaVM
+sealed class ExternalImageLayerVM : ViewModelBase, ILayerVM
 {
 	public required ExternalImageVM Image { get; init; }
 
@@ -30,5 +30,11 @@ sealed class ExternalImageLayerVM : ViewModelBase, ILayerVM, IAreaVM
 	{
 		area = Image?.GetArea(imageTranslation)!;
 		return area != null;
+	}
+
+	public bool IsRegional(out TileTagger<bool> tagger)
+	{
+		tagger = null!;
+		return false;
 	}
 }
