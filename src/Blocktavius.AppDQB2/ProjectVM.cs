@@ -1,4 +1,5 @@
 ﻿using Blocktavius.DQB2;
+using GongSolutions.Wpf.DragDrop;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -8,10 +9,35 @@ using System.Threading.Tasks;
 
 namespace Blocktavius.AppDQB2;
 
-sealed class ProjectVM : ViewModelBase, IBlockList
+sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 {
 	private readonly StgdatLoader stgdatLoader = new();
 	private ExternalImageManager? imageManager = null;
+
+	void IDropTarget.DragOver(IDropInfo dropInfo)
+	{
+		dropInfo.DropTargetAdorner = DropTargetAdorners.Insert;
+		dropInfo.Effects = System.Windows.DragDropEffects.Move;
+	}
+
+	void IDropTarget.Drop(IDropInfo dropInfo)
+	{
+		if (dropInfo.Data is ILayerVM layer)
+		{
+			int oldIndex = Layers.IndexOf(layer);
+			int newIndex = dropInfo.InsertIndex;
+
+			if (oldIndex < newIndex)
+			{
+				newIndex--;
+			}
+
+			if (oldIndex >= 0 && newIndex >= 0 && oldIndex != newIndex)
+			{
+				Layers.Move(oldIndex, newIndex);
+			}
+		}
+	}
 
 	IReadOnlyList<BlockVM> IBlockList.Blocks => Blockdata.AllBlockVMs;
 
