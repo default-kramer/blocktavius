@@ -137,4 +137,45 @@ sealed class ExternalImageVM : ViewModelBase
 
 		return finalImage;
 	}
+
+	sealed class BitmapSourceRawImage : IRawImage
+	{
+		private readonly BitmapSource bgra32Source;
+		const int bytesPerPixel = 4;
+
+		public BitmapSourceRawImage(BitmapSource bitmapSource)
+		{
+			if (bitmapSource.Format != System.Windows.Media.PixelFormats.Bgra32)
+			{
+				bgra32Source = new FormatConvertedBitmap(bitmapSource, System.Windows.Media.PixelFormats.Bgra32, null, 0);
+			}
+			else
+			{
+				bgra32Source = bitmapSource;
+			}
+
+			int actualBytesPerPixel = (bgra32Source.Format.BitsPerPixel + 7) / 8;
+			if (actualBytesPerPixel != bytesPerPixel)
+			{
+				throw new InvalidOperationException("This method assumes a 32-bit pixel format.");
+			}
+		}
+
+		public int Width => bgra32Source.PixelWidth;
+
+		public int Height => bgra32Source.PixelHeight;
+
+		public RawColor GetPixel(int x, int y)
+		{
+			if (x < 0 || x >= Width || y < 0 || y >= Height)
+			{
+				return new RawColor { R = 0, G = 0, B = 0, A = 0 };
+			}
+
+			var stride = bytesPerPixel * Width;
+			var pixelData = new byte[bytesPerPixel];
+			bgra32Source.CopyPixels(new System.Windows.Int32Rect(x, y, 1, 1), pixelData, stride, 0);
+			return new RawColor { B = pixelData[0], G = pixelData[1], R = pixelData[2], A = pixelData[3] };
+		}
+	}
 }
