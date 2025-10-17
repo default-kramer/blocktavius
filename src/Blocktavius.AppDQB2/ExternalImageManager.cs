@@ -59,6 +59,7 @@ sealed class ExternalImageManager : IDisposable
 
 	private void ProcessImageFile(string fullPath)
 	{
+		// Ignore files like "foo.bmp~Fj34.TMP" created by Paint.NET and probably other programs
 		if (!string.Equals(Path.GetExtension(fullPath), extension, StringComparison.OrdinalIgnoreCase))
 		{
 			return;
