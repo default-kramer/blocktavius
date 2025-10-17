@@ -22,6 +22,12 @@ class LayerVM : ViewModelBase, ILayerVM, IAreaVM
 	private int tileSize;
 	private string _layerName = "New Layer";
 
+	public bool IsArea(XZ imageTranslation, out AreaWrapper area)
+	{
+		area = null!;
+		return false;
+	}
+
 	IEnumerable<ExternalImageVM> ILayerVM.ExternalImage => Enumerable.Empty<ExternalImageVM>();
 
 	public LayerVM()

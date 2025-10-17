@@ -210,4 +210,27 @@ public static class Util
 			Project = func,
 		};
 	}
+
+	sealed class TranslatedArea : IArea
+	{
+		public required IArea Orig { get; init; }
+		public required Rect Bounds { get; init; }
+		public required XZ ReverseTranslation { get; init; }
+
+		public bool InArea(XZ xz)
+		{
+			return Orig.InArea(xz.Add(ReverseTranslation));
+		}
+	}
+
+	public static IArea Translate(this IArea area, XZ translation)
+	{
+		var bounds = new Rect(area.Bounds.start.Add(translation), area.Bounds.end.Add(translation));
+		return new TranslatedArea
+		{
+			Orig = area,
+			Bounds = bounds,
+			ReverseTranslation = translation.Scale(-1),
+		};
+	}
 }

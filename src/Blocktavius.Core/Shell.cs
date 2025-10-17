@@ -36,7 +36,7 @@ namespace Blocktavius.Core;
 ///   e South
 ///   f South
 /// </summary>
-readonly record struct ShellItem
+public readonly record struct ShellItem
 {
 	/// <summary>
 	/// This XZ is *not* inside the area.
@@ -51,20 +51,20 @@ readonly record struct ShellItem
 	public required CornerType CornerType { get; init; }
 }
 
-sealed record Shell
+public sealed record Shell
 {
-	public required IArea Area { get; init; }
+	public required IArea Area { get; init; } // TODO want two areas here... the original area and the area enclosed by this shell
 	public required IReadOnlyList<ShellItem> ShellItems { get; init; }
 	public required bool IsHole { get; init; }
 }
 
-public interface IArea
+public interface IArea // should this just be an I2DSampler<bool> instead???
 {
 	Rect Bounds { get; }
 	bool InArea(XZ xz);
 }
 
-static class ShellLogic
+public static class ShellLogic
 {
 	/// <summary>
 	/// The metaphor here is walking around the area, keeping your right hand on the wall.

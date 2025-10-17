@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Blocktavius.Core;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -7,6 +8,19 @@ using System.Threading.Tasks;
 using System.Windows.Media.Imaging;
 
 namespace Blocktavius.AppDQB2;
+
+public sealed class AreaWrapper
+{
+	public readonly IArea Area;
+	private readonly Lazy<IReadOnlyList<Shell>> shells;
+	public IReadOnlyList<Shell> Shells => shells.Value;
+
+	public AreaWrapper(IArea area)
+	{
+		this.Area = area;
+		this.shells = new Lazy<IReadOnlyList<Shell>>(() => ShellLogic.ComputeShells(area));
+	}
+}
 
 sealed class ExternalImageVM : ViewModelBase
 {
@@ -46,11 +60,42 @@ sealed class ExternalImageVM : ViewModelBase
 		}
 	}
 
-	private BitmapSource? _imageSource;
+	private (BitmapSource bitmap, (XZ imageTranslation, AreaWrapper area)? areaCache)? _imageSource;
 	public BitmapSource? ImageSource
 	{
-		get => _imageSource;
-		private set => ChangeProperty(ref _imageSource, value);
+		get => _imageSource?.Item1;
+		set
+		{
+			if (value == null)
+			{
+				_imageSource = null;
+			}
+			else
+			{
+				_imageSource = (value, null);
+			}
+			OnPropertyChanged(nameof(ImageSource));
+		}
+	}
+
+	internal AreaWrapper? GetArea(XZ imageTranslation)
+	{
+		if (_imageSource == null)
+		{
+			return null;
+		}
+		else if (_imageSource.Value.areaCache?.imageTranslation == imageTranslation)
+		{
+			return _imageSource.Value.areaCache.Value.area;
+		}
+		else
+		{
+			IArea area = new RawImageArea(new BitmapSourceRawImage(_imageSource.Value.bitmap));
+			area = area.Translate(imageTranslation);
+			var wrapper = new AreaWrapper(area);
+			_imageSource = (_imageSource.Value.bitmap, (imageTranslation, wrapper));
+			return wrapper;
+		}
 	}
 
 	/// <summary>
