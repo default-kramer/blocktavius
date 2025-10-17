@@ -12,6 +12,7 @@ namespace Blocktavius.AppDQB2;
 interface ILayerVM
 {
 	string LayerName { get; }
+	bool IsVisible { get; set; }
 
 	IEnumerable<ExternalImageVM> ExternalImage { get; }
 }
@@ -20,7 +21,6 @@ class LayerVM : ViewModelBase, ILayerVM, IAreaVM
 {
 	private TileGridPainterVM _painter;
 	private int tileSize;
-	private string _layerName = "New Layer";
 
 	public bool IsArea(XZ imageTranslation, out AreaWrapper area)
 	{
@@ -34,6 +34,20 @@ class LayerVM : ViewModelBase, ILayerVM, IAreaVM
 	{
 		tileSize = 8;
 		_painter = RebuildPainter();
+	}
+
+	private bool _isVisible = true;
+	public bool IsVisible
+	{
+		get => _isVisible;
+		set => ChangeProperty(ref _isVisible, value);
+	}
+
+	private string _layerName = "New Layer";
+	public string LayerName
+	{
+		get => _layerName;
+		set => ChangeProperty(ref _layerName, value);
 	}
 
 	// IoA default size
@@ -67,19 +81,6 @@ class LayerVM : ViewModelBase, ILayerVM, IAreaVM
 
 	[Browsable(false)]
 	public ITileGridPainterVM TileGridPainterVM => _painter;
-
-	public string LayerName
-	{
-		get => _layerName;
-		set
-		{
-			if (_layerName != value)
-			{
-				_layerName = value;
-				OnPropertyChanged();
-			}
-		}
-	}
 
 	[ItemsSource(typeof(TileSizeItemsSource))]
 	public int TileSize

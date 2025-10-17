@@ -14,6 +14,13 @@ sealed class ExternalImageLayerVM : ViewModelBase, ILayerVM, IAreaVM
 
 	IEnumerable<ExternalImageVM> ILayerVM.ExternalImage { get { yield return Image; } }
 
+	private bool _isVisible = true;
+	public bool IsVisible
+	{
+		get => _isVisible;
+		set => ChangeProperty(ref _isVisible, value);
+	}
+
 	public TileTagger<bool> BuildTagger()
 	{
 		throw new NotImplementedException();
