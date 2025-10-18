@@ -58,10 +58,22 @@ public sealed record Shell
 	public required bool IsHole { get; init; }
 }
 
-public interface IArea // should this just be an I2DSampler<bool> instead???
+public interface IArea
 {
 	Rect Bounds { get; }
 	bool InArea(XZ xz);
+
+	// Hmm....
+	I2DSampler<bool> AsSampler() => new AreaSampler { Area = this };
+}
+
+sealed class AreaSampler : I2DSampler<bool>
+{
+	public required IArea Area { get; init; }
+
+	public Rect Bounds => Area.Bounds;
+
+	public bool Sample(XZ xz) => Area.InArea(xz);
 }
 
 public static class ShellLogic

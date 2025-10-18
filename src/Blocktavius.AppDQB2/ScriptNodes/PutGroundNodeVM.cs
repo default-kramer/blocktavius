@@ -42,21 +42,28 @@ sealed class PutGroundNodeVM : ScriptNodeVM
 
 	public override StageMutation? BuildMutation(StageRebuildContext context)
 	{
-		if (area == null || !area.IsRegional(out var tagger))
+		if (area == null)
 		{
 			return null;
 		}
 
-		var tiles = tagger.GetIndividualTiles(true)
-			.Select(r => r.Translate(context.ImageCoordTranslation))
-			.ToList();
-		if (tiles.Count == 0)
+		List<IArea> areas = new();
+		if (area.IsArea(context.ImageCoordTranslation, out var areaWrapper))
+		{
+			areas.Add(areaWrapper.Area);
+		}
+		else if (area.IsRegional(out var tagger))
+		{
+			var regions = tagger.GetRegions(true, context.ImageCoordTranslation);
+			areas.AddRange(regions);
+		}
+
+		if (areas.Count == 0)
 		{
 			return null;
 		}
 
-		// Create an interpolator large enough so that each tile can take its own slice independently
-		var fullRect = Rect.Union(tiles);
+		var fullRect = Rect.Union(areas.Select(a => a.Bounds));
 		I2DSampler<int> elevationSampler;
 		if (yMin == yMax)
 		{
@@ -77,9 +84,10 @@ sealed class PutGroundNodeVM : ScriptNodeVM
 		}
 
 		var mutations = new List<StageMutation>();
-		foreach (var tile in tiles)
+		foreach (var area in areas)
 		{
-			mutations.Add(StageMutation.CreateHills(elevationSampler.Crop(tile), 500));
+			var sampler = area.AsSampler().Project((inArea, xz) => inArea ? elevationSampler.Sample(xz) : -1);
+			mutations.Add(StageMutation.CreateHills(sampler, 500));
 		}
 
 		return StageMutation.Combine(mutations);
