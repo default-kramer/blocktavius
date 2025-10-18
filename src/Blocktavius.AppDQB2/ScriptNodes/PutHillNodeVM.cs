@@ -48,7 +48,7 @@ sealed class PutHillNodeVM : ScriptNodeVM
 	}
 
 	private IAreaVM? area;
-	[ItemsSource(typeof(Global.LayersItemsSource))]
+	[ItemsSource(typeof(Global.AreasItemsSource))]
 	[Category(Common)]
 	public IAreaVM? Area
 	{

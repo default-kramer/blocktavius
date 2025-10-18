@@ -12,7 +12,7 @@ namespace Blocktavius.AppDQB2.ScriptNodes;
 sealed class PutGroundNodeVM : ScriptNodeVM
 {
 	private IAreaVM? area;
-	[ItemsSource(typeof(Global.LayersItemsSource))]
+	[ItemsSource(typeof(Global.AreasItemsSource))]
 	public IAreaVM? Area
 	{
 		get => area;

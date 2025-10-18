@@ -6,8 +6,10 @@ using System.Windows.Media.Imaging;
 
 namespace Blocktavius.AppDQB2;
 
-sealed class ExternalImageLayerVM : ViewModelBase, ILayerVM
+sealed class ExternalImageLayerVM : ViewModelBase, ILayerVM, IAreaVM
 {
+	IAreaVM? ILayerVM.SelfAsAreaVM => this;
+
 	public required ExternalImageVM Image { get; init; }
 
 	public string LayerName => Image.RelativePath;

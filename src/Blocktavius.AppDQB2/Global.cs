@@ -46,14 +46,18 @@ static class Global
 		currentProject = project;
 	}
 
-	public sealed class LayersItemsSource : IItemsSource
+	public sealed class AreasItemsSource : IItemsSource
 	{
 		public ItemCollection GetValues()
 		{
 			var list = new ItemCollection();
 			foreach (var layerVM in currentProject.Layers)
 			{
-				list.Add(layerVM, layerVM.LayerName);
+				var area = layerVM.SelfAsAreaVM;
+				if (area != null)
+				{
+					list.Add(area, layerVM.LayerName);
+				}
 			}
 			return list;
 		}

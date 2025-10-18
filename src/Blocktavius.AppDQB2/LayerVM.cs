@@ -9,10 +9,15 @@ using Xceed.Wpf.Toolkit.PropertyGrid.Attributes;
 
 namespace Blocktavius.AppDQB2;
 
-interface ILayerVM : IAreaVM
+interface ILayerVM
 {
 	string LayerName { get; }
 	bool IsVisible { get; set; }
 
 	IEnumerable<ExternalImageVM> ExternalImage { get; }
+
+	/// <summary>
+	/// Make it more obvious that most layers will also be areas.
+	/// </summary>
+	IAreaVM? SelfAsAreaVM { get; }
 }

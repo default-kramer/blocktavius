@@ -13,6 +13,8 @@ namespace Blocktavius.AppDQB2;
 
 sealed class ChunkGridLayer : ViewModelBase, ILayerVM
 {
+	IAreaVM? ILayerVM.SelfAsAreaVM => null;
+
 	private readonly StgdatLoader stgdatLoader = new();
 
 	public string LayerName => "Chunk Grid";
@@ -47,18 +49,6 @@ sealed class ChunkGridLayer : ViewModelBase, ILayerVM
 	}
 
 	public IEnumerable<ExternalImageVM> ExternalImage => Enumerable.Empty<ExternalImageVM>();
-
-	public bool IsArea(XZ imageTranslation, out AreaWrapper area)
-	{
-		area = null!;
-		return false;
-	}
-
-	public bool IsRegional(out TileTagger<bool> tagger)
-	{
-		tagger = null!;
-		return false;
-	}
 
 	private void RebuildImage(string stgdatPath)
 	{
