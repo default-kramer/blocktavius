@@ -50,7 +50,7 @@
                                     <Image Source="{Binding ChunkGridImage}"></Image>
                                 </DataTemplate>
                                 <DataTemplate DataType="{x:Type local:ExternalImageLayerVM}">
-                                    <local:ExternalImagePainterControl />
+                                    <Image Source="{Binding Image.ImageSource}"></Image>
                                 </DataTemplate>
                             </ContentControl.Resources>
                         </ContentControl>
