@@ -15,19 +15,32 @@ abstract class ShellBasedHillDesigner : ViewModelBase, IHillDesigner
 		if (context.AreaVM.IsArea(context.ImageCoordTranslation, out var area))
 		{
 			context = context with { ImageCoordTranslation = XZ.Zero };
-
-			List<StageMutation> mutations = new();
-			foreach (var shell in area.Shells)
-			{
-				var m = CreateMutation(context with { Prng = context.Prng.AdvanceAndClone() }, shell);
-				if (m != null)
-				{
-					mutations.Add(m);
-				}
-			}
-			return StageMutation.Combine(mutations);
+			return CreateMutation(context, area.Shells);
 		}
+
+		if (context.AreaVM.IsRegional(out var tagger))
+		{
+			var regions = tagger.GetRegions(true, context.ImageCoordTranslation);
+			context = context with { ImageCoordTranslation = XZ.Zero };
+			var shells = regions.SelectMany(ShellLogic.ComputeShells).ToList();
+			return CreateMutation(context, shells);
+		}
+
 		return null;
+	}
+
+	private StageMutation? CreateMutation(HillDesignContext context, IReadOnlyList<Shell> shells)
+	{
+		List<StageMutation> mutations = new();
+		foreach (var shell in shells)
+		{
+			var m = CreateMutation(context with { Prng = context.Prng.AdvanceAndClone() }, shell);
+			if (m != null)
+			{
+				mutations.Add(m);
+			}
+		}
+		return StageMutation.Combine(mutations);
 	}
 
 	protected abstract StageMutation? CreateMutation(HillDesignContext context, Shell shell);

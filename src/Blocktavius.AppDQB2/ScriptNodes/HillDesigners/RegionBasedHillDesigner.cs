@@ -18,8 +18,20 @@ abstract class RegionBasedHillDesigner : ViewModelBase, IHillDesigner
 			context = context with { ImageCoordTranslation = XZ.Zero };
 			return CreateMutation(context, regions);
 		}
+
+		if (context.AreaVM.IsArea(context.ImageCoordTranslation, out var area))
+		{
+			if (area.TryConvertToRegions(MinTileSize, out var regions))
+			{
+				context = context with { ImageCoordTranslation = XZ.Zero };
+				return CreateMutation(context, regions);
+			}
+		}
+
 		return null;
 	}
+
+	protected virtual int MinTileSize => 4;
 
 	public virtual StageMutation? CreateMutation(HillDesignContext context, IReadOnlyList<Region> regions)
 	{

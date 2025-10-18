@@ -9,19 +9,6 @@ using System.Windows.Media.Imaging;
 
 namespace Blocktavius.AppDQB2;
 
-public sealed class AreaWrapper
-{
-	public readonly IArea Area;
-	private readonly Lazy<IReadOnlyList<Shell>> shells;
-	public IReadOnlyList<Shell> Shells => shells.Value;
-
-	public AreaWrapper(IArea area)
-	{
-		this.Area = area;
-		this.shells = new Lazy<IReadOnlyList<Shell>>(() => ShellLogic.ComputeShells(area));
-	}
-}
-
 sealed class ExternalImageVM : ViewModelBase
 {
 	public readonly Guid UniqueId;
