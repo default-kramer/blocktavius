@@ -14,6 +14,13 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 	private readonly StgdatLoader stgdatLoader = new();
 	private ExternalImageManager? imageManager = null;
 
+	public ProjectVM()
+	{
+		Layers = new();
+		Layers.Add(chunkGridLayer);
+		SelectedLayer = Layers.FirstOrDefault();
+	}
+
 	void IDropTarget.DragOver(IDropInfo dropInfo)
 	{
 		dropInfo.DropTargetAdorner = DropTargetAdorners.Insert;
@@ -45,7 +52,11 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 	public string? StgdatFilePath
 	{
 		get => _stgdatFilePath;
-		set => ChangeProperty(ref _stgdatFilePath, value);
+		set
+		{
+			ChangeProperty(ref _stgdatFilePath, value);
+			chunkGridLayer.StgdatPath = value ?? "";
+		}
 	}
 
 	private string? _projectFilePath;
@@ -63,6 +74,8 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 		}
 	}
 
+	private readonly ChunkGridLayer chunkGridLayer = new();
+
 	public ExternalImageManager? ImageManager() => imageManager;
 
 	public string ProjectFilePathToDisplay => string.IsNullOrWhiteSpace(_projectFilePath) ? "<< set during Save >>" : _projectFilePath;
@@ -74,7 +87,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 		set => ChangeProperty(ref _includeStgdatInPreview, value);
 	}
 
-	public ObservableCollection<ILayerVM> Layers { get; } = new ObservableCollection<ILayerVM>();
+	public ObservableCollection<ILayerVM> Layers { get; }
 
 	private ILayerVM? _selectedLayer;
 	public ILayerVM? SelectedLayer
@@ -168,13 +181,20 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 
 	public void OnImagesSelected(ImageChooserDialog.VM result)
 	{
+		int keepAtEnd = 0;
+		if (Layers.LastOrDefault() is ChunkGridLayer)
+		{
+			keepAtEnd++;
+		}
+
 		foreach (var img in result.Images)
 		{
 			bool wasChecked = result.AlreadyChecked.Contains(img.ExternalImage);
 
 			if (img.IsChecked && !wasChecked)
 			{
-				Layers.Add(new ExternalImageLayerVM { Image = img.ExternalImage });
+				int where = Layers.Count - keepAtEnd;
+				Layers.Insert(where, new ExternalImageLayerVM { Image = img.ExternalImage });
 			}
 			else if (!img.IsChecked && wasChecked)
 			{

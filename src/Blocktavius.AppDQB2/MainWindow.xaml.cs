@@ -19,10 +19,6 @@ namespace Blocktavius.AppDQB2
 			vm.StgdatFilePath = @"C:\Users\kramer\Documents\My Games\DRAGON QUEST BUILDERS II\Steam\76561198073553084\SD\STGDAT01.BIN";
 			vm.ProjectFilePath = @"C:\Users\kramer\Documents\code\HermitsHeresy\examples\STB\foo.blocktaviusproject";
 
-			vm.Layers.Add(LayerVM.BuildChunkMask());
-			vm.Layers.Add(new LayerVM());
-			vm.SelectedLayer = vm.Layers.First();
-
 			vm.Scripts.Add(new ScriptVM() { Name = "Main", IsMain = true });
 			vm.SelectedScript = vm.Scripts.First();
 

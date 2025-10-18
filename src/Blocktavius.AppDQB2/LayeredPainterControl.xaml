@@ -46,8 +46,8 @@
                                 </Style>
                             </ContentControl.Style>
                             <ContentControl.Resources>
-                                <DataTemplate DataType="{x:Type local:LayerVM}">
-                                    <local:TileGridPainterControl DataContext="{Binding TileGridPainterVM}" />
+                                <DataTemplate DataType="{x:Type local:ChunkGridLayer}">
+                                    <Image Source="{Binding ChunkGridImage}"></Image>
                                 </DataTemplate>
                                 <DataTemplate DataType="{x:Type local:ExternalImageLayerVM}">
                                     <local:ExternalImagePainterControl />
