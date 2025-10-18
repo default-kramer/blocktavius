@@ -36,6 +36,16 @@ public record struct XZ(int X, int Z)
 		yield return Add(0, -1);
 	}
 
+	public IEnumerable<XZ> OrdinalNeighbors()
+	{
+		yield return Add(-1, -1);
+		yield return Add(1, -1);
+		yield return Add(-1, 1);
+		yield return Add(1, 1);
+	}
+
+	public IEnumerable<XZ> AllNeighbors() => CardinalNeighbors().Concat(OrdinalNeighbors());
+
 	public IEnumerable<XZ> Walk(Direction direction, int steps)
 	{
 		var current = this;

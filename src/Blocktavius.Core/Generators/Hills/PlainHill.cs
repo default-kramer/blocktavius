@@ -8,11 +8,18 @@ namespace Blocktavius.Core.Generators.Hills;
 
 public static class PlainHill
 {
+	public enum CornerType
+	{
+		Bevel,
+		Square,
+	};
+
 	public sealed record Settings
 	{
 		public required int MinElevation { get; init; }
 		public required int MaxElevation { get; init; }
 		public required int Steepness { get; init; }
+		public required CornerType CornerType { get; init; }
 
 		// Discard any remainder -- a remainder means that step would take us *below* min elevation
 		internal int StepCount => (MaxElevation - MinElevation) / Steepness;
@@ -35,61 +42,42 @@ public static class PlainHill
 		}
 	}
 
-	public static I2DSampler<int> BuildPlainHill(Region region, Settings settings)
+	public static I2DSampler<int> BuildPlainHill(IArea area, Settings settings)
 	{
-		if (!settings.Validate(out _))
+		int expansion = settings.StepCount;
+		var hillBounds = new Rect(area.Bounds.start.Add(-expansion, -expansion), area.Bounds.end.Add(expansion, expansion));
+		var hill = new MutableArray2D<int>(hillBounds, -1);
+
+		bool done;
+		do
 		{
-			throw new ArgumentException(nameof(settings));
-		}
-		var builder = new PlainHillBuilder()
-		{
-			CliffBuilder = new PlainCliffBuilder { Settings = settings },
-		};
-		return builder.BuildHill(region);
-	}
-
-	sealed class PlainHillBuilder : AdditiveHillBuilder
-	{
-		public required PlainCliffBuilder CliffBuilder { get; init; }
-
-		protected override ICliffBuilder CreateCliffBuilder(Edge edge) => CliffBuilder;
-
-		protected override bool ShouldFillRegion(out int elevation)
-		{
-			elevation = CliffBuilder.Settings.MaxElevation;
-			return true;
-		}
-	}
-
-	sealed class PlainCliffBuilder : AdditiveHillBuilder.ICliffBuilder
-	{
-		public required Settings Settings { get; init; }
-
-		public I2DSampler<int> BuildCornerCliff(bool left, int length) => BuildMainCliff(length);
-
-		public I2DSampler<int> BuildMainCliff(int length)
-		{
-			return new PlainCliffSampler()
+			done = true;
+			foreach (var xz in hillBounds.Enumerate())
 			{
-				Length = length,
-				Settings = Settings,
-			};
+				int oldVal = hill.Sample(xz);
+				int newVal;
+				if (area.InArea(xz))
+				{
+					newVal = settings.MaxElevation;
+				}
+				else if (settings.CornerType == CornerType.Square)
+				{
+					newVal = xz.AllNeighbors().Select(hill.Sample).Max() - settings.Steepness;
+				}
+				else // Bevel
+				{
+					newVal = xz.CardinalNeighbors().Select(hill.Sample).Max() - settings.Steepness;
+				}
+
+				if (newVal > oldVal && newVal >= settings.MinElevation)
+				{
+					hill.Put(xz, newVal);
+					done = false;
+				}
+			}
 		}
-	}
+		while (!done);
 
-	sealed class PlainCliffSampler : I2DSampler<int>
-	{
-		public required int Length { get; init; }
-		public required Settings Settings { get; init; }
-
-		public Rect Bounds => new Rect(XZ.Zero, new XZ(Length, Settings.StepCount));
-
-		public int Sample(XZ xz)
-		{
-			// Max elevation is used for the plateau; the cliff should begin
-			// one step down from that. So add 1 to Z here:
-			int elevation = Settings.MaxElevation - (xz.Z + 1) * Settings.Steepness;
-			return elevation;
-		}
+		return hill;
 	}
 }

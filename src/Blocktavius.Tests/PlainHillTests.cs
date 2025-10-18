@@ -26,6 +26,7 @@ public class PlainHillTests
 			MinElevation = 1,
 			MaxElevation = 4,
 			Steepness = 1,
+			CornerType = PlainHill.CornerType.Square,
 		};
 		var result = PlainHill.BuildPlainHill(region, settings);
 
@@ -68,6 +69,7 @@ public class PlainHillTests
 			MinElevation = 1,
 			MaxElevation = 8,
 			Steepness = 3,
+			CornerType = PlainHill.CornerType.Square,
 		};
 
 		result = PlainHill.BuildPlainHill(region, settings);
@@ -116,6 +118,7 @@ ooooooooo".Replace("M", "8").Replace("+", "5").Replace("o", "2").Trim();
 			MinElevation = elevation,
 			MaxElevation = elevation,
 			Steepness = 17, // won't matter
+			CornerType = PlainHill.CornerType.Square,
 		};
 
 		var result = PlainHill.BuildPlainHill(region, settings);

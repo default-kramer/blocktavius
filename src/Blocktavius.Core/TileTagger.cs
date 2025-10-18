@@ -107,6 +107,8 @@ public sealed record Region : IArea
 	/// </summary>
 	public Rect MaybeBetterBounds => Bounds with { end = Bounds.end.Add(-1, -1) };
 
+	Rect IArea.Bounds => MaybeBetterBounds;
+
 	public bool Contains(XZ xz) => tiles.InArea(xz);
 
 	public bool InArea(XZ xz) => tiles.InArea(xz);
