@@ -187,6 +187,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 			keepAtEnd++;
 		}
 
+		bool changed = false;
 		foreach (var img in result.Images)
 		{
 			bool wasChecked = result.AlreadyChecked.Contains(img.ExternalImage);
@@ -195,6 +196,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 			{
 				int where = Layers.Count - keepAtEnd;
 				Layers.Insert(where, new ExternalImageLayerVM { Image = img.ExternalImage });
+				changed = true;
 			}
 			else if (!img.IsChecked && wasChecked)
 			{
@@ -203,7 +205,16 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 				{
 					Layers.Remove(item);
 				}
+				changed = true;
 			}
+		}
+
+		if (changed)
+		{
+			// Force property grid to reload now that the layer choices have changed
+			var temp = SelectedScriptNode;
+			SelectedScriptNode = null;
+			SelectedScriptNode = temp;
 		}
 	}
 }
