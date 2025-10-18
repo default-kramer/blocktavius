@@ -26,18 +26,20 @@ sealed class PutGroundNodeVM : ScriptNodeVM
 		set => ChangeProperty(ref scale, value);
 	}
 
-	private int yMin = 37;
+	private int _yMin = 37;
 	public int YMin
 	{
-		get => yMin;
-		set => ChangeProperty(ref yMin, value);
+		get => _yMin;
+		set => ChangeProperty(ref _yMin, value, nameof(YMin), nameof(YMax));
 	}
 
-	private int yMax = 45;
-	public int YMax
+	public int YMax => YMin + YRange - 1;
+
+	private int _yRange = 5;
+	public int YRange
 	{
-		get => yMax;
-		set => ChangeProperty(ref yMax, value);
+		get => _yRange;
+		set => ChangeProperty(ref _yRange, Math.Max(1, value), nameof(YRange), nameof(YMax));
 	}
 
 	public override StageMutation? BuildMutation(StageRebuildContext context)
@@ -65,9 +67,9 @@ sealed class PutGroundNodeVM : ScriptNodeVM
 
 		var fullRect = Rect.Union(areas.Select(a => a.Bounds));
 		I2DSampler<int> elevationSampler;
-		if (yMin == yMax)
+		if (YMin == YMax)
 		{
-			elevationSampler = new ConstantSampler<int> { Bounds = fullRect, Value = yMin };
+			elevationSampler = new ConstantSampler<int> { Bounds = fullRect, Value = YMin };
 		}
 		else
 		{
@@ -75,11 +77,11 @@ sealed class PutGroundNodeVM : ScriptNodeVM
 
 			// Because of how interpolation works, it's very rare to hit yMin or yMax.
 			// So increase the range by 1 on both ends, and then clamp.
-			int rangeMin = yMin - 1;
-			int rangeMax = yMax + 1;
+			int rangeMin = YMin - 1;
+			int rangeMax = YMax + 1;
 			int rangeSpan = rangeMax - rangeMin;
 			elevationSampler = Interpolator2D.Create(fullRect.Size, scale, prng, defaultValue: -1)
-				.Project(dubl => dubl < 0 ? -1 : Math.Clamp(rangeMin + Convert.ToInt32(dubl * rangeSpan), yMin, yMax))
+				.Project(dubl => dubl < 0 ? -1 : Math.Clamp(rangeMin + Convert.ToInt32(dubl * rangeSpan), YMin, YMax))
 				.TranslateTo(fullRect.start);
 		}
 

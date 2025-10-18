@@ -15,12 +15,16 @@ class ViewModelBase : INotifyPropertyChanged
 {
 	public event PropertyChangedEventHandler? PropertyChanged;
 
-	protected void ChangeProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+	protected void ChangeProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null, params string[] moreProperties)
 	{
 		if (!object.Equals(field, value))
 		{
 			field = value;
 			OnPropertyChanged(propertyName);
+			foreach (var prop in moreProperties)
+			{
+				OnPropertyChanged(prop);
+			}
 		}
 	}
 
