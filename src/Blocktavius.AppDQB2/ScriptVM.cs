@@ -13,7 +13,9 @@ namespace Blocktavius.AppDQB2;
 
 public interface IAreaVM
 {
-	public TileTagger<bool> BuildTagger();
+	bool IsArea(XZ imageTranslation, out AreaWrapper area);
+
+	bool IsRegional(out TileTagger<bool> tagger);
 }
 
 public interface IBlockProviderVM

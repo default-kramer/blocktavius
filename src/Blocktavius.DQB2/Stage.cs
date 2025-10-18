@@ -19,6 +19,18 @@ public interface IStage
 	IEnumerable<IChunk> IterateChunks() => ChunksInUse
 		.Select(offset => TryReadChunk(offset, out var chunk) ? chunk : null)
 		.WhereNotNull();
+
+	I2DSampler<bool> ChunkGrid()
+	{
+		var chunks = ChunksInUse;
+		var bounds = Rect.GetBounds(chunks.Select(c => new XZ(c.OffsetX, c.OffsetZ)));
+		var array = new MutableArray2D<bool>(bounds, false);
+		foreach (var chunk in chunks)
+		{
+			array.Put(new XZ(chunk.OffsetX, chunk.OffsetZ), true);
+		}
+		return array;
+	}
 }
 
 public interface IMutableStage : IStage

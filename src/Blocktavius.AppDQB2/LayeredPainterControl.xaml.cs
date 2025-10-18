@@ -13,16 +13,36 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace Blocktavius.AppDQB2
+namespace Blocktavius.AppDQB2;
+
+/// <summary>
+/// Interaction logic for LayeredPainterControl.xaml
+/// </summary>
+public partial class LayeredPainterControl : UserControl
 {
-	/// <summary>
-	/// Interaction logic for LayeredPainterControl.xaml
-	/// </summary>
-	public partial class LayeredPainterControl : UserControl
+	public LayeredPainterControl()
 	{
-		public LayeredPainterControl()
+		InitializeComponent();
+	}
+
+	private void ChooseImages_Click(object sender, RoutedEventArgs e)
+	{
+		var project = this.DataContext as ProjectVM;
+		var imageManager = project?.ImageManager();
+		if (project == null || imageManager == null)
 		{
-			InitializeComponent();
+			return;
+		}
+
+		var alreadyChecked = project.Layers.SelectMany(vm => vm.ExternalImage).ToHashSet();
+
+		var window = new ImageChooserDialog();
+		window.Owner = this.VisualTreeAncestors().OfType<Window>().First();
+		window.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+
+		if (window.ShowDialog(imageManager, alreadyChecked, out var resultVM))
+		{
+			project.OnImagesSelected(resultVM);
 		}
 	}
 }

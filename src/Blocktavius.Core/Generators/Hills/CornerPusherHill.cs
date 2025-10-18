@@ -18,8 +18,19 @@ public static class CornerPusherHill
 
 	public static I2DSampler<int> BuildHill(Settings settings, IArea origArea)
 	{
+		return BuildHill(settings, Layer.FirstLayer(origArea), origArea);
+	}
+
+	// TODO - This should be the *only* constructor, and Shell should
+	public static I2DSampler<int> BuildHill(Settings settings, Shell shell)
+	{
+		return BuildHill(settings, Layer.FirstLayer(shell), shell.Area);
+	}
+
+	private static I2DSampler<int> BuildHill(Settings settings, Layer firstLayer, IArea origArea)
+	{
 		var layers = new Stack<Layer>();
-		layers.Push(Layer.FirstLayer(origArea));
+		layers.Push(firstLayer);
 
 		int needLayers = settings.MaxElevation - settings.MinElevation + 1;
 		while (layers.Count < needLayers)
@@ -76,10 +87,27 @@ public static class CornerPusherHill
 				?? area.Bounds.Enumerate().Where(area.InArea).ToImmutableHashSet();
 		}
 
+		private Layer(Shell shell, IReadOnlyDictionary<XZ, int> prevMissCounts, IImmutableSet<XZ>? population)
+		{
+			this.area = shell.Area;
+			this.shell = shell;
+			this.missCounts = shell.ShellItems
+				.Where(si => si.CornerType != CornerType.Inside) // reduce inside corners weight from 3:1 down to 2:1
+				.GroupBy(si => si.XZ)
+				.ToDictionary(grp => grp.Key, grp => grp.Count() + prevMissCounts.GetValueOrDefault(grp.Key, 0));
+			this.population = population
+				?? area.Bounds.Enumerate().Where(area.InArea).ToImmutableHashSet();
+		}
+
 		public static Layer FirstLayer(IArea area)
 		{
 			var population = area.Bounds.Enumerate().Where(area.InArea).ToImmutableHashSet();
 			return new Layer(area, new Dictionary<XZ, int>(), population);
+		}
+
+		public static Layer FirstLayer(Shell shell)
+		{
+			return new Layer(shell, new Dictionary<XZ, int>(), null);
 		}
 
 		public Layer NextLayer(PRNG prng)

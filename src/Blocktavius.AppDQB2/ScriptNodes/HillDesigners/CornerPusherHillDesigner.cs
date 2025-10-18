@@ -10,18 +10,19 @@ using System.Threading.Tasks;
 
 namespace Blocktavius.AppDQB2.ScriptNodes.HillDesigners;
 
-// TODO this is not really region-based, it should be shell (image) based
-sealed class CornerPusherHillDesigner : RegionBasedHillDesigner
+sealed class CornerPusherHillDesigner : ShellBasedHillDesigner
 {
-	protected override StageMutation? CreateMutation(HillDesignContext context, Region region)
+	protected override StageMutation? CreateMutation(HillDesignContext context, Shell shell)
 	{
+		if (shell.IsHole) { return null; }
+
 		var settings = new CornerPusherHill.Settings
 		{
 			Prng = context.Prng.AdvanceAndClone(),
 			MinElevation = 30,
 			MaxElevation = context.Elevation,
 		};
-		var sampler = CornerPusherHill.BuildHill(settings, region);
+		var sampler = CornerPusherHill.BuildHill(settings, shell);
 		return StageMutation.CreateHills(sampler, context.FillBlockId);
 	}
 }

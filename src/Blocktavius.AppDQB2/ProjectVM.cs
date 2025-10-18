@@ -1,4 +1,5 @@
 ﻿using Blocktavius.DQB2;
+using GongSolutions.Wpf.DragDrop;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -8,9 +9,42 @@ using System.Threading.Tasks;
 
 namespace Blocktavius.AppDQB2;
 
-sealed class ProjectVM : ViewModelBase, IBlockList
+sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 {
 	private readonly StgdatLoader stgdatLoader = new();
+	private ExternalImageManager? imageManager = null;
+
+	public ProjectVM()
+	{
+		Layers = new();
+		Layers.Add(chunkGridLayer);
+		SelectedLayer = Layers.FirstOrDefault();
+	}
+
+	void IDropTarget.DragOver(IDropInfo dropInfo)
+	{
+		dropInfo.DropTargetAdorner = DropTargetAdorners.Insert;
+		dropInfo.Effects = System.Windows.DragDropEffects.Move;
+	}
+
+	void IDropTarget.Drop(IDropInfo dropInfo)
+	{
+		if (dropInfo.Data is ILayerVM layer)
+		{
+			int oldIndex = Layers.IndexOf(layer);
+			int newIndex = dropInfo.InsertIndex;
+
+			if (oldIndex < newIndex)
+			{
+				newIndex--;
+			}
+
+			if (oldIndex >= 0 && newIndex >= 0 && oldIndex != newIndex)
+			{
+				Layers.Move(oldIndex, newIndex);
+			}
+		}
+	}
 
 	IReadOnlyList<BlockVM> IBlockList.Blocks => Blockdata.AllBlockVMs;
 
@@ -18,7 +52,11 @@ sealed class ProjectVM : ViewModelBase, IBlockList
 	public string? StgdatFilePath
 	{
 		get => _stgdatFilePath;
-		set => ChangeProperty(ref _stgdatFilePath, value);
+		set
+		{
+			ChangeProperty(ref _stgdatFilePath, value);
+			chunkGridLayer.StgdatPath = value ?? "";
+		}
 	}
 
 	private string? _projectFilePath;
@@ -29,8 +67,16 @@ sealed class ProjectVM : ViewModelBase, IBlockList
 		{
 			ChangeProperty(ref _projectFilePath, value);
 			OnPropertyChanged(nameof(ProjectFilePathToDisplay));
+			// TODO - here we should probably check if any images are still referenced by the project
+			// and keep those in the new image manager (probably without watching them though... and with a warning?)
+			imageManager?.Dispose();
+			imageManager = new ExternalImageManager(new System.IO.DirectoryInfo(System.IO.Path.GetDirectoryName(ProjectFilePath) ?? ".....fail"));
 		}
 	}
+
+	private readonly ChunkGridLayer chunkGridLayer = new();
+
+	public ExternalImageManager? ImageManager() => imageManager;
 
 	public string ProjectFilePathToDisplay => string.IsNullOrWhiteSpace(_projectFilePath) ? "<< set during Save >>" : _projectFilePath;
 
@@ -41,10 +87,10 @@ sealed class ProjectVM : ViewModelBase, IBlockList
 		set => ChangeProperty(ref _includeStgdatInPreview, value);
 	}
 
-	public ObservableCollection<LayerVM> Layers { get; } = new ObservableCollection<LayerVM>();
+	public ObservableCollection<ILayerVM> Layers { get; }
 
-	private LayerVM? _selectedLayer;
-	public LayerVM? SelectedLayer
+	private ILayerVM? _selectedLayer;
+	public ILayerVM? SelectedLayer
 	{
 		get => _selectedLayer;
 		set => ChangeProperty(ref _selectedLayer, value);
@@ -131,5 +177,44 @@ sealed class ProjectVM : ViewModelBase, IBlockList
 
 		stage = workingStage;
 		return true;
+	}
+
+	public void OnImagesSelected(ImageChooserDialog.VM result)
+	{
+		int keepAtEnd = 0;
+		if (Layers.LastOrDefault() is ChunkGridLayer)
+		{
+			keepAtEnd++;
+		}
+
+		bool changed = false;
+		foreach (var img in result.Images)
+		{
+			bool wasChecked = result.AlreadyChecked.Contains(img.ExternalImage);
+
+			if (img.IsChecked && !wasChecked)
+			{
+				int where = Layers.Count - keepAtEnd;
+				Layers.Insert(where, new ExternalImageLayerVM { Image = img.ExternalImage });
+				changed = true;
+			}
+			else if (!img.IsChecked && wasChecked)
+			{
+				var removeItems = this.Layers.Where(x => x.ExternalImage.Contains(img.ExternalImage)).ToList();
+				foreach (var item in removeItems)
+				{
+					Layers.Remove(item);
+				}
+				changed = true;
+			}
+		}
+
+		if (changed)
+		{
+			// Force property grid to reload now that the layer choices have changed
+			var temp = SelectedScriptNode;
+			SelectedScriptNode = null;
+			SelectedScriptNode = temp;
+		}
 	}
 }

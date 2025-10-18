@@ -1,22 +1,7 @@
-﻿using Blocktavius.Core;
-using Blocktavius.DQB2;
-using Blocktavius.DQB2.EyeOfRubiss;
-using System;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
+﻿using System;
 using System.IO;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace Blocktavius.AppDQB2
 {
@@ -32,10 +17,7 @@ namespace Blocktavius.AppDQB2
 			InitializeComponent();
 
 			vm.StgdatFilePath = @"C:\Users\kramer\Documents\My Games\DRAGON QUEST BUILDERS II\Steam\76561198073553084\SD\STGDAT01.BIN";
-
-			vm.Layers.Add(LayerVM.BuildChunkMask());
-			vm.Layers.Add(new LayerVM());
-			vm.SelectedLayer = vm.Layers.First();
+			vm.ProjectFilePath = @"C:\Users\kramer\Documents\code\HermitsHeresy\examples\STB\foo.blocktaviusproject";
 
 			vm.Scripts.Add(new ScriptVM() { Name = "Main", IsMain = true });
 			vm.SelectedScript = vm.Scripts.First();
