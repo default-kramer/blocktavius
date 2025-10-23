@@ -53,8 +53,17 @@ public readonly record struct ShellItem
 
 public sealed record Shell
 {
-	public required IArea Area { get; init; } // TODO want two areas here... the original area and the area enclosed by this shell
+	/// <summary>
+	/// Identifies the points belonging to a single "island" from the <see cref="OriginalArea"/>.
+	/// Every island has exactly one shell having <see cref="IsHole"/>==false,
+	/// and may have any number shells with IsHole==true.
+	/// (Or: every island must be enclosed by exactly one ocean,
+	///  and may enclose any number of lakes.)
+	/// </summary>
+	public required I2DSampler<bool> IslandArea { get; init; }
+
 	public required IReadOnlyList<ShellItem> ShellItems { get; init; }
+
 	public required bool IsHole { get; init; }
 }
 
@@ -183,7 +192,7 @@ public static class ShellLogic
 			{
 				shells.Add(new Shell()
 				{
-					Area = area,
+					IslandArea = island.IslandArea,
 					ShellItems = items,
 					IsHole = !outsidePoints.Contains(items[0].XZ),
 				});
@@ -201,23 +210,28 @@ public static class ShellLogic
 		/// Also for hole detection. If we build a shell and didn't cover all
 		/// of these states, there must be another hole in the island.
 		/// </summary>
-		public HashSet<WalkState> MustIncludeStates { get; init; } = new();
+		public required HashSet<WalkState> MustIncludeStates { get; init; }
+
+		public required I2DSampler<bool> IslandArea { get; init; }
 	}
 
 	private static List<IslandInfo> FindIslands(IArea area)
 	{
 		List<IslandInfo> infos = new();
-		var visitedAreaPoints = new HashSet<XZ>();
+
+		const int Empty = -1;
+		var islandFullMap = new MutableArray2D<int>(area.Bounds, Empty);
 
 		foreach (var xz in area.Bounds.Enumerate().Where(area.InArea))
 		{
-			if (visitedAreaPoints.Add(xz))
+			if (islandFullMap.Sample(xz) == Empty)
 			{
-				var island = new IslandInfo
-				{
-					IslandId = infos.Count,
-				};
-				infos.Add(island);
+				int islandId = infos.Count + 1;
+				HashSet<WalkState> mustIncludeStates = new();
+
+				var islandBounds = new Rect.BoundsFinder();
+				islandFullMap.Put(xz, islandId);
+				islandBounds.Include(xz);
 
 				var queue = new Queue<XZ>();
 				queue.Enqueue(xz);
@@ -229,8 +243,10 @@ public static class ShellLogic
 						var neighbor = current.Add(dir.Step);
 						if (area.InArea(neighbor))
 						{
-							if (visitedAreaPoints.Add(neighbor))
+							if (islandFullMap.Sample(neighbor) == Empty)
 							{
+								islandFullMap.Put(neighbor, islandId);
+								islandBounds.Include(neighbor);
 								queue.Enqueue(neighbor);
 							}
 						}
@@ -239,10 +255,22 @@ public static class ShellLogic
 							// Walk states "skip over" ordinal dirs (corners).
 							// Even if that weren't true, we still wouldn't want to include the diagonals
 							// that are technically present on straightaways.
-							island.MustIncludeStates.Add(new WalkState(neighbor, dir.Turn180));
+							mustIncludeStates.Add(new WalkState(neighbor, dir.Turn180));
 						}
 					}
 				}
+
+				var islandArea = islandFullMap
+					.Crop(islandBounds.CurrentBounds() ?? throw new Exception("assert fail"))
+					.Project(i => i == islandId);
+
+				var island = new IslandInfo
+				{
+					IslandId = islandId,
+					MustIncludeStates = mustIncludeStates,
+					IslandArea = islandArea,
+				};
+				infos.Add(island);
 			}
 		}
 

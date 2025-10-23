@@ -129,4 +129,29 @@ public record Rect(XZ start, XZ end)
 
 		return new Rect(new XZ(x0, z0), new XZ(x1, z1));
 	}
+
+	public sealed class BoundsFinder
+	{
+		private int xMin = int.MaxValue;
+		private int zMin = int.MaxValue;
+		private int xMax = int.MinValue;
+		private int zMax = int.MinValue;
+
+		public void Include(XZ xz)
+		{
+			xMin = Math.Min(xMin, xz.X);
+			zMin = Math.Min(zMin, xz.Z);
+			xMax = Math.Max(xMax, xz.X);
+			zMax = Math.Max(zMax, xz.Z);
+		}
+
+		public Rect? CurrentBounds()
+		{
+			if (xMax >= xMin && zMax >= zMin)
+			{
+				return new Rect(new XZ(xMin, zMin), new XZ(xMax + 1, zMax + 1));
+			}
+			return null;
+		}
+	}
 }

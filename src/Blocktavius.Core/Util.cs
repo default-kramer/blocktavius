@@ -242,4 +242,13 @@ public static class Util
 			ReverseTranslation = translation.Scale(-1),
 		};
 	}
+
+	public static IArea AsArea(this I2DSampler<bool> sampler) => new SamplerArea { Sampler = sampler };
+
+	class SamplerArea : IArea
+	{
+		public required I2DSampler<bool> Sampler { get; init; }
+		public Rect Bounds => Sampler.Bounds;
+		public bool InArea(XZ xz) => Sampler.Sample(xz);
+	}
 }

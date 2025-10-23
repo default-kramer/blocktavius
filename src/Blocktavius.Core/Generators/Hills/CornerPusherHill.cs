@@ -24,7 +24,7 @@ public static class CornerPusherHill
 	// TODO - This should be the *only* constructor, and Shell should
 	public static I2DSampler<int> BuildHill(Settings settings, Shell shell)
 	{
-		return BuildHill(settings, Layer.FirstLayer(shell), shell.Area);
+		return BuildHill(settings, Layer.FirstLayer(shell), shell.IslandArea.AsArea());
 	}
 
 	private static I2DSampler<int> BuildHill(Settings settings, Layer firstLayer, IArea origArea)
@@ -89,7 +89,7 @@ public static class CornerPusherHill
 
 		private Layer(Shell shell, IReadOnlyDictionary<XZ, int> prevMissCounts, IImmutableSet<XZ>? population)
 		{
-			this.area = shell.Area;
+			this.area = shell.IslandArea.AsArea();
 			this.shell = shell;
 			this.missCounts = shell.ShellItems
 				.Where(si => si.CornerType != CornerType.Inside) // reduce inside corners weight from 3:1 down to 2:1
