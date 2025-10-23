@@ -39,6 +39,27 @@ namespace Blocktavius.Tests
 			AssertMatches(cliff, "WinsomeCliff01.png");
 		}
 
+		[TestMethod]
+		public void CornerPusher01()
+		{
+			var prng = PRNG.Deserialize("12345-67890-12345-67890-12345-67890");
+
+			var tagger = new TileTagger<bool>(new XZ(5, 5), new XZ(20, 20));
+			tagger.AddTag(new XZ(2, 2), true);
+			var region = tagger.GetRegions(true, XZ.Zero).Single();
+
+			var settings = new CornerPusherHill.Settings
+			{
+				MaxElevation = 40,
+				MinElevation = 5,
+				Prng = prng,
+			};
+
+			var hill = CornerPusherHill.BuildHill(settings, ShellLogic.ComputeShells(region).Single());
+
+			AssertMatches(hill, "CornerPusher01.png");
+		}
+
 		private static void AssertMatches(I2DSampler<int> cliff, string imageName)
 		{
 			var snapshotImage = CreateImageFromSampler(cliff);
