@@ -163,6 +163,10 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 	public void ExpandChunks(IReadOnlySet<ChunkOffset> expansion)
 	{
 		ChunkExpansion = expansion;
+		if (TryLoadStage(out var result))
+		{
+			chunkGridLayer.RebuildImage(result.Stage.ChunksInUse.Concat(expansion));
+		}
 	}
 
 	public bool TryLoadStage(out StgdatLoader.LoadResult loadResult)
@@ -185,6 +189,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 		}
 
 		IMutableStage workingStage = loadResult.Stage.Clone();
+		workingStage.ExpandChunks(ChunkExpansion);
 
 		var context = new StageRebuildContext(workingStage);
 
