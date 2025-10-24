@@ -14,6 +14,8 @@ public interface IStage
 {
 	bool TryReadChunk(ChunkOffset offset, out IChunk chunk);
 
+	IReadOnlyList<ChunkOffset> OriginalChunksInUse { get; }
+
 	IReadOnlyList<ChunkOffset> ChunksInUse { get; }
 
 	IEnumerable<IChunk> IterateChunks() => ChunksInUse
@@ -38,6 +40,8 @@ public interface IMutableStage : IStage
 	bool TryGetChunk(ChunkOffset offset, out IMutableChunk chunk);
 
 	void Mutate(StageMutation mutation);
+
+	void ExpandChunks(IReadOnlySet<ChunkOffset> includeChunks);
 }
 
 /// <summary>
@@ -59,6 +63,7 @@ public sealed class ImmutableStage : ICloneableStage
 		this.chunkGrid = chunkGrid;
 	}
 
+	public IReadOnlyList<ChunkOffset> OriginalChunksInUse => ChunksInUse;
 	public IReadOnlyList<ChunkOffset> ChunksInUse => chunkGrid.chunksInUse;
 
 	public bool TryReadChunk(ChunkOffset offset, out IChunk chunk)
@@ -67,7 +72,7 @@ public sealed class ImmutableStage : ICloneableStage
 		return chunk != null;
 	}
 
-	public IMutableStage Clone() => MutableStage.CopyOnWrite(this.chunkGrid);
+	public IMutableStage Clone() => MutableStage.CopyOnWrite(this.chunkGrid, this);
 
 	public static ICloneableStage LoadStgdat(string stgdatFilePath)
 	{
@@ -84,11 +89,13 @@ public sealed class ImmutableStage : ICloneableStage
 
 sealed class MutableStage : IMutableStage
 {
-	private readonly ChunkGrid<IMutableChunk> chunkGrid;
+	private ChunkGrid<IMutableChunk> chunkGrid;
+	public IReadOnlyList<ChunkOffset> OriginalChunksInUse { get; }
 
-	private MutableStage(ChunkGrid<IMutableChunk> chunkGrid)
+	private MutableStage(ChunkGrid<IMutableChunk> chunkGrid, IReadOnlyList<ChunkOffset> originalChunksInUse)
 	{
 		this.chunkGrid = chunkGrid;
+		this.OriginalChunksInUse = originalChunksInUse;
 	}
 
 	public IReadOnlyList<ChunkOffset> ChunksInUse => chunkGrid.chunksInUse;
@@ -105,10 +112,10 @@ sealed class MutableStage : IMutableStage
 		return chunk != null;
 	}
 
-	internal static IMutableStage CopyOnWrite(ChunkGrid<ICloneableChunk> grid)
+	internal static IMutableStage CopyOnWrite(ChunkGrid<ICloneableChunk> grid, IStage stage)
 	{
 		var newGrid = grid.Clone((_, chunk) => chunk.Clone());
-		return new MutableStage(newGrid);
+		return new MutableStage(newGrid, stage.OriginalChunksInUse);
 	}
 
 	public void Mutate(StageMutation mutation)
@@ -120,6 +127,11 @@ sealed class MutableStage : IMutableStage
 	{
 		var result = StageLoader.LoadStgdat(stgdatFilePath);
 		var chunkGrid = result.ChunkGrid.Clone(MutableChunk<LittleEndianStuff.ByteArrayBlockdata>.CreateFresh);
-		return new MutableStage(chunkGrid);
+		return new MutableStage(chunkGrid, chunkGrid.chunksInUse);
+	}
+
+	public void ExpandChunks(IReadOnlySet<ChunkOffset> includeChunks)
+	{
+		this.chunkGrid = chunkGrid.Expand(includeChunks, offset => new MutableEmptyChunk(offset));
 	}
 }

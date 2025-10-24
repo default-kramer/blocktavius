@@ -2,6 +2,7 @@
 using GongSolutions.Wpf.DragDrop;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
@@ -148,15 +149,36 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 		SelectedScriptNode = SelectedScript;
 	}
 
-	public bool TryRebuildStage(out IStage stage)
+
+	/// <summary>
+	/// Might include chunks that were already present in the STGDAT file.
+	/// </summary>
+	public IReadOnlySet<ChunkOffset> ChunkExpansion
+	{
+		get => _chunkExpansion;
+		private set => ChangeProperty(ref _chunkExpansion, value);
+	}
+	private IReadOnlySet<ChunkOffset> _chunkExpansion = ImmutableHashSet<ChunkOffset>.Empty;
+
+	public void ExpandChunks(IReadOnlySet<ChunkOffset> expansion)
+	{
+		ChunkExpansion = expansion;
+	}
+
+	public bool TryLoadStage(out StgdatLoader.LoadResult loadResult)
 	{
 		if (string.IsNullOrWhiteSpace(this.StgdatFilePath))
 		{
-			stage = null!;
+			loadResult = default!;
 			return false;
 		}
 
-		if (!stgdatLoader.TryLoad(this.StgdatFilePath, out var loadResult, out string error))
+		return stgdatLoader.TryLoad(this.StgdatFilePath, out loadResult, out _);
+	}
+
+	public bool TryRebuildStage(out IStage stage)
+	{
+		if (!TryLoadStage(out var loadResult))
 		{
 			stage = null!;
 			return false;
