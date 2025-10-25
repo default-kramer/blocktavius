@@ -46,6 +46,9 @@ static class Global
 		currentProject = project;
 	}
 
+	// TODO - make them confirm this on startup (even if they don't want to edit anything)
+	public static ProfileSettings Profile = ProfileSettings.TODO();
+
 	public sealed class AreasItemsSource : IItemsSource
 	{
 		public ItemCollection GetValues()
