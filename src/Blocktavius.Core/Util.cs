@@ -18,6 +18,8 @@ public static class Util
 		return sequence.Where(x => x != null)!;
 	}
 
+	public static IEnumerable<T> EmptyIfNull<T>(this IEnumerable<T>? sequence) => sequence ?? Enumerable.Empty<T>();
+
 	sealed class Translator<T> : I2DSampler<T>
 	{
 		private readonly I2DSampler<T> sampler;

@@ -62,6 +62,9 @@ static class ChunkMath
 			throw new ArgumentException($"{argName} must have exactly {BytesPerChunk} elements, but got {blockdata}");
 		}
 	}
+
+	private static readonly byte[] _emptyChunkdata = new byte[BytesPerChunk];
+	public static ReadOnlyMemory<byte> EmptyChunkdata => _emptyChunkdata;
 }
 
 /// <summary>
@@ -155,4 +158,45 @@ sealed class MutableChunk<TReadBlockdata> : ChunkInternals, IMutableChunk where 
 	}
 
 	internal override ValueTask WriteBlockdataAsync(Stream stream) => readSource.WriteAsync(stream);
+}
+
+/// <summary>
+/// A mutable chunk that starts empty.
+/// Won't allocate space until needed.
+/// </summary>
+sealed class MutableEmptyChunk : ChunkInternals, IMutableChunk
+{
+	private LittleEndianStuff.ByteArrayBlockdata? bytes = null;
+	public ChunkOffset Offset { get; }
+
+	public MutableEmptyChunk(ChunkOffset offset)
+	{
+		this.Offset = offset;
+	}
+
+	public ChunkInternals Internals => this;
+
+	public ushort GetBlock(Point point)
+	{
+		const ushort empty = 0;
+		return bytes.HasValue ? bytes.Value.GetBlock(point) : empty;
+	}
+
+	public void SetBlock(Point point, ushort block)
+	{
+		bytes = bytes ?? new LittleEndianStuff.ByteArrayBlockdata(new byte[ChunkMath.BytesPerChunk]);
+		bytes.Value.SetBlock(point, block);
+	}
+
+	internal override ValueTask WriteBlockdataAsync(Stream stream)
+	{
+		if (bytes.HasValue)
+		{
+			return bytes.Value.WriteAsync(stream);
+		}
+		else
+		{
+			return stream.WriteAsync(ChunkMath.EmptyChunkdata);
+		}
+	}
 }

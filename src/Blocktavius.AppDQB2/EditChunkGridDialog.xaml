@@ -1,0 +1,52 @@
+﻿<Window x:Class="Blocktavius.AppDQB2.EditChunkGridDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Blocktavius.AppDQB2"
+        mc:Ignorable="d"
+        Width="1080" Height="840"
+        Title="Edit Chunk Grid">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"></ColumnDefinition>
+            <ColumnDefinition></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+        <ItemsControl ItemsSource="{Binding Rows}" Margin="8">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <ItemsControl ItemsSource="{Binding Cells}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{Binding Color}" Height="12" Width="12"
+                                BorderBrush="Black" BorderThickness="1"
+                                MouseEnter="Cell_MouseHandler"
+                                MouseLeftButtonDown="Cell_MouseHandler"
+                                MouseRightButtonDown="Cell_MouseHandler" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <StackPanel Grid.Column="1" Margin="8">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="{Binding OnCellCount}"></TextBlock>
+                <TextBlock>/700 chunks used</TextBlock>
+            </StackPanel>
+            <TextBlock TextWrapping="Wrap" Margin="0,4,0,0">(Warning: Chunk 700 has a known bug, the "Moonbrooke bug". Recommended limit is 699 chunks.)</TextBlock>
+            <TextBlock Margin="0,12,0,0">Left Mouse: Turn On</TextBlock>
+            <TextBlock>Right Mouse: Turn Off</TextBlock>
+            <TextBlock>Blue chunks cannot be turned off.</TextBlock>
+            <StackPanel Margin="0,25,0,0" Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button Click="Ok_Click">Ok</Button>
+                <Button Click="Cancel_Click" Margin="12,0,0,0">Cancel</Button>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Window>

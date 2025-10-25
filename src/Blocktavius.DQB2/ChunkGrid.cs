@@ -88,4 +88,32 @@ class ChunkGrid<TChunk> where TChunk : class
 		}
 		return new ChunkGrid<TNewChunk>(newGrid);
 	}
+
+	/// <summary>
+	/// Does not remove any chunks.
+	/// Resulting grid is the union of the current grid plus the <paramref name="includeChunks"/>,
+	/// using <paramref name="chunkCreator"/> wherever the current grid was empty.
+	/// </summary>
+	public ChunkGrid<TChunk> Expand(IReadOnlySet<ChunkOffset> includeChunks, Func<ChunkOffset, TChunk> chunkCreator)
+	{
+		var newGrid = new List<TChunk?>(chunkGrid.Count);
+		foreach (var item in chunkGrid.Zip(AllOffsets()))
+		{
+			TChunk? chunk;
+			if (item.First != null)
+			{
+				chunk = item.First; // keep existing
+			}
+			else if (includeChunks.Contains(item.Second))
+			{
+				chunk = chunkCreator(item.Second); // create new
+			}
+			else
+			{
+				chunk = null;
+			}
+			newGrid.Add(chunk);
+		}
+		return new ChunkGrid<TChunk>(newGrid);
+	}
 }
