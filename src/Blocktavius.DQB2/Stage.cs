@@ -21,6 +21,8 @@ public interface IStage
 	IEnumerable<IChunk> IterateChunks() => ChunksInUse
 		.Select(offset => TryReadChunk(offset, out var chunk) ? chunk : null)
 		.WhereNotNull();
+
+	IStageSaver Saver { get; }
 }
 
 public interface IMutableStage : IStage
@@ -45,6 +47,7 @@ public interface ICloneableStage : IStage
 public sealed class ImmutableStage : ICloneableStage
 {
 	private readonly ChunkGrid<ICloneableChunk> chunkGrid;
+	public required IStageSaver Saver { get; init; }
 
 	private ImmutableStage(ChunkGrid<ICloneableChunk> chunkGrid)
 	{
@@ -71,7 +74,8 @@ public sealed class ImmutableStage : ICloneableStage
 			ICloneableChunk chunk = new ImmutableChunk<LittleEndianStuff.ByteArrayBlockdata>(offset, blockdata);
 			return chunk;
 		});
-		return new ImmutableStage(chunkGrid);
+
+		return new ImmutableStage(chunkGrid) { Saver = result.Saver };
 	}
 }
 
@@ -79,6 +83,7 @@ sealed class MutableStage : IMutableStage
 {
 	private ChunkGrid<IMutableChunk> chunkGrid;
 	public IReadOnlyList<ChunkOffset> OriginalChunksInUse { get; }
+	public required IStageSaver Saver { get; init; }
 
 	private MutableStage(ChunkGrid<IMutableChunk> chunkGrid, IReadOnlyList<ChunkOffset> originalChunksInUse)
 	{
@@ -103,7 +108,7 @@ sealed class MutableStage : IMutableStage
 	internal static IMutableStage CopyOnWrite(ChunkGrid<ICloneableChunk> grid, IStage stage)
 	{
 		var newGrid = grid.Clone((_, chunk) => chunk.Clone());
-		return new MutableStage(newGrid, stage.OriginalChunksInUse);
+		return new MutableStage(newGrid, stage.OriginalChunksInUse) { Saver = stage.Saver };
 	}
 
 	public void Mutate(StageMutation mutation)
@@ -115,7 +120,7 @@ sealed class MutableStage : IMutableStage
 	{
 		var result = StageLoader.LoadStgdat(stgdatFilePath);
 		var chunkGrid = result.ChunkGrid.Clone(MutableChunk<LittleEndianStuff.ByteArrayBlockdata>.CreateFresh);
-		return new MutableStage(chunkGrid, chunkGrid.chunksInUse);
+		return new MutableStage(chunkGrid, chunkGrid.chunksInUse) { Saver = result.Saver };
 	}
 
 	public void ExpandChunks(IReadOnlySet<ChunkOffset> includeChunks)

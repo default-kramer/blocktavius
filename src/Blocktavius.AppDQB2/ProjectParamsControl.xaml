@@ -62,7 +62,7 @@
                 </ComboBox>
             </StackPanel>
             <StackPanel Orientation="Vertical" Width="250" HorizontalAlignment="Left" Margin="0,15,0,0">
-                <Button FontSize="16" HorizontalAlignment="Center" Padding="8,2,8,2">Confirm and Run...</Button>
+                <Button FontSize="16" HorizontalAlignment="Center" Padding="8,2,8,2" Click="ConfirmAndRun_Click">Confirm and Run...</Button>
             </StackPanel>
         </StackPanel>
         <Label Grid.Row="8" Grid.Column="0" HorizontalAlignment="Right" Content="Notes:" FontSize="14" FontWeight="Bold"></Label>

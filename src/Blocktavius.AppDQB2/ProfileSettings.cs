@@ -1,4 +1,5 @@
 ﻿using Blocktavius.Core;
+using Blocktavius.DQB2;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,7 +9,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using System.Xml.Linq;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Blocktavius.AppDQB2;
 
@@ -46,15 +46,37 @@ sealed class ProfileSettings
 
 	public class SaveSlot
 	{
+		protected readonly string fullPath;
+		protected readonly string? relativePath;
+
+		public SaveSlot(string fullPath, string? relativePath)
+		{
+			this.fullPath = fullPath;
+			this.relativePath = relativePath;
+		}
+
 		public required string Name { get; init; }
-		public required string FullPath { get; init; }
-		public required string? RelativePath { get; init; }
 		public virtual bool IsWritable => false;
+
+		internal object ToJsonSlot()
+		{
+			return new JsonSlot()
+			{
+				Path = relativePath ?? fullPath,
+				SlotName = Name,
+				IsWritable = IsWritable,
+			};
+		}
 	}
 
-	public sealed class WritableSaveSlot : SaveSlot
+	public sealed class WritableSaveSlot : SaveSlot, IWritableSlot
 	{
 		public override bool IsWritable => true;
+
+		public WritableSaveSlot(string fullPath, string? relativePath)
+			: base(fullPath, relativePath) { }
+
+		DirectoryInfo IWritableSlot.Directory => new DirectoryInfo(this.fullPath);
 	}
 
 	private static string DefaultBackupDir(DirectoryInfo configDir)
@@ -105,7 +127,7 @@ sealed class ProfileSettings
 			}
 		}
 
-		var slots = this.SaveSlots.Select(ToJsonModel).ToList();
+		var slots = this.SaveSlots.Select(x => x.ToJsonSlot()).Cast<JsonSlot>().ToList();
 
 		return new JsonProfile()
 		{
@@ -153,11 +175,14 @@ sealed class ProfileSettings
 		string profileId = Guid.NewGuid().ToString();
 		string hash = CreateVerificationHash(profileId);
 
-		var slots = new string[] { "B00", "B01", "B02" }.Select(path => new SaveSlot
+		var slots = new string[] { "B00", "B01", "B02" }.Select(path =>
 		{
-			RelativePath = $"../{path}",
-			FullPath = Path.Combine(sdDir.FullName, path),
-			Name = $"Slot {1 + int.Parse(path.Substring(2))} ({path})",
+			var fullPath = Path.Combine(sdDir.FullName, path);
+			var relativePath = $"../{path}";
+			return new SaveSlot(fullPath, relativePath)
+			{
+				Name = $"Slot {1 + int.Parse(path.Substring(2))} ({path})",
+			};
 		}).ToList();
 
 		return new ProfileSettings()
@@ -243,21 +268,11 @@ sealed class ProfileSettings
 
 		if (slot.IsWritable.GetValueOrDefault(false))
 		{
-			return new WritableSaveSlot()
-			{
-				Name = name,
-				FullPath = fullPath,
-				RelativePath = relativePath,
-			};
+			return new WritableSaveSlot(fullPath, relativePath) { Name = name };
 		}
 		else
 		{
-			return new SaveSlot()
-			{
-				Name = name,
-				FullPath = fullPath,
-				RelativePath = relativePath,
-			};
+			return new SaveSlot(fullPath, relativePath) { Name = name };
 		}
 	}
 
@@ -286,16 +301,6 @@ sealed class ProfileSettings
 		byte[] buffer = enc.GetBytes(sb.ToString());
 		byte[] hashBytes = System.Security.Cryptography.SHA256.HashData(buffer);
 		return Convert.ToBase64String(hashBytes);
-	}
-
-	private static JsonSlot ToJsonModel(SaveSlot saveSlot)
-	{
-		return new JsonSlot()
-		{
-			Path = saveSlot.RelativePath ?? saveSlot.FullPath,
-			SlotName = saveSlot.Name,
-			IsWritable = saveSlot.IsWritable,
-		};
 	}
 
 	sealed class JsonProfile

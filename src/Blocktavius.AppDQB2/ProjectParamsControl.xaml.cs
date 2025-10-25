@@ -34,5 +34,20 @@ namespace Blocktavius.AppDQB2
 			}
 			EditChunkGridDialog.ShowDialog(project);
 		}
+
+		private void ConfirmAndRun_Click(object sender, RoutedEventArgs e)
+		{
+			var project = DataContext as ProjectVM;
+			var target = Global.Profile.WritableSaveSlots.FirstOrDefault();
+			if (project == null
+				|| target == null
+				|| !project.TryRebuildStage(out var stage)
+				|| !stage.Saver.CanSave)
+			{
+				return;
+			}
+
+			stage.Saver.Save(target, stage);
+		}
 	}
 }
