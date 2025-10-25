@@ -21,7 +21,6 @@ static class StageLoader
 	const int chunkGridDimension = 64;
 	const int chunkGridLengthUInt16s = chunkGridDimension * chunkGridDimension;
 	const int chunkGridLengthBytes = chunkGridLengthUInt16s * 2;
-	const int chunkGridEnd = chunkGridStart + chunkGridLengthBytes;
 
 	public static LoadResult LoadStgdat(string stgdatFilePath)
 	{
@@ -184,6 +183,8 @@ static class StageLoader
 			zlib.Flush();
 			compressedBody.Flush();
 
+			// TODO should update header!
+			// Sapphire: STGDAT size: 0x10 - 0x14 (This value is the one the game uses for the malloc of the file. If too small the island will truncate.)
 			using var stream = new FileStream(Path.Combine(slot.Directory.FullName, OriginalFilename), FileMode.Create, FileAccess.Write, FileShare.None);
 			stream.Write(OrigHeader.AsSpan);
 			compressedBody.Seek(0, SeekOrigin.Begin);
