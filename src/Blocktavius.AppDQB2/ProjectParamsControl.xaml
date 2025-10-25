@@ -6,31 +6,66 @@
              xmlns:local="clr-namespace:Blocktavius.AppDQB2"
              mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="800">
-    <Grid>
+    <Grid Margin="20">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"></ColumnDefinition>
             <ColumnDefinition></ColumnDefinition>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition Height="30"></RowDefinition>
             <RowDefinition Height="Auto"></RowDefinition>
             <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition Height="30"></RowDefinition>
             <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition Height="30"></RowDefinition>
+            <RowDefinition Height="*"></RowDefinition>
         </Grid.RowDefinitions>
-        <Label Grid.Row="0" Grid.Column="0" Content="Project File:"></Label>
-        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
+        <Label Grid.Row="0" Grid.Column="0" HorizontalAlignment="Right" VerticalAlignment="Center" Content="Project File:" FontSize="14" FontWeight="Bold"></Label>
+        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
             <TextBox IsReadOnly="True" MinWidth="300" Text="{Binding ProjectFilePathToDisplay, Mode=OneWay}"></TextBox>
         </StackPanel>
-        <Label Grid.Row="1" Grid.Column="0" Content="STGDAT File:"></Label>
-        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
+        <Label Grid.Row="2" Grid.Column="0" HorizontalAlignment="Right" VerticalAlignment="Center" Content="STGDAT Read:" FontSize="14" FontWeight="Bold"></Label>
+        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
             <TextBox IsReadOnly="True" MinWidth="300" Text="{Binding StgdatFilePath, Mode=OneWay}"></TextBox>
             <Button Command="{Binding ChooseStgdatFile}">Choose...</Button>
         </StackPanel>
-        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="12,6,0,0">
+        <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Vertical" HorizontalAlignment="Left" Margin="12,6,0,0">
             <CheckBox Content="Include in preview?" IsChecked="{Binding IncludeStgdatInPreview}"></CheckBox>
+            <Button Content="Edit Chunk Grid" Click="EditChunkGrid_Click" Margin="0,8,0,0"></Button>
         </StackPanel>
-        <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Margin="12,8,0,0">
-            <Button Content="Edit Chunk Grid" Click="EditChunkGrid_Click"></Button>
+        <Label Grid.Row="5" Grid.Column="0" HorizontalAlignment="Right" Content="STGDAT Write:" FontSize="14" FontWeight="Bold"></Label>
+        <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal">
+            <Label VerticalAlignment="Center">Run Script</Label>
+            <ComboBox VerticalAlignment="Center">
+                <ComboBoxItem IsSelected="True">Main</ComboBoxItem>
+                <ComboBoxItem>TODO bind this</ComboBoxItem>
+            </ComboBox>
         </StackPanel>
+        <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Vertical">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Label VerticalAlignment="Center">Save to:</Label>
+                <TextBox VerticalAlignment="Center" IsReadOnly="True" Text="Slot 1 TODO BIND" MinWidth="150"></TextBox>
+                <Button VerticalAlignment="Center" Content="Choose..."></Button>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="20,0,0,0">
+                <Label VerticalAlignment="Center">(Full Path):</Label>
+                <TextBlock VerticalAlignment="Center">TODO bind</TextBlock>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <Label VerticalAlignment="Center">Also Copy:</Label>
+                <ComboBox VerticalAlignment="Center">
+                    <ComboBoxItem IsSelected="True">CMNDAT and all STGDATs</ComboBoxItem>
+                    <ComboBoxItem>CMNDAT only</ComboBoxItem>
+                    <ComboBoxItem>Nothing</ComboBoxItem>
+                </ComboBox>
+            </StackPanel>
+            <StackPanel Orientation="Vertical" Width="250" HorizontalAlignment="Left" Margin="0,15,0,0">
+                <Button FontSize="16" HorizontalAlignment="Center" Padding="8,2,8,2">Confirm and Run...</Button>
+            </StackPanel>
+        </StackPanel>
+        <Label Grid.Row="8" Grid.Column="0" HorizontalAlignment="Right" Content="Notes:" FontSize="14" FontWeight="Bold"></Label>
+        <TextBox Grid.Row="8" Grid.Column="1" HorizontalAlignment="Left" AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap" Width="400"></TextBox>
     </Grid>
 </UserControl>
