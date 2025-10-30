@@ -2,6 +2,7 @@
 using Blocktavius.DQB2;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -20,10 +21,25 @@ namespace Blocktavius.AppDQB2;
 /// By convention we store the profile JSON at
 ///     blah\blah\DRAGON QUEST BUILDERS II\Steam\76561198073553084\SD\.blocktavius\profile.json
 /// </summary>
-sealed class ProfileSettings
+sealed class ProfileSettings : IEquatable<ProfileSettings>
 {
 	public required DirectoryInfo ConfigDir { get; init; }
 	public required FileInfo ConfigFile { get; init; }
+
+	public bool TryFindSD(out DirectoryInfo sd)
+	{
+		if (ConfigDir?.Parent?.Name?.ToLowerInvariant() == "sd")
+		{
+			sd = ConfigDir.Parent;
+			return true;
+		}
+		sd = null!;
+		return false;
+	}
+
+	/// <summary>
+	/// A GUID for this profile.
+	/// </summary>
 	public required string ProfileId { get; init; }
 
 	/// <summary>
@@ -40,6 +56,14 @@ sealed class ProfileSettings
 	/// Null means the user does not want to create backups.
 	/// </summary>
 	public required DirectoryInfo? BackupDir { get; init; }
+
+	/// <summary>
+	/// The <see cref="BackupDir"/> has the final say on whether or not to create backups.
+	/// This method is just for detecting <see cref="IsBackupDirCustomized"/>.
+	/// </summary>
+	internal DirectoryInfo GetDefaultBackupDir() => new DirectoryInfo(DefaultBackupDir(ConfigDir));
+
+	public bool IsBackupDirCustomized => !string.Equals(BackupDir?.FullName, GetDefaultBackupDir().FullName, StringComparison.OrdinalIgnoreCase);
 
 	public required IReadOnlyList<SaveSlot> SaveSlots { get; init; }
 	public IEnumerable<WritableSaveSlot> WritableSaveSlots => SaveSlots.OfType<WritableSaveSlot>();
@@ -67,6 +91,18 @@ sealed class ProfileSettings
 				IsWritable = IsWritable,
 			};
 		}
+
+		public SaveSlot MakeModified(string name, bool isWritable)
+		{
+			if (isWritable)
+			{
+				return new WritableSaveSlot(this.fullPath, this.relativePath) { Name = name };
+			}
+			else
+			{
+				return new SaveSlot(this.fullPath, this.relativePath) { Name = name };
+			}
+		}
 	}
 
 	public sealed class WritableSaveSlot : SaveSlot, IWritableSlot
@@ -86,6 +122,11 @@ sealed class ProfileSettings
 
 	public void Save()
 	{
+		if (!ConfigDir.Exists)
+		{
+			ConfigDir.Create();
+		}
+
 		var jsonModel = ToJsonModel();
 
 		string tempFile = $"{ConfigFile.FullName}.{Guid.NewGuid()}.tmp";
@@ -97,7 +138,11 @@ sealed class ProfileSettings
 		File.Move(tempFile, ConfigFile.FullName, overwrite: true);
 	}
 
-	private JsonProfile ToJsonModel()
+	public override bool Equals(object? obj) => this.Equals(obj as ProfileSettings);
+	public bool Equals(ProfileSettings? other) => other != null && this.ToJsonModel().Equals(other.ToJsonModel());
+	public override int GetHashCode() => ToJsonModel().GetHashCode();
+
+	internal JsonProfile ToJsonModel()
 	{
 		bool saveBackups;
 		string? customBackupLocation;
@@ -107,7 +152,7 @@ sealed class ProfileSettings
 			saveBackups = false;
 			customBackupLocation = null;
 		}
-		else if (string.Equals(BackupDir.FullName, DefaultBackupDir(ConfigDir), StringComparison.OrdinalIgnoreCase))
+		else if (!IsBackupDirCustomized)
 		{
 			saveBackups = true;
 			customBackupLocation = null;
@@ -149,27 +194,38 @@ sealed class ProfileSettings
 			throw new Exception("TODO");
 		}
 
-		var configDir = sdDir.CreateSubdirectory(".blocktavius");
-		var configFile = new FileInfo(Path.Combine(configDir.FullName, "profile.json"));
+		var profile = LoadOrCreate(sdDir);
+		if (!profile.ConfigFile.Exists)
+		{
+			profile.Save();
+		}
+		return profile;
+	}
+
+	public static ProfileSettings LoadOrCreate(DirectoryInfo sdDir)
+	{
+		var configFile = new FileInfo(Path.Combine(sdDir.FullName, ".blocktavius", "profile.json"));
 		if (configFile.Exists)
 		{
 			return Load(configFile);
 		}
-
-		var profile = CreateNew(sdDir.FullName);
-		profile.Save();
-		return profile;
+		return CreateNew(sdDir);
 	}
 
-	private static ProfileSettings CreateNew(string sdPath)
+	/// <summary>
+	/// Assumes that <paramref name="sdDir"/> is truly an SD directory and creates a profile
+	/// with 3 slots for B00,B01,B02.
+	/// In general this app and its UX will be optimized for a typical Steam installation,
+	/// but manually editing the profile json could unlock other possibilities.
+	/// </summary>
+	private static ProfileSettings CreateNew(DirectoryInfo sdDir)
 	{
-		var sdDir = new DirectoryInfo(sdPath);
 		if (!sdDir.Exists)
 		{
 			throw new NotImplementedException("TODO!");
 		}
 
-		var configDir = sdDir.CreateSubdirectory(".blocktavius");
+		var configDir = new DirectoryInfo(Path.Combine(sdDir.FullName, ".blocktavius"));
 		var configFile = new FileInfo(Path.Combine(configDir.FullName, "profile.json"));
 
 		string profileId = Guid.NewGuid().ToString();
@@ -303,15 +359,21 @@ sealed class ProfileSettings
 		return Convert.ToBase64String(hashBytes);
 	}
 
-	sealed class JsonProfile
+	internal sealed record JsonProfile
 	{
+		private IContentEqualityList<JsonSlot>? _slots;
+
 		public required string? ProfileId { get; init; }
-		public required IReadOnlyList<JsonSlot>? Slots { get; init; }
+		public required IReadOnlyList<JsonSlot>? Slots
+		{
+			get => _slots;
+			init => _slots = value?.ToContentEqualityList();
+		}
 		public required bool? SaveBackups { get; init; }
 		public required string? CustomBackupLocation { get; init; }
 	}
 
-	sealed class JsonSlot
+	internal sealed record JsonSlot
 	{
 		public required string? SlotName { get; init; }
 		public required string? Path { get; init; }
