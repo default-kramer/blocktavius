@@ -17,6 +17,7 @@ static class StageLoader
 		internal required IStageSaver Saver { get; init; }
 	}
 
+	const int headerLength = 0x110;
 	const int chunkGridStart = 0x24C7C1;
 	const int chunkGridDimension = 64;
 	const int chunkGridLengthUInt16s = chunkGridDimension * chunkGridDimension;
@@ -103,8 +104,6 @@ static class StageLoader
 	{
 		using var stgdatStream = File.OpenRead(stgdatFilePath);
 
-		const int headerLength = 0x110;
-
 		byte[] header = new byte[headerLength];
 		stgdatStream.ReadExactly(header);
 		if (header.Length != headerLength)
@@ -183,10 +182,24 @@ static class StageLoader
 			zlib.Flush();
 			compressedBody.Flush();
 
-			// TODO should update header!
 			// Sapphire: STGDAT size: 0x10 - 0x14 (This value is the one the game uses for the malloc of the file. If too small the island will truncate.)
+			// Me: Nice, it does match the compressed file size exactly!
+			//   example: 39 9d 4a 00 -> 4a9d39 == 4,889,913
+			//                and `ls -l` outputs "4889913 Apr 18  2024 STGDAT01.BIN"
+			int totalFileSize = Convert.ToInt32(compressedBody.Length) + headerLength;
+			byte[] header = OrigHeader.AsSpan.ToArray();
+			if (header.Length != headerLength)
+			{
+				throw new Exception($"Assert fail: wrong header length {header.Length}");
+			}
+
+			header[0x10] = (byte)(totalFileSize & 0xFF);
+			header[0x11] = (byte)((totalFileSize >> 8) & 0xFF);
+			header[0x12] = (byte)((totalFileSize >> 16) & 0xFF);
+			header[0x13] = (byte)((totalFileSize >> 24) & 0xFF);
+
 			using var stream = new FileStream(Path.Combine(slot.Directory.FullName, OriginalFilename), FileMode.Create, FileAccess.Write, FileShare.None);
-			stream.Write(OrigHeader.AsSpan);
+			stream.Write(header);
 			compressedBody.Seek(0, SeekOrigin.Begin);
 			compressedBody.CopyTo(stream);
 			stream.Flush();
