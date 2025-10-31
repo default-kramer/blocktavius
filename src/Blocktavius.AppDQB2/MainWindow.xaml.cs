@@ -37,32 +37,27 @@ namespace Blocktavius.AppDQB2
 			{
 				firstTime = false;
 
+				var appdata = AppData.LoadOrCreate();
+
 				this.Hide();
 				var profileDialog = new EditProfileWindow();
 				profileDialog.Owner = this.Owner;
 				profileDialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-				var oldProfile = Global.Profile;
-				var dialogResult = profileDialog.ShowDialog(oldProfile, out var newProfile);
-				if (dialogResult.GetValueOrDefault(false))
-				{
-					this.Show();
-
-					bool isAlreadySaved = newProfile.ConfigFile.Exists && oldProfile.Equals(newProfile);
-					if (!isAlreadySaved)
-					{
-						newProfile.Save();
-					}
-					Global.Profile = newProfile;
-
-					eyeOfRubissDriver = Driver.CreateAndStart(new Driver.Config()
-					{
-						EyeOfRubissExePath = @"C:\Users\kramer\Documents\code\DQB2_WorldViewer\.EXPORT\EyeOfRubiss.exe",
-						UseCmdShell = true,
-					});
-				}
-				else
+				if (!profileDialog.ShowDialog(appdata, out var selectedProfile))
 				{
 					this.Close();
+				}
+
+				this.Show();
+				Global.CurrentProfile = selectedProfile;
+
+				if (appdata.EyeOfRubissExePath != null)
+				{
+					eyeOfRubissDriver = Driver.CreateAndStart(new Driver.Config()
+					{
+						EyeOfRubissExePath = appdata.EyeOfRubissExePath,
+						UseCmdShell = true,
+					});
 				}
 			}
 		}

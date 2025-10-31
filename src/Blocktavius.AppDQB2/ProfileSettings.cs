@@ -183,7 +183,7 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 		};
 	}
 
-	public static ProfileSettings TODO()
+	public static bool TryCreateDefaultProfile(out ProfileSettings defaultProfile)
 	{
 		var user = Environment.GetEnvironmentVariable("USERNAME") ?? "<missing username>";
 
@@ -191,23 +191,24 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 		var sdDir = new DirectoryInfo(sdPath);
 		if (!sdDir.Exists)
 		{
-			throw new Exception("TODO");
+			defaultProfile = null!;
+			return false;
 		}
 
-		var profile = LoadOrCreate(sdDir);
-		if (!profile.ConfigFile.Exists)
+		defaultProfile = LoadOrCreate(sdDir);
+		if (!defaultProfile.ConfigFile.Exists)
 		{
-			profile.Save();
+			defaultProfile.Save();
 		}
-		return profile;
+		return true;
 	}
 
 	public static ProfileSettings LoadOrCreate(DirectoryInfo sdDir)
 	{
 		var configFile = new FileInfo(Path.Combine(sdDir.FullName, ".blocktavius", "profile.json"));
-		if (configFile.Exists)
+		if (TryLoad(configFile, out var profile))
 		{
-			return Load(configFile);
+			return profile;
 		}
 		return CreateNew(sdDir);
 	}
@@ -252,17 +253,24 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 		};
 	}
 
-	public static ProfileSettings Load(FileInfo configFile)
+	public static bool TryLoad(FileInfo configFile, out ProfileSettings settings)
 	{
 		if (!configFile.Exists)
 		{
-			throw new FileNotFoundException(configFile.FullName);
+			settings = null!;
+			return false;
 		}
 
 		var configDir = configFile.Directory ?? throw new Exception("assert fail: no directory contains " + configFile.FullName);
 
-		var config = JsonSerializer.Deserialize<JsonProfile>(File.ReadAllText(configFile.FullName))
-			?? throw new Exception("Invalid json in " + configFile.FullName);
+		string json = File.ReadAllText(configFile.FullName);
+		var config = JsonSerializer.Deserialize<JsonProfile>(json);
+		if (config == null)
+		{
+			// should log the invalid json maybe
+			settings = null!;
+			return false;
+		}
 
 		var slots = config.Slots.EmptyIfNull()
 			.Select(slot => ParseSlot(slot, configDir))
@@ -290,7 +298,7 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 		string profileId = config.ProfileId ?? Guid.NewGuid().ToString();
 		string verificationHash = CreateVerificationHash(profileId);
 
-		return new ProfileSettings()
+		settings = new ProfileSettings()
 		{
 			ConfigFile = configFile,
 			ConfigDir = configDir,
@@ -299,6 +307,7 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 			SaveSlots = slots,
 			BackupDir = backupDir,
 		};
+		return true;
 	}
 
 	private static SaveSlot? ParseSlot(JsonSlot slot, DirectoryInfo configDir)

@@ -27,21 +27,34 @@ public partial class EditProfileWindow : Window
 		InitializeComponent();
 	}
 
-	internal bool? ShowDialog(ProfileSettings profile, out ProfileSettings updatedSettings)
+	internal bool ShowDialog(AppData appData, out ProfileSettings selectedProfile)
 	{
-		var vm = new EditProfileVM(profile);
+		ProfileSettings? lastUsedProfile = null;
+		if (appData.TryLoadMostRecentProfile(out lastUsedProfile))
+		{
+			// all good
+		}
+		else if (ProfileSettings.TryCreateDefaultProfile(out lastUsedProfile))
+		{
+			appData.MoveToFront(lastUsedProfile);
+			appData.Save();
+		}
+
+		var vm = new EditProfileVM(lastUsedProfile);
 		this.DataContext = vm;
 
 		var result = this.ShowDialog();
-		if (result == true)
+		if (result.GetValueOrDefault(false) && vm.TryGetConfiguredProfile(out selectedProfile))
 		{
-			updatedSettings = vm.ToProfile();
+			appData.MoveToFront(selectedProfile);
+			appData.Save();
+			return true;
 		}
 		else
 		{
-			updatedSettings = profile;
+			selectedProfile = null!;
+			return false;
 		}
-		return result;
 	}
 
 	private void Confirm_Click(object sender, RoutedEventArgs e)
@@ -60,11 +73,14 @@ public partial class EditProfileWindow : Window
 	{
 		private const string AllProps = ""; // INPC notification for all properties
 
-		private ProfileSettings loadedSettings;
-		public EditProfileVM(ProfileSettings settings)
+		private ProfileSettings? loadedSettings;
+		public EditProfileVM(ProfileSettings? settings)
 		{
 			loadedSettings = settings;
-			this.Reload(settings);
+			if (settings != null)
+			{
+				this.Reload(settings);
+			}
 		}
 
 		public ObservableCollection<SaveSlotVM> SaveSlots { get; } = new();
@@ -127,9 +143,15 @@ public partial class EditProfileWindow : Window
 
 		private static DirectoryInfo BackupDir(ProfileSettings settings) => settings.BackupDir ?? settings.GetDefaultBackupDir();
 
-		public ProfileSettings ToProfile()
+		public bool TryGetConfiguredProfile(out ProfileSettings profile)
 		{
-			var newSettings = new ProfileSettings
+			if (loadedSettings == null)
+			{
+				profile = null!;
+				return false;
+			}
+
+			profile = new ProfileSettings
 			{
 				ConfigDir = loadedSettings.ConfigDir,
 				ConfigFile = loadedSettings.ConfigFile,
@@ -139,7 +161,12 @@ public partial class EditProfileWindow : Window
 				SaveSlots = this.SaveSlots.Select(s => s.MakeModified()).ToList(),
 			};
 
-			return newSettings;
+			if (!profile.Equals(loadedSettings))
+			{
+				profile.Save();
+			}
+
+			return true;
 		}
 	}
 

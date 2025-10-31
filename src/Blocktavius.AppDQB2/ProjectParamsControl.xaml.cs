@@ -38,7 +38,7 @@ namespace Blocktavius.AppDQB2
 		private void ConfirmAndRun_Click(object sender, RoutedEventArgs e)
 		{
 			var project = DataContext as ProjectVM;
-			var target = Global.Profile.WritableSaveSlots.FirstOrDefault();
+			var target = Global.CurrentProfile?.WritableSaveSlots?.FirstOrDefault();
 			if (project == null
 				|| target == null
 				|| !project.TryRebuildStage(out var stage)
