@@ -79,6 +79,7 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 			this.relativePath = relativePath;
 		}
 
+		public required int? SlotNumber { get; init; }
 		public required string Name { get; init; }
 		public virtual bool IsWritable => false;
 
@@ -89,6 +90,7 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 				Path = relativePath ?? fullPath,
 				SlotName = Name,
 				IsWritable = IsWritable,
+				SlotNumber = SlotNumber,
 			};
 		}
 
@@ -96,23 +98,31 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 		{
 			if (isWritable)
 			{
-				return new WritableSaveSlot(this.fullPath, this.relativePath) { Name = name };
+				return new WritableSaveSlot(this.fullPath, this.relativePath)
+				{
+					Name = name,
+					SlotNumber = this.SlotNumber,
+				};
 			}
 			else
 			{
-				return new SaveSlot(this.fullPath, this.relativePath) { Name = name };
+				return new SaveSlot(this.fullPath, this.relativePath)
+				{
+					Name = name,
+					SlotNumber = this.SlotNumber,
+				};
 			}
 		}
 	}
 
-	public sealed class WritableSaveSlot : SaveSlot, IWritableSlot
+	public sealed class WritableSaveSlot : SaveSlot, IWritableSaveSlot
 	{
 		public override bool IsWritable => true;
 
 		public WritableSaveSlot(string fullPath, string? relativePath)
 			: base(fullPath, relativePath) { }
 
-		DirectoryInfo IWritableSlot.Directory => new DirectoryInfo(this.fullPath);
+		DirectoryInfo IWritableSaveSlot.Directory => new DirectoryInfo(this.fullPath);
 	}
 
 	private static string DefaultBackupDir(DirectoryInfo configDir)
@@ -236,9 +246,11 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 		{
 			var fullPath = Path.Combine(sdDir.FullName, path);
 			var relativePath = $"../{path}";
+			int slotNumber = 1 + int.Parse(path.Substring(2));
 			return new SaveSlot(fullPath, relativePath)
 			{
-				Name = $"Slot {1 + int.Parse(path.Substring(2))} ({path})",
+				Name = $"Slot {slotNumber} ({path})",
+				SlotNumber = slotNumber,
 			};
 		}).ToList();
 
@@ -264,7 +276,17 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 		var configDir = configFile.Directory ?? throw new Exception("assert fail: no directory contains " + configFile.FullName);
 
 		string json = File.ReadAllText(configFile.FullName);
-		var config = JsonSerializer.Deserialize<JsonProfile>(json);
+
+		JsonProfile? config = null;
+		try
+		{
+			config = JsonSerializer.Deserialize<JsonProfile>(json, new JsonSerializerOptions
+			{
+				TypeInfoResolver = NullablePropertiesNotRequiredResolver.Instance
+			});
+		}
+		catch (Exception) { }
+
 		if (config == null)
 		{
 			// should log the invalid json maybe
@@ -333,11 +355,19 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 
 		if (slot.IsWritable.GetValueOrDefault(false))
 		{
-			return new WritableSaveSlot(fullPath, relativePath) { Name = name };
+			return new WritableSaveSlot(fullPath, relativePath)
+			{
+				Name = name,
+				SlotNumber = slot.SlotNumber,
+			};
 		}
 		else
 		{
-			return new SaveSlot(fullPath, relativePath) { Name = name };
+			return new SaveSlot(fullPath, relativePath)
+			{
+				Name = name,
+				SlotNumber = slot.SlotNumber,
+			};
 		}
 	}
 
@@ -387,5 +417,6 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 		public required string? SlotName { get; init; }
 		public required string? Path { get; init; }
 		public required bool? IsWritable { get; init; }
+		public required int? SlotNumber { get; init; }
 	}
 }

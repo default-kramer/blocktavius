@@ -169,7 +169,7 @@ static class StageLoader
 
 		public bool CanSave => true;
 
-		public void Save(IWritableSlot slot, IStage stage)
+		public void Save(IWritableSaveSlot slot, IStage stage)
 		{
 			using var uncompressedBody = new MemoryStream();
 			WriteBodyUncompressed(uncompressedBody, stage);

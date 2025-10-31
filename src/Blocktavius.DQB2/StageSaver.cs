@@ -9,7 +9,7 @@ namespace Blocktavius.DQB2;
 /// <summary>
 /// To make extra certain the user has designated this slot as writable.
 /// </summary>
-public interface IWritableSlot
+public interface IWritableSaveSlot
 {
 	public DirectoryInfo Directory { get; }
 }
@@ -18,5 +18,5 @@ public interface IStageSaver
 {
 	bool CanSave { get; }
 
-	void Save(IWritableSlot slot, IStage stage);
+	void Save(IWritableSaveSlot slot, IStage stage);
 }
