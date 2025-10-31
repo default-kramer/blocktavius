@@ -11,7 +11,7 @@ namespace Blocktavius.AppDQB2
 	/// </summary>
 	public partial class MainWindow : Window
 	{
-		private Driver? eyeOfRubissDriver = null;
+		public Driver? EyeOfRubissDriver { get; set; }
 		private ProjectVM vm = new();
 
 		public MainWindow()
@@ -28,51 +28,17 @@ namespace Blocktavius.AppDQB2
 			Global.SetCurrentProject(vm);
 		}
 
-		private bool firstTime = true;
-		protected override void OnActivated(EventArgs e)
-		{
-			base.OnActivated(e);
-
-			if (firstTime)
-			{
-				firstTime = false;
-
-				var appdata = AppData.LoadOrCreate();
-
-				this.Hide();
-				var profileDialog = new EditProfileWindow();
-				profileDialog.Owner = this.Owner;
-				profileDialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-				if (!profileDialog.ShowDialog(appdata, out var selectedProfile))
-				{
-					this.Close();
-				}
-
-				this.Show();
-				Global.CurrentProfile = selectedProfile;
-
-				if (appdata.EyeOfRubissExePath != null)
-				{
-					eyeOfRubissDriver = Driver.CreateAndStart(new Driver.Config()
-					{
-						EyeOfRubissExePath = appdata.EyeOfRubissExePath,
-						UseCmdShell = true,
-					});
-				}
-			}
-		}
-
 		protected override void OnClosed(EventArgs e)
 		{
-			try { eyeOfRubissDriver?.Dispose(); } catch { }
+			try { EyeOfRubissDriver?.Dispose(); } catch { }
 			base.OnClosed(e);
 		}
 
 		private void PreviewButtonClicked(object sender, RoutedEventArgs e)
 		{
-			if (eyeOfRubissDriver != null && vm.TryRebuildStage(out var scriptedStage))
+			if (EyeOfRubissDriver != null && vm.TryRebuildStage(out var scriptedStage))
 			{
-				eyeOfRubissDriver.WriteStageAsync(scriptedStage).GetAwaiter().GetResult();
+				EyeOfRubissDriver.WriteStageAsync(scriptedStage).GetAwaiter().GetResult();
 			}
 		}
 	}
