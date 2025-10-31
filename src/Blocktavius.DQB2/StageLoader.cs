@@ -60,6 +60,7 @@ static class StageLoader
 		int lastChunkEnd = GetChunkStartAddress(chunkIds.Max() + 1);
 		if (body.Length < lastChunkEnd)
 		{
+			// TODO handle Moonbrooke here!
 			throw StgdatTooShort(stgdatFilePath);
 		}
 

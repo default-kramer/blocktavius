@@ -12,20 +12,20 @@ namespace Blocktavius.AppDQB2
 	public partial class MainWindow : Window
 	{
 		public Driver? EyeOfRubissDriver { get; set; }
-		private ProjectVM vm = new();
 
 		public MainWindow()
 		{
 			InitializeComponent();
 
-			vm.StgdatFilePath = @"C:\Users\kramer\Documents\My Games\DRAGON QUEST BUILDERS II\Steam\76561198073553084\SD\B02\STGDAT01.BIN";
-			vm.ProjectFilePath = @"C:\Users\kramer\Documents\code\HermitsHeresy\examples\STB\foo.blocktaviusproject";
+			this.DataContextChanged += MainWindow_DataContextChanged;
+		}
 
-			vm.Scripts.Add(new ScriptVM() { Name = "Main", IsMain = true });
-			vm.SelectedScript = vm.Scripts.First();
-
-			DataContext = vm;
-			Global.SetCurrentProject(vm);
+		private void MainWindow_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+		{
+			if (e.NewValue is ProjectVM vm)
+			{
+				Global.SetCurrentProject(vm);
+			}
 		}
 
 		protected override void OnClosed(EventArgs e)
@@ -36,7 +36,8 @@ namespace Blocktavius.AppDQB2
 
 		private void PreviewButtonClicked(object sender, RoutedEventArgs e)
 		{
-			if (EyeOfRubissDriver != null && vm.TryRebuildStage(out var scriptedStage))
+			var vm = this.DataContext as ProjectVM;
+			if (EyeOfRubissDriver != null && vm != null && vm.TryRebuildStage(out var scriptedStage))
 			{
 				EyeOfRubissDriver.WriteStageAsync(scriptedStage).GetAwaiter().GetResult();
 			}

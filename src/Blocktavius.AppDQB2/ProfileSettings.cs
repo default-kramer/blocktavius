@@ -113,6 +113,14 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 				};
 			}
 		}
+
+		public IEnumerable<FileInfo> AllFiles()
+		{
+			return Directory.EnumerateFiles(fullPath, "", SearchOption.TopDirectoryOnly)
+				.Select(path => new FileInfo(path));
+		}
+
+		public string GetFullPath(string filename) => Path.Combine(fullPath, filename);
 	}
 
 	public sealed class WritableSaveSlot : SaveSlot, IWritableSaveSlot

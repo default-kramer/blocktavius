@@ -14,12 +14,43 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 {
 	private readonly StgdatLoader stgdatLoader = new();
 	private ExternalImageManager? imageManager = null;
+	private ProfileSettings profile;
 
-	public ProjectVM()
+	public ProjectVM(ProfileSettings profile)
 	{
 		Layers = new();
 		Layers.Add(chunkGridLayer);
 		SelectedLayer = Layers.FirstOrDefault();
+
+		this.profile = profile;
+		ForceUpdateProfile(profile);
+	}
+
+	public void SwitchProfile(ProfileSettings newProfile)
+	{
+		if (profile.VerificationHash != newProfile.VerificationHash)
+		{
+			ForceUpdateProfile(newProfile);
+		}
+	}
+
+	private void ForceUpdateProfile(ProfileSettings profile)
+	{
+		this.profile = profile;
+
+		SelectedSourceSlot = null;
+		SourceSlots.Clear();
+		foreach (var slot in profile.SaveSlots)
+		{
+			SourceSlots.Add(SlotVM.Create(slot));
+		}
+
+		SelectedDestSlot = null;
+		DestSlots.Clear();
+		foreach (var slot in profile.WritableSaveSlots)
+		{
+			DestSlots.Add(WritableSlotVM.Create(slot));
+		}
 	}
 
 	void IDropTarget.DragOver(IDropInfo dropInfo)
@@ -48,17 +79,6 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 	}
 
 	IReadOnlyList<BlockVM> IBlockList.Blocks => Blockdata.AllBlockVMs;
-
-	private string? _stgdatFilePath;
-	public string? StgdatFilePath
-	{
-		get => _stgdatFilePath;
-		set
-		{
-			ChangeProperty(ref _stgdatFilePath, value);
-			chunkGridLayer.StgdatPath = value ?? "";
-		}
-	}
 
 	private string? _projectFilePath;
 	public string? ProjectFilePath
@@ -243,5 +263,59 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 			SelectedScriptNode = null;
 			SelectedScriptNode = temp;
 		}
+	}
+
+	public ObservableCollection<SlotVM> SourceSlots { get; } = new();
+
+	private SlotVM? _selectedSourceSlot = null;
+	public SlotVM? SelectedSourceSlot
+	{
+		get => _selectedSourceSlot;
+		set
+		{
+			var prev = SelectedSourceStage;
+			if (ChangeProperty(ref _selectedSourceSlot, value, nameof(SelectedSourceSlot), nameof(SourceStages)))
+			{
+				SelectedSourceStage = value?.Stages?.FirstOrDefault(s => s.Filename.Equals(prev?.Filename, StringComparison.OrdinalIgnoreCase));
+			}
+		}
+	}
+
+	public IReadOnlyList<SlotStageVM> SourceStages => SelectedSourceSlot?.Stages ?? Array.Empty<SlotStageVM>();
+
+	private SlotStageVM? _selectedSourceStage = null;
+	public SlotStageVM? SelectedSourceStage
+	{
+		get => _selectedSourceStage;
+		set
+		{
+			if (ChangeProperty(ref _selectedSourceStage, value, nameof(SelectedSourceStage), nameof(StgdatFilePath), nameof(DestFullPath)))
+			{
+				chunkGridLayer.StgdatPath = StgdatFilePath ?? "";
+			}
+		}
+	}
+
+	public string? StgdatFilePath => SelectedSourceStage?.StgdatFile?.FullName;
+
+	public string? DestFullPath
+	{
+		get
+		{
+			if (SelectedDestSlot != null && SelectedSourceStage != null)
+			{
+				return SelectedDestSlot.GetFullPath(SelectedSourceStage.Name);
+			}
+			return null;
+		}
+	}
+
+	public ObservableCollection<WritableSlotVM> DestSlots { get; } = new();
+
+	private WritableSlotVM? _selectedDestSlot = null;
+	public WritableSlotVM? SelectedDestSlot
+	{
+		get => _selectedDestSlot;
+		set => ChangeProperty(ref _selectedDestSlot, value, nameof(SelectedDestSlot), nameof(DestFullPath));
 	}
 }
