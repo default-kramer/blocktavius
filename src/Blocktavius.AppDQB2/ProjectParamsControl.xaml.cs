@@ -37,6 +37,9 @@ namespace Blocktavius.AppDQB2
 
 		private void ConfirmAndRun_Click(object sender, RoutedEventArgs e)
 		{
+			MessageBox.Show("WIP, disabled");
+			if (1.ToString().Length > 0) { return; }
+
 			var project = DataContext as ProjectVM;
 			var target = Global.CurrentProfile?.WritableSaveSlots?.FirstOrDefault();
 			if (project == null
