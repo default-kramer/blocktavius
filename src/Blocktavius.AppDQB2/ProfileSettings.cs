@@ -265,6 +265,11 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 		};
 	}
 
+	private static readonly JsonSerializerOptions jsonOptions = new()
+	{
+		TypeInfoResolver = NullablePropertiesNotRequiredResolver.Instance,
+	};
+
 	public static bool TryLoad(FileInfo configFile, out ProfileSettings settings)
 	{
 		if (!configFile.Exists)
@@ -280,10 +285,7 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 		JsonProfile? config = null;
 		try
 		{
-			config = JsonSerializer.Deserialize<JsonProfile>(json, new JsonSerializerOptions
-			{
-				TypeInfoResolver = NullablePropertiesNotRequiredResolver.Instance
-			});
+			config = JsonSerializer.Deserialize<JsonProfile>(json, jsonOptions);
 		}
 		catch (Exception) { }
 
