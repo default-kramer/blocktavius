@@ -14,7 +14,6 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 
 namespace Blocktavius.AppDQB2;
 
@@ -60,14 +59,31 @@ public partial class PlanScriptDialog : Window
 	sealed class PlanScriptVM : ViewModelBase, IDisposable
 	{
 		private readonly object subscribeKey = new();
+		private readonly DirectoryInfo? backupLocation;
 
 		public ObservableCollection<IPlanItemVM> PlanItems { get; } = new();
 		public ProjectVM Project { get; }
+		public string BackupMessage { get; }
+		public string BackupWarning { get; }
 
 		public PlanScriptVM(ProjectVM project)
 		{
 			this.Project = project;
 			project.Subscribe(subscribeKey, this);
+
+			if (project.BackupsEnabled(out var backupDir))
+			{
+				backupLocation = new DirectoryInfo(Path.Combine(backupDir.FullName, DateTime.UtcNow.ToString("yyyyMMdd.HHmmss.fff")));
+				BackupMessage = $"Backups will be created at {backupLocation.FullName}";
+				BackupWarning = "";
+			}
+			else
+			{
+				backupLocation = null;
+				BackupMessage = "";
+				BackupWarning = "Backups will not be created! Be careful!";
+			}
+
 			_deps = ProjectDeps.Rebuild(project);
 			UpdatePlan();
 		}
@@ -123,6 +139,7 @@ public partial class PlanScriptDialog : Window
 				{
 					planItem = new CopyWithModificationsPlanItemVM()
 					{
+						BackupDir = this.backupLocation,
 						ShortName = stage.Name,
 					};
 				}
@@ -131,6 +148,7 @@ public partial class PlanScriptDialog : Window
 					bool willBeCopied = mode == InclusionMode.Automatic && stage.IsKnownStage;
 					planItem = new SimpleCopyPlanItemVM
 					{
+						BackupDir = this.backupLocation,
 						SourceFile = stage.StgdatFile,
 						WillBeCopied = willBeCopied,
 						ShortName = stage.Name,
@@ -148,6 +166,7 @@ public partial class PlanScriptDialog : Window
 			{
 				PlanItems.Add(new SimpleCopyPlanItemVM
 				{
+					BackupDir = this.backupLocation,
 					SourceFile = sourceFile,
 					WillBeCopied = willBeCopied,
 					ShortName = name,
@@ -160,6 +179,7 @@ public partial class PlanScriptDialog : Window
 
 	interface IPlanItemVM
 	{
+		bool WillBeBackedUp { get; }
 		bool WillBeModified { get; }
 		bool WillBeCopied { get; }
 		string ShortName { get; }
@@ -167,19 +187,23 @@ public partial class PlanScriptDialog : Window
 
 	class SimpleCopyPlanItemVM : IPlanItemVM
 	{
+		public required DirectoryInfo? BackupDir { get; init; }
 		public required FileInfo SourceFile { get; init; }
 		public required bool WillBeCopied { get; init; }
 		public required string ShortName { get; init; }
 
+		public bool WillBeBackedUp => WillBeCopied && BackupDir != null;
 		public bool WillBeModified => false;
 	}
 
 	class CopyWithModificationsPlanItemVM : IPlanItemVM
 	{
+		public required DirectoryInfo? BackupDir { get; init; }
 		public required string ShortName { get; init; }
 
 		public bool WillBeModified => true;
 		public bool WillBeCopied => true;
+		public bool WillBeBackedUp => BackupDir != null;
 
 		public void TODO()
 		{

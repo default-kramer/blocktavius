@@ -6,18 +6,25 @@
         xmlns:local="clr-namespace:Blocktavius.AppDQB2"
         mc:Ignorable="d"
         Title="TODO" Height="450" Width="800">
-    <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-            <Label VerticalAlignment="Center">Target Slot:</Label>
-            <ComboBox MinWidth="75" VerticalAlignment="Center" ItemsSource="{Binding Project.DestSlots}" SelectedItem="{Binding Project.SelectedDestSlot}" DisplayMemberPath="Name"></ComboBox>
+    <Grid VerticalAlignment="Top">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition></RowDefinition>
+            <RowDefinition Height="Auto"></RowDefinition>
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Orientation="Vertical" HorizontalAlignment="Center">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Label VerticalAlignment="Center">Target Slot:</Label>
+                <ComboBox MinWidth="75" VerticalAlignment="Center" ItemsSource="{Binding Project.DestSlots}" SelectedItem="{Binding Project.SelectedDestSlot}" DisplayMemberPath="Name"></ComboBox>
+            </StackPanel>
+            <StackPanel Margin="0,8,0,0" Orientation="Horizontal" HorizontalAlignment="Center">
+                <Label VerticalAlignment="Center">Include:</Label>
+                <ComboBox MinWidth="75" VerticalAlignment="Center" ItemsSource="{Binding Project.InclusionModes}" SelectedItem="{Binding Project.SelectedInclusionMode}" DisplayMemberPath="DisplayName"></ComboBox>
+            </StackPanel>
+            <TextBlock Margin="0,20,0,0" TextWrapping="Wrap"><Run Text="Source:  "></Run><Run Text="{Binding Project.SelectedSourceSlot.FullPath, Mode=OneWay}"></Run></TextBlock>
+            <TextBlock Margin="0,3,0,0" TextWrapping="Wrap"><Run Text="Dest:  "></Run><Run Text="{Binding Project.SelectedDestSlot.FullPath, Mode=OneWay}"></Run></TextBlock>
         </StackPanel>
-        <StackPanel Margin="0,8,0,0" Orientation="Horizontal" HorizontalAlignment="Center">
-            <Label VerticalAlignment="Center">Include:</Label>
-            <ComboBox MinWidth="75" VerticalAlignment="Center" ItemsSource="{Binding Project.InclusionModes}" SelectedItem="{Binding Project.SelectedInclusionMode}" DisplayMemberPath="DisplayName"></ComboBox>
-        </StackPanel>
-        <TextBlock Margin="0,20,0,0" TextWrapping="Wrap"><Run Text="Source:  "></Run><Run Text="{Binding Project.SelectedSourceSlot.FullPath, Mode=OneWay}"></Run></TextBlock>
-        <TextBlock Margin="0,3,0,0" TextWrapping="Wrap"><Run Text="Dest:  "></Run><Run Text="{Binding Project.SelectedDestSlot.FullPath, Mode=OneWay}"></Run></TextBlock>
-        <ListView ItemsSource="{Binding PlanItems}">
+        <ListView Grid.Row="1" ItemsSource="{Binding PlanItems}" HorizontalAlignment="Center">
             <ListView.ItemContainerStyle>
                 <Style TargetType="{x:Type ListViewItem}">
                     <Setter Property="Focusable" Value="False"></Setter>
@@ -25,6 +32,13 @@
             </ListView.ItemContainerStyle>
             <ListView.View>
                 <GridView>
+                    <GridViewColumn Header="Backup?">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <RadioButton IsEnabled="False" IsChecked="{Binding WillBeBackedUp, Mode=OneWay}"></RadioButton>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
                     <GridViewColumn Header="Copy?">
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>
@@ -43,9 +57,18 @@
                 </GridView>
             </ListView.View>
         </ListView>
-        <StackPanel Margin="0,20,0,0" Orientation="Horizontal" HorizontalAlignment="Center">
-            <Button>OK</Button>
-            <Button Margin="12,0,0,0">Cancel</Button>
+        <StackPanel Grid.Row="2" Orientation="Vertical" HorizontalAlignment="Center">
+            <Grid Margin="0,4,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" TextWrapping="Wrap" Text="{Binding BackupMessage}" HorizontalAlignment="Center"></TextBlock>
+                <TextBlock Grid.Column="0" TextWrapping="Wrap" Text="{Binding BackupWarning}" Foreground="Red" HorizontalAlignment="Center"></TextBlock>
+            </Grid>
+            <StackPanel Orientation="Horizontal" Margin="0,12,0,20" HorizontalAlignment="Center">
+                <Button>OK</Button>
+                <Button Margin="12,0,0,0">Cancel</Button>
+            </StackPanel>
         </StackPanel>
-    </StackPanel>
+    </Grid>
 </Window>

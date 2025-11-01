@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -24,6 +25,12 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 
 		this.profile = profile;
 		ForceUpdateProfile(profile);
+	}
+
+	internal bool BackupsEnabled(out DirectoryInfo backupDir)
+	{
+		backupDir = profile.BackupDir!;
+		return backupDir != null;
 	}
 
 	public void SwitchProfile(ProfileSettings newProfile)
