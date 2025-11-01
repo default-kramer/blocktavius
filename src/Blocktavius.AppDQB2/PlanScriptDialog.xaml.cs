@@ -258,8 +258,10 @@ public partial class PlanScriptDialog : Window
 				}
 				await Task.Run(() => targetFile.CopyTo(Path.Combine(BackupDir.FullName, SourceFile.Name), overwrite: true));
 			}
-
-			await Task.Run(() => SourceFile.CopyTo(targetFile.FullName, overwrite: true));
+			if (WillBeCopied)
+			{
+				await Task.Run(() => SourceFile.CopyTo(targetFile.FullName, overwrite: true));
+			}
 		}
 	}
 
