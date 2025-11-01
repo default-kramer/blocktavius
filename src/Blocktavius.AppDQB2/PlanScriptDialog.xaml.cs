@@ -1,4 +1,4 @@
-﻿using Blocktavius.DQB2;
+using Blocktavius.DQB2;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -32,10 +32,14 @@ public partial class PlanScriptDialog : Window
 		using var vm = new PlanScriptVM(project);
 		this.DataContext = vm;
 
-		if (this.ShowDialog().GetValueOrDefault(false))
-		{
+		this.ShowDialog();
+	}
 
-		}
+	private async void OkButton_Click(object sender, RoutedEventArgs e)
+	{
+		var vm = (PlanScriptVM)DataContext;
+		await vm.Execute();
+		DialogResult = true;
 	}
 
 	/// <summary>
@@ -47,12 +51,15 @@ public partial class PlanScriptDialog : Window
 		public required SlotVM? SelectedSourceSlot { get; init; }
 		public required WritableSlotVM? SelectedDestSlot { get; init; }
 		public required InclusionModeVM SelectedInclusionMode { get; init; }
+		public required bool DestIsSource { get; init; }
 
 		public static ProjectDeps Rebuild(ProjectVM project) => new ProjectDeps
 		{
 			SelectedSourceSlot = project.SelectedSourceSlot,
 			SelectedDestSlot = project.SelectedDestSlot,
-			SelectedInclusionMode = project.SelectedInclusionMode
+			SelectedInclusionMode = project.SelectedInclusionMode,
+			DestIsSource = project.SelectedSourceSlot != null
+				&& project.SelectedSourceSlot.FullPath.Equals(project.SelectedDestSlot?.FullPath, StringComparison.OrdinalIgnoreCase),
 		};
 	}
 
@@ -60,6 +67,7 @@ public partial class PlanScriptDialog : Window
 	{
 		private readonly object subscribeKey = new();
 		private readonly DirectoryInfo? backupLocation;
+		private readonly Task<IStage?> rebuildTask;
 
 		public ObservableCollection<IPlanItemVM> PlanItems { get; } = new();
 		public ProjectVM Project { get; }
@@ -70,6 +78,15 @@ public partial class PlanScriptDialog : Window
 		{
 			this.Project = project;
 			project.Subscribe(subscribeKey, this);
+
+			rebuildTask = Task.Run(() =>
+			{
+				if (project.TryRebuildStage(out var stage) && stage.Saver.CanSave)
+				{
+					return stage;
+				}
+				return null;
+			});
 
 			if (project.BackupsEnabled(out var backupDir))
 			{
@@ -88,9 +105,10 @@ public partial class PlanScriptDialog : Window
 			UpdatePlan();
 		}
 
-		private object _deps; // Don't expose any properties; this is just for change detection.
+		private ProjectDeps _deps;
 		private ProjectDeps Deps
 		{
+			get => _deps;
 			set
 			{
 				if (ChangeProperty(ref _deps, value))
@@ -113,13 +131,15 @@ public partial class PlanScriptDialog : Window
 		private void UpdatePlan()
 		{
 			PlanItems.Clear();
-			if (Project.SelectedSourceSlot == null)
-			{
-				return;
-			}
 
 			var mode = Project.SelectedInclusionMode.InclusionMode;
 			var sourceSlot = Project.SelectedSourceSlot;
+			var destSlot = Project.SelectedDestSlot;
+
+			if (sourceSlot == null)
+			{
+				return;
+			}
 
 			TryPlanSimpleCopy(sourceSlot, "AUTOCMNDAT.BIN", mode == InclusionMode.Automatic);
 			TryPlanSimpleCopy(sourceSlot, "AUTOSTGDAT.BIN", mode == InclusionMode.Automatic);
@@ -139,18 +159,22 @@ public partial class PlanScriptDialog : Window
 				{
 					planItem = new CopyWithModificationsPlanItemVM()
 					{
+						DestIsSource = Deps.DestIsSource,
+						RebuildStageTask = rebuildTask,
+						SourceStgdatFile = stage.StgdatFile,
 						BackupDir = this.backupLocation,
 						ShortName = stage.Name,
 					};
 				}
 				else
 				{
-					bool willBeCopied = mode == InclusionMode.Automatic && stage.IsKnownStage;
+					bool shouldCopy = mode == InclusionMode.Automatic && stage.IsKnownStage;
 					planItem = new SimpleCopyPlanItemVM
 					{
+						DestIsSource = Deps.DestIsSource,
 						BackupDir = this.backupLocation,
 						SourceFile = stage.StgdatFile,
-						WillBeCopied = willBeCopied,
+						ShouldCopy = shouldCopy,
 						ShortName = stage.Name,
 					};
 				}
@@ -159,21 +183,46 @@ public partial class PlanScriptDialog : Window
 			}
 		}
 
-		private bool TryPlanSimpleCopy(SlotVM sourceSlot, string name, bool willBeCopied)
+		private bool TryPlanSimpleCopy(SlotVM sourceSlot, string name, bool shouldCopy)
 		{
 			var sourceFile = new FileInfo(sourceSlot.GetFullPath(name));
 			if (sourceFile.Exists)
 			{
 				PlanItems.Add(new SimpleCopyPlanItemVM
 				{
+					DestIsSource = Deps.DestIsSource,
 					BackupDir = this.backupLocation,
 					SourceFile = sourceFile,
-					WillBeCopied = willBeCopied,
+					ShouldCopy = shouldCopy,
 					ShortName = name,
 				});
 				return true;
 			}
 			return false;
+		}
+
+		public async Task Execute()
+		{
+			if (Project.SelectedDestSlot == null)
+			{
+				return;
+			}
+
+			var stage = await rebuildTask;
+			if (stage == null || !stage.Saver.CanSave)
+			{
+				return; // TODO show some kind of error
+			}
+
+			if (backupLocation != null && PlanItems.Any(p => p.WillBeBackedUp))
+			{
+				backupLocation.Create();
+			}
+
+			foreach (var item in PlanItems)
+			{
+				await item.Execute(Project.SelectedDestSlot);
+			}
 		}
 	}
 
@@ -183,45 +232,68 @@ public partial class PlanScriptDialog : Window
 		bool WillBeModified { get; }
 		bool WillBeCopied { get; }
 		string ShortName { get; }
+		Task Execute(WritableSlotVM targetSlot);
 	}
 
 	class SimpleCopyPlanItemVM : IPlanItemVM
 	{
+		public required bool DestIsSource { get; init; }
 		public required DirectoryInfo? BackupDir { get; init; }
 		public required FileInfo SourceFile { get; init; }
-		public required bool WillBeCopied { get; init; }
+		public required bool ShouldCopy { get; init; }
 		public required string ShortName { get; init; }
 
-		public bool WillBeBackedUp => WillBeCopied && BackupDir != null;
+		public bool WillBeCopied => !DestIsSource && ShouldCopy;
+		public bool WillBeBackedUp => WillBeCopied && !DestIsSource && BackupDir != null;
 		public bool WillBeModified => false;
+
+		public async Task Execute(WritableSlotVM targetSlot)
+		{
+			var targetFile = new FileInfo(targetSlot.GetFullPath(SourceFile.Name));
+			if (WillBeBackedUp && targetFile.Exists)
+			{
+				if (BackupDir == null)
+				{
+					throw new Exception("Assert fail! Promised to create backup, but BackupDir is null");
+				}
+				await Task.Run(() => targetFile.CopyTo(Path.Combine(BackupDir.FullName, SourceFile.Name), overwrite: true));
+			}
+
+			await Task.Run(() => SourceFile.CopyTo(targetFile.FullName, overwrite: true));
+		}
 	}
 
 	class CopyWithModificationsPlanItemVM : IPlanItemVM
 	{
+		public required bool DestIsSource { get; init; }
+		public required FileInfo SourceStgdatFile { get; init; }
+		public required Task<IStage?> RebuildStageTask { get; init; }
 		public required DirectoryInfo? BackupDir { get; init; }
 		public required string ShortName { get; init; }
 
 		public bool WillBeModified => true;
-		public bool WillBeCopied => true;
+		public bool WillBeCopied => !DestIsSource;
 		public bool WillBeBackedUp => BackupDir != null;
 
-		public void TODO()
+		public async Task Execute(WritableSlotVM targetSlot)
 		{
-			// old code here... should RebuildStage in advance on a background thread and maybe
-			// even save it to a temp file so when they click OK we can respond very quickly
-
-			ProjectVM project = null!;
-			IWritableSaveSlot target = null!;
-
-			if (project == null
-				|| target == null
-				|| !project.TryRebuildStage(out var stage)
-				|| !stage.Saver.CanSave)
+			var stage = await RebuildStageTask;
+			if (stage == null || !stage.Saver.CanSave)
 			{
-				return;
+				throw new Exception("Assert fail - cannot save, should not have even started the plan!");
 			}
 
-			stage.Saver.Save(target, stage);
+			var targetFile = new FileInfo(targetSlot.GetFullPath(SourceStgdatFile.Name));
+			if (WillBeBackedUp && targetFile.Exists)
+			{
+				if (BackupDir == null)
+				{
+					throw new Exception("Assert fail! Promised to create backup, but BackupDir is null");
+				}
+				await Task.Run(() => targetFile.CopyTo(Path.Combine(BackupDir.FullName, targetFile.Name), overwrite: true));
+			}
+
+			await Task.Run(() => stage.Saver.Save(targetSlot.WritableSlot, stage, targetFile));
 		}
 	}
 }

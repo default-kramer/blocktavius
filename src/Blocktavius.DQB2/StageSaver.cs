@@ -18,5 +18,5 @@ public interface IStageSaver
 {
 	bool CanSave { get; }
 
-	void Save(IWritableSaveSlot slot, IStage stage);
+	void Save(IWritableSaveSlot slot, IStage stage, FileInfo? assertDestFilename);
 }

@@ -170,8 +170,14 @@ static class StageLoader
 
 		public bool CanSave => true;
 
-		public void Save(IWritableSaveSlot slot, IStage stage)
+		public void Save(IWritableSaveSlot slot, IStage stage, FileInfo? assertDestFilename)
 		{
+			var actualPath = Path.Combine(slot.Directory.FullName, OriginalFilename);
+			if (assertDestFilename != null && !actualPath.Equals(assertDestFilename.FullName, StringComparison.OrdinalIgnoreCase))
+			{
+				throw new Exception($"Asserted filename does not match, aborting the Save operation! Actual: {actualPath} Asserted: {assertDestFilename.FullName}");
+			}
+
 			using var uncompressedBody = new MemoryStream();
 			WriteBodyUncompressed(uncompressedBody, stage);
 			uncompressedBody.Flush();
@@ -199,7 +205,7 @@ static class StageLoader
 			header[0x12] = (byte)((totalFileSize >> 16) & 0xFF);
 			header[0x13] = (byte)((totalFileSize >> 24) & 0xFF);
 
-			using var stream = new FileStream(Path.Combine(slot.Directory.FullName, OriginalFilename), FileMode.Create, FileAccess.Write, FileShare.None);
+			using var stream = new FileStream(actualPath, FileMode.Create, FileAccess.Write, FileShare.None);
 			stream.Write(header);
 			compressedBody.Seek(0, SeekOrigin.Begin);
 			compressedBody.CopyTo(stream);
