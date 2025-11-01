@@ -82,6 +82,7 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 		public required int? SlotNumber { get; init; }
 		public required string Name { get; init; }
 		public virtual bool IsWritable => false;
+		public string FullPath => fullPath;
 
 		internal object ToJsonSlot()
 		{

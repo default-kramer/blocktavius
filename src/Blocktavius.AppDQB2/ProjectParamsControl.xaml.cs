@@ -34,23 +34,5 @@ namespace Blocktavius.AppDQB2
 			}
 			EditChunkGridDialog.ShowDialog(project);
 		}
-
-		private void ConfirmAndRun_Click(object sender, RoutedEventArgs e)
-		{
-			MessageBox.Show("WIP, disabled");
-			if (1.ToString().Length > 0) { return; }
-
-			var project = DataContext as ProjectVM;
-			var target = Global.CurrentProfile?.WritableSaveSlots?.FirstOrDefault();
-			if (project == null
-				|| target == null
-				|| !project.TryRebuildStage(out var stage)
-				|| !stage.Saver.CanSave)
-			{
-				return;
-			}
-
-			stage.Saver.Save(target, stage);
-		}
 	}
 }

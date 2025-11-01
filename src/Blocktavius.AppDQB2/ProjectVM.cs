@@ -323,4 +323,13 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 		get => _selectedDestSlot;
 		set => ChangeProperty(ref _selectedDestSlot, value, nameof(SelectedDestSlot), nameof(DestFullPath));
 	}
+
+	public IReadOnlyList<InclusionModeVM> InclusionModes { get; } = InclusionModeVM.BuildChoices().ToList();
+
+	private InclusionModeVM? _selectedInclusionMode;
+	public InclusionModeVM SelectedInclusionMode
+	{
+		get => _selectedInclusionMode ?? InclusionModes.First();
+		set => ChangeProperty(ref _selectedInclusionMode, value);
+	}
 }

@@ -50,7 +50,12 @@ namespace Blocktavius.AppDQB2
 
 		private void RunScriptButton_Click(object sender, RoutedEventArgs e)
 		{
-			MessageBox.Show("TODO - show dialog, choose slot and 'what else', show planned edits");
+			var project = this.DataContext as ProjectVM;
+			if (project != null)
+			{
+				var dialog = new PlanScriptDialog();
+				dialog.ShowDialog(project);
+			}
 		}
 	}
 }
