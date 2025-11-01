@@ -21,6 +21,8 @@ class SlotVM
 		.Where(fi => fi.Name.ToLowerInvariant().StartsWith("stgdat"))
 		.Where(fi => fi.Extension.ToLowerInvariant() == ".bin")
 		.Select(SlotStageVM.Create)
+		.OrderBy(x => x.KnownStageSortOrder ?? int.MaxValue)
+		.ThenBy(x => x.Name)
 		.ToList();
 
 	public static SlotVM Create(ProfileSettings.SaveSlot slot)

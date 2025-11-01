@@ -18,6 +18,11 @@
         <TextBlock Margin="0,20,0,0" TextWrapping="Wrap"><Run Text="Source:  "></Run><Run Text="{Binding Project.SelectedSourceSlot.FullPath, Mode=OneWay}"></Run></TextBlock>
         <TextBlock Margin="0,3,0,0" TextWrapping="Wrap"><Run Text="Dest:  "></Run><Run Text="{Binding Project.SelectedDestSlot.FullPath, Mode=OneWay}"></Run></TextBlock>
         <ListView ItemsSource="{Binding PlanItems}">
+            <ListView.ItemContainerStyle>
+                <Style TargetType="{x:Type ListViewItem}">
+                    <Setter Property="Focusable" Value="False"></Setter>
+                </Style>
+            </ListView.ItemContainerStyle>
             <ListView.View>
                 <GridView>
                     <GridViewColumn Header="Copy?">
