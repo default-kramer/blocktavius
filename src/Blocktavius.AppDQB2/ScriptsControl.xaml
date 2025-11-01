@@ -20,18 +20,29 @@
                 <RowDefinition Height="Auto"></RowDefinition>
                 <RowDefinition Height="2*"></RowDefinition>
             </Grid.RowDefinitions>
-            <ListView x:Name="lvScripts">
-                <ListView.ItemContainerStyle>
-                    <Style TargetType="ListViewItem">
-                        <EventSetter Event="PreviewMouseDown" Handler="lvScripts_MouseDown"></EventSetter>
-                    </Style>
-                </ListView.ItemContainerStyle>
+            <ListView x:Name="lvScripts" ItemsSource="{Binding Scripts}" SelectedItem="{Binding SelectedScript}">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn>
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <RadioButton IsChecked="{Binding IsTheActiveScript, Mode=OneWay}" IsEnabled="False"></RadioButton>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                        <GridViewColumn DisplayMemberBinding="{Binding Name}"></GridViewColumn>
+                    </GridView>
+                </ListView.View>
             </ListView>
             <pg:PropertyGrid Grid.Row="2" x:Name="propGrid"></pg:PropertyGrid>
             <GridSplitter Grid.Row="1" ResizeDirection="Rows" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Center"></GridSplitter>
         </Grid>
         <Grid Grid.Column="2">
-            <ItemsControl x:Name="icScriptContent">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"></RowDefinition>
+                <RowDefinition></RowDefinition>
+            </Grid.RowDefinitions>
+            <ItemsControl Grid.Row="1" x:Name="icScriptContent">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <Border Padding="5" Margin="3" BorderThickness="{Binding BorderThickness}" BorderBrush="Black" MouseDown="Border_MouseDown">
@@ -44,6 +55,10 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,16,0,16">
+                <Button FontSize="16" Padding="7,4,7,4" Click="PreviewScriptButton_Click">PREVIEW</Button>
+                <Button FontSize="16" Padding="7,4,7,4" Margin="12,0,0,0" Click="RunScriptButton_Click">RUN...</Button>
+            </StackPanel>
         </Grid>
         <GridSplitter Grid.Column="1" ResizeDirection="Columns" Width="5" VerticalAlignment="Stretch" HorizontalAlignment="Center"></GridSplitter>
     </Grid>

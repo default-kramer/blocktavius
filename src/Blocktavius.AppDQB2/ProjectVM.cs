@@ -129,7 +129,12 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 			{
 				SelectedScriptNode = value;
 			}
-			ChangeProperty(ref _selectedScript, value);
+			var prev = _selectedScript;
+			if (ChangeProperty(ref _selectedScript, value))
+			{
+				value?.SetActive(true);
+				prev?.SetActive(false);
+			}
 		}
 	}
 
@@ -213,7 +218,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 
 		var context = new StageRebuildContext(workingStage);
 
-		var script = this.Scripts.Where(s => s.IsMain).SingleOrDefault();
+		var script = this.SelectedScript;
 		if (script != null)
 		{
 			foreach (var mutation in script.RebuildMutations(context))

@@ -73,13 +73,27 @@ sealed class ScriptVM : ViewModelBase
 	}
 
 	private bool isSelected = false;
+	/// <summary>
+	/// TODO - this is used to know which item we show in the property grid (a script or a script node).
+	/// It might make more sense for each script to have a common root node for the property grid.
+	/// </summary>
 	public bool IsSelected
 	{
 		get => isSelected;
 		set => ChangeProperty(ref isSelected, value);
 	}
 
-	public required bool IsMain { get; init; }
+	private bool _isTheActiveScript = false;
+	public bool IsTheActiveScript
+	{
+		get => _isTheActiveScript;
+		private set => ChangeProperty(ref _isTheActiveScript, value);
+	}
+
+	internal void SetActive(bool isActive)
+	{
+		IsTheActiveScript = isActive;
+	}
 
 	public IEnumerable<StageMutation> RebuildMutations(StageRebuildContext context)
 	{

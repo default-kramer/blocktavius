@@ -34,7 +34,9 @@ namespace Blocktavius.AppDQB2
 			base.OnClosed(e);
 		}
 
-		private void PreviewButtonClicked(object sender, RoutedEventArgs e)
+		private void PreviewButtonClicked(object sender, RoutedEventArgs e) => DoPreview();
+
+		internal void DoPreview()
 		{
 			var vm = this.DataContext as ProjectVM;
 			if (EyeOfRubissDriver != null && vm != null && vm.TryRebuildStage(out var scriptedStage))

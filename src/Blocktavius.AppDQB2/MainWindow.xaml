@@ -24,7 +24,7 @@
             </TabItem>
             <TabItem>
                 <TabItem.Header>
-                    <TextBlock Text="Map Layers"></TextBlock>
+                    <TextBlock Text="Images"></TextBlock>
                 </TabItem.Header>
                 <local:LayeredPainterControl></local:LayeredPainterControl>
             </TabItem>
