@@ -31,7 +31,7 @@
                 </Style>
             </ListView.ItemContainerStyle>
             <ListView.View>
-                <GridView>
+                <GridView AllowsColumnReorder="False">
                     <GridViewColumn Header="Backup?">
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>
@@ -53,7 +53,40 @@
                             </DataTemplate>
                         </GridViewColumn.CellTemplate>
                     </GridViewColumn>
-                    <GridViewColumn DisplayMemberBinding="{Binding ShortName}"></GridViewColumn>
+                    <GridViewColumn Header="File" DisplayMemberBinding="{Binding ShortName}"></GridViewColumn>
+                    <GridViewColumn Header="Status" Width="90">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <TextBlock VerticalAlignment="Center" Text="{Binding Status, Mode=OneWay}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="{x:Type TextBlock}">
+                                                <Setter Property="Visibility" Value="Collapsed"></Setter>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding StatusToolTip}" Value="">
+                                                        <Setter Property="Visibility" Value="Visible"></Setter>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <TextBlock VerticalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="{x:Type TextBlock}">
+                                                <Setter Property="Visibility" Value="Visible"></Setter>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding StatusToolTip}" Value="">
+                                                        <Setter Property="Visibility" Value="Collapsed"></Setter>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                        <Hyperlink Click="Hyperlink_Click"><TextBlock Text="{Binding Status, Mode=OneWay}"></TextBlock></Hyperlink>
+                                    </TextBlock>
+                                </Grid>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
                 </GridView>
             </ListView.View>
         </ListView>
@@ -66,7 +99,7 @@
                 <TextBlock Grid.Column="0" TextWrapping="Wrap" Text="{Binding BackupWarning}" Foreground="Red" HorizontalAlignment="Center"></TextBlock>
             </Grid>
             <StackPanel Orientation="Horizontal" Margin="0,12,0,20" HorizontalAlignment="Center">
-                <Button IsDefault="True" Click="OkButton_Click">OK</Button>
+                <Button IsDefault="True" Click="OkButton_Click" IsEnabled="{Binding !IsExecuting}">OK</Button>
                 <Button Margin="12,0,0,0" IsCancel="True">Cancel</Button>
             </StackPanel>
         </StackPanel>

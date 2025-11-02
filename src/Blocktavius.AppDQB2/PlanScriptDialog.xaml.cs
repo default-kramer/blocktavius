@@ -39,7 +39,42 @@ public partial class PlanScriptDialog : Window
 	{
 		var vm = (PlanScriptVM)DataContext;
 		await vm.Execute();
-		DialogResult = true;
+		//DialogResult = true;
+	}
+
+	/// <summary>
+	/// Shows the tool tip when the link is clicked.
+	/// </summary>
+	private void Hyperlink_Click(object sender, RoutedEventArgs e)
+	{
+		var block = (sender as Hyperlink)?.LogicalAncestors()?.OfType<TextBlock>()?.FirstOrDefault();
+		if (block != null && block.DataContext is IPlanItemVM planItem)
+		{
+			bool copyToClipboard = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
+
+			string message = planItem.StatusToolTip;
+			if (copyToClipboard)
+			{
+				Clipboard.SetText(message);
+			}
+			else
+			{
+				const string hint = "(Hold ctrl while clicking to copy this message to the clipboard.)";
+				message = $"{hint}{Environment.NewLine}{Environment.NewLine}{message}";
+			}
+
+			// For some reason doing this in XAML with a binding causes weird quirks like the tool tip
+			// showing as a tiny empty box, so do it in code instead.
+			// (Also because of the ctrl+click -> clipboard thing.)
+			var toolTip = new ToolTip();
+			block.ToolTip = toolTip;
+
+			const int maxWidth = 350;
+			toolTip.MaxWidth = maxWidth;
+			toolTip.Content = new TextBlock { Text = message, MaxWidth = maxWidth, TextWrapping = TextWrapping.Wrap };
+			toolTip.IsOpen = true;
+			toolTip.StaysOpen = false;
+		}
 	}
 
 	/// <summary>
@@ -73,6 +108,13 @@ public partial class PlanScriptDialog : Window
 		public ProjectVM Project { get; }
 		public string BackupMessage { get; }
 		public string BackupWarning { get; }
+
+		private bool _isExecuting;
+		public bool IsExecuting
+		{
+			get => _isExecuting;
+			set => ChangeProperty(ref _isExecuting, value);
+		}
 
 		public PlanScriptVM(ProjectVM project)
 		{
@@ -203,28 +245,42 @@ public partial class PlanScriptDialog : Window
 
 		public async Task Execute()
 		{
-			if (Project.SelectedDestSlot == null)
-			{
-				return;
-			}
+			if (IsExecuting) return;
 
-			var stage = await rebuildTask;
-			if (stage == null || !stage.Saver.CanSave)
-			{
-				return; // TODO show some kind of error
-			}
+			// TODO we need to ensure the plan can only be attempted once!
+			// Future attempts MUST use a new BackupDir!
 
-			if (backupLocation != null && PlanItems.Any(p => p.WillBeBackedUp))
+			try
 			{
-				backupLocation.Create();
-			}
+				IsExecuting = true;
 
-			foreach (var item in PlanItems)
+				if (Project.SelectedDestSlot == null)
+				{
+					return;
+				}
+
+				var stage = await rebuildTask;
+				if (stage == null || !stage.Saver.CanSave)
+				{
+					return; // TODO show some kind of error
+				}
+
+				if (backupLocation != null && PlanItems.Any(p => p.WillBeBackedUp))
+				{
+					backupLocation.Create();
+				}
+
+				var tasks = PlanItems.Select(item => item.Execute(Project.SelectedDestSlot)).ToList();
+				await Task.WhenAll(tasks);
+			}
+			finally
 			{
-				await item.Execute(Project.SelectedDestSlot);
+				IsExecuting = false;
 			}
 		}
 	}
+
+	const int minMilliseconds = 600;
 
 	interface IPlanItemVM
 	{
@@ -232,13 +288,61 @@ public partial class PlanScriptDialog : Window
 		bool WillBeModified { get; }
 		bool WillBeCopied { get; }
 		string ShortName { get; }
+		string Status { get; }
+		string StatusToolTip { get; }
+
 		Task Execute(WritableSlotVM targetSlot);
 	}
 
-	class SimpleCopyPlanItemVM : IPlanItemVM
+	abstract class PlanItemVM : ViewModelBase
+	{
+		public required DirectoryInfo? BackupDir { get; init; }
+
+		private string _status = "";
+		public string Status
+		{
+			get => _status;
+			protected set => ChangeProperty(ref _status, value);
+		}
+
+		private string _statusToolTip = "";
+		public string StatusToolTip
+		{
+			get => _statusToolTip;
+			protected set => ChangeProperty(ref _statusToolTip, value);
+		}
+
+		protected async Task<(bool success, Exception? exception)> DoBackup(FileInfo file)
+		{
+			Status = "Backing up...";
+			if (BackupDir == null)
+			{
+				throw new Exception("Assert fail! Promised to create backup, but BackupDir is null");
+			}
+
+			bool success = false;
+			Exception? exception = null;
+
+			await Task.Run(() =>
+			{
+				try
+				{
+					file.CopyTo(Path.Combine(BackupDir.FullName, file.Name), overwrite: true);
+					success = true;
+				}
+				catch (Exception ex)
+				{
+					exception = ex;
+				}
+			});
+
+			return (success, exception);
+		}
+	}
+
+	class SimpleCopyPlanItemVM : PlanItemVM, IPlanItemVM
 	{
 		public required bool DestIsSource { get; init; }
-		public required DirectoryInfo? BackupDir { get; init; }
 		public required FileInfo SourceFile { get; init; }
 		public required bool ShouldCopy { get; init; }
 		public required string ShortName { get; init; }
@@ -249,28 +353,80 @@ public partial class PlanScriptDialog : Window
 
 		public async Task Execute(WritableSlotVM targetSlot)
 		{
+			Status = "";
+			StatusToolTip = "";
+
 			var targetFile = new FileInfo(targetSlot.GetFullPath(SourceFile.Name));
-			if (WillBeBackedUp && targetFile.Exists)
+			bool doBackup = WillBeBackedUp && targetFile.Exists;
+			bool doCopy = WillBeCopied;
+
+			if (!doBackup && !doCopy)
 			{
-				if (BackupDir == null)
+				if (WillBeBackedUp)
 				{
-					throw new Exception("Assert fail! Promised to create backup, but BackupDir is null");
+					Status = "Skipped";
+					StatusToolTip = "File did not exist, nothing to back up.";
 				}
-				await Task.Run(() => targetFile.CopyTo(Path.Combine(BackupDir.FullName, SourceFile.Name), overwrite: true));
+				return;
 			}
-			if (WillBeCopied)
+
+			var minDelay = Task.Delay(minMilliseconds);
+			var errorDetails = new StringBuilder();
+
+			if (doBackup)
 			{
-				await Task.Run(() => SourceFile.CopyTo(targetFile.FullName, overwrite: true));
+				var (success, exception) = await DoBackup(targetFile);
+				if (!success)
+				{
+					if (doCopy)
+					{
+						errorDetails.Append("Backup failed; copy skipped.");
+					}
+					else
+					{
+						errorDetails.Append("Backup failed. Nothing else to do.");
+					}
+
+					if (exception != null)
+					{
+						errorDetails.AppendLine().AppendLine().Append(exception.Message);
+					}
+
+					await minDelay;
+					StatusToolTip = errorDetails.ToString();
+					Status = "Error";
+					return;
+				}
 			}
+
+			if (doCopy)
+			{
+				Status = "Copying...";
+				await Task.Run(() =>
+				{
+					try
+					{
+						SourceFile.CopyTo(targetFile.FullName, overwrite: true);
+					}
+					catch (Exception ex)
+					{
+						errorDetails.AppendLine("Backup succeeded; copy failed.").AppendLine().Append(ex.Message);
+					}
+				});
+			}
+
+			await minDelay;
+
+			StatusToolTip = errorDetails.ToString();
+			Status = (StatusToolTip == "") ? "Done" : "Error";
 		}
 	}
 
-	class CopyWithModificationsPlanItemVM : IPlanItemVM
+	class CopyWithModificationsPlanItemVM : PlanItemVM, IPlanItemVM
 	{
 		public required bool DestIsSource { get; init; }
 		public required FileInfo SourceStgdatFile { get; init; }
 		public required Task<IStage?> RebuildStageTask { get; init; }
-		public required DirectoryInfo? BackupDir { get; init; }
 		public required string ShortName { get; init; }
 
 		public bool WillBeModified => true;
@@ -279,6 +435,11 @@ public partial class PlanScriptDialog : Window
 
 		public async Task Execute(WritableSlotVM targetSlot)
 		{
+			Status = "";
+			StatusToolTip = "";
+			var minDelay = Task.Delay(minMilliseconds);
+
+			Status = "Rebuilding...";
 			var stage = await RebuildStageTask;
 			if (stage == null || !stage.Saver.CanSave)
 			{
@@ -286,16 +447,44 @@ public partial class PlanScriptDialog : Window
 			}
 
 			var targetFile = new FileInfo(targetSlot.GetFullPath(SourceStgdatFile.Name));
-			if (WillBeBackedUp && targetFile.Exists)
+			bool doBackup = WillBeBackedUp && targetFile.Exists;
+
+			var errorDetails = new StringBuilder();
+
+			if (doBackup)
 			{
-				if (BackupDir == null)
+				var (success, exception) = await DoBackup(targetFile);
+				if (!success)
 				{
-					throw new Exception("Assert fail! Promised to create backup, but BackupDir is null");
+					errorDetails.Append("Backup failed; stopping.");
+					if (exception != null)
+					{
+						errorDetails.AppendLine().AppendLine().Append(exception.Message);
+					}
+
+					await minDelay;
+					Status = "Error";
+					StatusToolTip = errorDetails.ToString();
+					return;
 				}
-				await Task.Run(() => targetFile.CopyTo(Path.Combine(BackupDir.FullName, targetFile.Name), overwrite: true));
 			}
 
-			await Task.Run(() => stage.Saver.Save(targetSlot.WritableSlot, stage, targetFile));
+			Status = "Saving...";
+			await Task.Run(() =>
+			{
+				try
+				{
+					stage.Saver.Save(targetSlot.WritableSlot, stage, targetFile);
+				}
+				catch (Exception ex)
+				{
+					errorDetails.AppendLine("Failed to save stage.").AppendLine().Append(ex.Message);
+				}
+			});
+
+			await minDelay;
+			StatusToolTip = errorDetails.ToString();
+			Status = (StatusToolTip == "") ? "Done" : "Error";
 		}
 	}
 }

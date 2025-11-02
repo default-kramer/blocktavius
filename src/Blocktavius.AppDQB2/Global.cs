@@ -66,6 +66,15 @@ static class Global
 		}
 	}
 
+	public static IEnumerable<DependencyObject> LogicalAncestors(this DependencyObject obj)
+	{
+		do
+		{
+			yield return obj;
+			obj = LogicalTreeHelper.GetParent(obj);
+		} while (obj != null);
+	}
+
 	public static IEnumerable<DependencyObject> VisualTreeAncestors(this DependencyObject obj)
 	{
 		do
