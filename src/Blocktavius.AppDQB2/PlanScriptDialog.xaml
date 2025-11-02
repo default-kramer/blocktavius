@@ -24,7 +24,7 @@
             <TextBlock Margin="0,20,0,0" TextWrapping="Wrap"><Run Text="Source:  "></Run><Run Text="{Binding Project.SelectedSourceSlot.FullPath, Mode=OneWay}"></Run></TextBlock>
             <TextBlock Margin="0,3,0,0" TextWrapping="Wrap"><Run Text="Dest:  "></Run><Run Text="{Binding Project.SelectedDestSlot.FullPath, Mode=OneWay}"></Run></TextBlock>
         </StackPanel>
-        <ListView Grid.Row="1" ItemsSource="{Binding PlanItems}" HorizontalAlignment="Center">
+        <ListView Grid.Row="1" ItemsSource="{Binding PlanItems}" HorizontalAlignment="Center" Margin="0,6,0,0">
             <ListView.ItemContainerStyle>
                 <Style TargetType="{x:Type ListViewItem}">
                     <Setter Property="Focusable" Value="False"></Setter>
@@ -32,6 +32,20 @@
             </ListView.ItemContainerStyle>
             <ListView.View>
                 <GridView AllowsColumnReorder="False">
+                    <GridView.ColumnHeaderContainerStyle>
+                        <!-- Disallow column resizing -->
+                        <Style TargetType="GridViewColumnHeader">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="GridViewColumnHeader">
+                                        <Border BorderThickness="0,0,1,0" BorderBrush="LightGray">
+                                            <ContentPresenter Margin="6,0,6,0" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </GridView.ColumnHeaderContainerStyle>
                     <GridViewColumn Header="Backup?">
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>
