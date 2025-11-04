@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Blocktavius.AppDQB2"
         mc:Ignorable="d"
-        Title="TODO" Height="450" Width="800">
+        Title="{Binding Title}" Height="450" Width="800">
     <Grid VerticalAlignment="Top">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"></RowDefinition>

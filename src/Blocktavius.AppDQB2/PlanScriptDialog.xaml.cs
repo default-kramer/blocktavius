@@ -132,10 +132,20 @@ public partial class PlanScriptDialog : Window
 			private set => ChangeProperty(ref _srcSlotName, value);
 		}
 
+		public string ScriptName { get; }
+		public string Title { get; }
+
 		public PlanScriptVM(ProjectVM project)
 		{
 			this.Project = project;
 			project.Subscribe(subscribeKey, this);
+
+			if (project.SelectedScript == null)
+			{
+				throw new ArgumentException("SelectedScript must not be null here");
+			}
+			ScriptName = project.SelectedScript.Name ?? "<Untitled Script>";
+			Title = $"Plan and Run -- {ScriptName}";
 
 			rebuildTask = Task.Run(() =>
 			{

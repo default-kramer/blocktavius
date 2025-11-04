@@ -51,7 +51,7 @@ namespace Blocktavius.AppDQB2
 		private void RunScriptButton_Click(object sender, RoutedEventArgs e)
 		{
 			var project = this.DataContext as ProjectVM;
-			if (project != null)
+			if (project != null && project.SelectedScript != null)
 			{
 				var dialog = new PlanScriptDialog();
 				dialog.ShowDialog(project);
