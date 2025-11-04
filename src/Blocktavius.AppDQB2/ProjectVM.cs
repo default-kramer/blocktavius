@@ -316,7 +316,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 		{
 			if (SelectedDestSlot != null && SelectedSourceStage != null)
 			{
-				return SelectedDestSlot.GetFullPath(SelectedSourceStage.Name);
+				return SelectedDestSlot.GetFullPath(SelectedSourceStage.Filename);
 			}
 			return null;
 		}
