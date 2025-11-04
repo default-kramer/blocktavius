@@ -14,15 +14,32 @@
         </Grid.RowDefinitions>
         <StackPanel Grid.Row="0" Orientation="Vertical" HorizontalAlignment="Center">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <Label VerticalAlignment="Center">Target Slot:</Label>
+                <Label VerticalAlignment="Center">From:</Label>
+                <TextBox VerticalAlignment="Center" Text="{Binding SourceSlotName, Mode=OneWay}" IsReadOnly="True" Padding="3,1,3,1"></TextBox>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Label VerticalAlignment="Center">To:</Label>
                 <ComboBox MinWidth="75" VerticalAlignment="Center" ItemsSource="{Binding Project.DestSlots}" SelectedItem="{Binding Project.SelectedDestSlot}" DisplayMemberPath="Name"></ComboBox>
             </StackPanel>
             <StackPanel Margin="0,8,0,0" Orientation="Horizontal" HorizontalAlignment="Center">
                 <Label VerticalAlignment="Center">Include:</Label>
                 <ComboBox MinWidth="75" VerticalAlignment="Center" ItemsSource="{Binding Project.InclusionModes}" SelectedItem="{Binding Project.SelectedInclusionMode}" DisplayMemberPath="DisplayName"></ComboBox>
             </StackPanel>
-            <TextBlock Margin="0,20,0,0" TextWrapping="Wrap"><Run Text="Source:  "></Run><Run Text="{Binding Project.SelectedSourceSlot.FullPath, Mode=OneWay}"></Run></TextBlock>
-            <TextBlock Margin="0,3,0,0" TextWrapping="Wrap"><Run Text="Dest:  "></Run><Run Text="{Binding Project.SelectedDestSlot.FullPath, Mode=OneWay}"></Run></TextBlock>
+            <TextBlock Margin="0,20,0,0" TextWrapping="Wrap"><Run Text="From:  "></Run><Run Text="{Binding Project.SelectedSourceSlot.FullPath, Mode=OneWay}"></Run></TextBlock>
+            <TextBlock Margin="0,3,0,0" TextWrapping="Wrap"><Run Text="     To:  "></Run><Run Text="{Binding Project.SelectedDestSlot.FullPath, Mode=OneWay}"></Run></TextBlock>
+            <TextBlock Margin="0,3,0,0" TextWrapping="Wrap">
+                <TextBlock.Style>
+                    <Style TargetType="{x:Type TextBlock}">
+                        <Setter Property="Visibility" Value="Visible"></Setter>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding DestIsSource}" Value="False">
+                                <Setter Property="Visibility" Value="Collapsed"></Setter>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+                Source and Destination are the same. Nothing needs to be copied.
+            </TextBlock>
         </StackPanel>
         <ListView Grid.Row="1" ItemsSource="{Binding PlanItems}" HorizontalAlignment="Center" Margin="0,6,0,0">
             <ListView.ItemContainerStyle>
@@ -113,7 +130,7 @@
                 <TextBlock Grid.Column="0" TextWrapping="Wrap" Text="{Binding BackupWarning}" Foreground="Red" HorizontalAlignment="Center"></TextBlock>
             </Grid>
             <StackPanel Orientation="Horizontal" Margin="0,12,0,20" HorizontalAlignment="Center">
-                <Button IsDefault="True" Click="OkButton_Click" IsEnabled="{Binding !IsExecuting}">OK</Button>
+                <Button IsDefault="True" Click="OkButton_Click" IsEnabled="{Binding IsNotExecuting}">OK</Button>
                 <Button Margin="12,0,0,0" IsCancel="True">Cancel</Button>
             </StackPanel>
         </StackPanel>

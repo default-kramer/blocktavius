@@ -113,7 +113,23 @@ public partial class PlanScriptDialog : Window
 		public bool IsExecuting
 		{
 			get => _isExecuting;
-			set => ChangeProperty(ref _isExecuting, value);
+			private set => ChangeProperty(ref _isExecuting, value, nameof(IsExecuting), nameof(IsNotExecuting));
+		}
+
+		public bool IsNotExecuting => !IsExecuting;
+
+		private bool _destIsSource;
+		public bool DestIsSource
+		{
+			get => _destIsSource;
+			private set => ChangeProperty(ref _destIsSource, value);
+		}
+
+		private string? _srcSlotName = null;
+		public string SourceSlotName
+		{
+			get => _srcSlotName ?? "";
+			private set => ChangeProperty(ref _srcSlotName, value);
 		}
 
 		public PlanScriptVM(ProjectVM project)
@@ -172,6 +188,9 @@ public partial class PlanScriptDialog : Window
 
 		private void UpdatePlan()
 		{
+			DestIsSource = Deps.DestIsSource;
+			SourceSlotName = Deps.SelectedSourceSlot?.Name ?? "";
+
 			PlanItems.Clear();
 
 			var mode = Project.SelectedInclusionMode.InclusionMode;
