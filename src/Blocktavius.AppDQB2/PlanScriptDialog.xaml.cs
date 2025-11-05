@@ -214,7 +214,7 @@ public partial class PlanScriptDialog : Window
 
 			TryPlanSimpleCopy(sourceSlot, "AUTOCMNDAT.BIN", mode == InclusionMode.Automatic);
 			TryPlanSimpleCopy(sourceSlot, "AUTOSTGDAT.BIN", mode == InclusionMode.Automatic);
-			TryPlanSimpleCopy(sourceSlot, "CMNDAT.BIN", mode == InclusionMode.Automatic || mode == InclusionMode.JustCmndat);
+			TryPlanSimpleCopy(sourceSlot, "CMNDAT.BIN", mode == InclusionMode.Automatic || mode == InclusionMode.JustCmndat, forceBackup: true);
 
 			var sortedStages = sourceSlot.Stages
 				.OrderBy(stage => stage == Project.SelectedSourceStage ? 0 : 1)
@@ -242,6 +242,7 @@ public partial class PlanScriptDialog : Window
 					bool shouldCopy = mode == InclusionMode.Automatic && stage.IsKnownStage;
 					planItem = new SimpleCopyPlanItemVM
 					{
+						ForceBackup = false,
 						DestIsSource = Deps.DestIsSource,
 						BackupDir = this.backupLocation,
 						SourceFile = stage.StgdatFile,
@@ -254,13 +255,14 @@ public partial class PlanScriptDialog : Window
 			}
 		}
 
-		private bool TryPlanSimpleCopy(SlotVM sourceSlot, string name, bool shouldCopy)
+		private bool TryPlanSimpleCopy(SlotVM sourceSlot, string name, bool shouldCopy, bool forceBackup = false)
 		{
 			var sourceFile = new FileInfo(sourceSlot.GetFullPath(name));
 			if (sourceFile.Exists)
 			{
 				PlanItems.Add(new SimpleCopyPlanItemVM
 				{
+					ForceBackup = forceBackup,
 					DestIsSource = Deps.DestIsSource,
 					BackupDir = this.backupLocation,
 					SourceFile = sourceFile,
@@ -371,13 +373,17 @@ public partial class PlanScriptDialog : Window
 
 	class SimpleCopyPlanItemVM : PlanItemVM, IPlanItemVM
 	{
+		/// <summary>
+		/// Used for CMNDAT, which we want to back up even when DestIsSource.
+		/// </summary>
+		public required bool ForceBackup { get; init; }
 		public required bool DestIsSource { get; init; }
 		public required FileInfo SourceFile { get; init; }
 		public required bool ShouldCopy { get; init; }
 		public required string ShortName { get; init; }
 
 		public bool WillBeCopied => !DestIsSource && ShouldCopy;
-		public bool WillBeBackedUp => WillBeCopied && !DestIsSource && BackupDir != null;
+		public bool WillBeBackedUp => BackupDir != null && (ForceBackup || (WillBeCopied && !DestIsSource));
 		public bool WillBeModified => false;
 
 		public async Task Execute(WritableSlotVM targetSlot)
