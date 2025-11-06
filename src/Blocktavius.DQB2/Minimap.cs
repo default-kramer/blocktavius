@@ -16,8 +16,8 @@ public readonly record struct MinimapTile
 
 	public required int TileValue { get; init; }
 
-	public int TileId => TileValue / 11;
-	public int TileType => TileValue % 11;
+	public int TileId => TileIndex / 11;
+	public int TileType => TileIndex % 11;
 	public bool IsVisible => (TileValue & 0x8000) != 0;
 	public bool IsMountain => (TileValue & 0x4000) != 0;
 	public int TileIndex => (TileValue & 0x3FFF) - 1;

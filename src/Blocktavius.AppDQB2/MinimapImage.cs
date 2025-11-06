@@ -62,13 +62,6 @@ public static class MinimapRenderer
 						continue; // Skip empty tiles
 					}
 
-					// Handle visibility: If we are not showing all tiles and the tile is not visible, draw the hidden tile.
-					if (!options.ShowAllTiles && !tile.IsVisible)
-					{
-						dc.DrawImage(tiles[HiddenTileIndex], positionRect);
-						continue;
-					}
-
 					// --- Draw Base Tile ---
 					if (tile.TileId >= 0 && tile.TileId < tiles.Count)
 					{
@@ -82,7 +75,7 @@ public static class MinimapRenderer
 
 					// --- Draw Overlays ---
 					// Draw TileType overlay (trees, rooms, etc.)
-					if (tile.TileType > 0)
+					if (tile.TileType >= 0)
 					{
 						int overlayIndex = OverlayStartIndex + tile.TileType;
 						if (overlayIndex < tiles.Count)
@@ -99,6 +92,12 @@ public static class MinimapRenderer
 						{
 							dc.DrawImage(tiles[mountainOverlayIndex], positionRect);
 						}
+					}
+
+					// Handle visibility: If we are not showing all tiles and the tile is not visible, draw the hidden tile on top.
+					if (!options.ShowAllTiles && !tile.IsVisible)
+					{
+						dc.DrawImage(tiles[HiddenTileIndex], positionRect);
 					}
 				}
 			}
