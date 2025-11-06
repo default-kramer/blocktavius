@@ -228,7 +228,14 @@ public partial class PlanScriptDialog : Window
 
 			DestIsSource = Deps.DestIsSource;
 			SourceSlotName = Deps.SelectedSourceSlot?.Name ?? "";
-			CanExecute = Deps.SelectedDestSlot != null && Deps.SelectedSourceSlot != null;
+			CanExecute = Deps.SelectedDestSlot != null
+				&& Deps.SelectedSourceSlot != null;
+
+			if (Project.SelectedSourceStage == null)
+			{
+				CanExecute = false;
+				RunScriptError = "Source stage must be selected (on the main window).";
+			}
 
 			PlanItems.Clear();
 
