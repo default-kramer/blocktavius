@@ -234,6 +234,7 @@ public partial class PlanScriptDialog : Window
 			if (Project.SelectedSourceStage == null)
 			{
 				CanExecute = false;
+				IsDone = true; // not really "done", but setting this makes it readonly which is what we want
 				RunScriptError = "Source stage must be selected (on the main window).";
 			}
 
