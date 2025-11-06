@@ -126,8 +126,13 @@
                 <TextBlock Grid.Column="0" TextWrapping="Wrap" Text="{Binding BackupWarning}" Foreground="Red" HorizontalAlignment="Center"></TextBlock>
             </Grid>
             <StackPanel Orientation="Horizontal" Margin="0,12,0,20" HorizontalAlignment="Center">
-                <Button IsDefault="True" Click="OkButton_Click" IsEnabled="{Binding IsNotExecuting}">OK</Button>
-                <Button Margin="12,0,0,0" IsCancel="True">Cancel</Button>
+                <Button FontSize="16" Padding="7,2" IsDefault="True" Click="OkButton_Click" IsEnabled="{Binding CanExecute}">
+                    <StackPanel Orientation="Vertical">
+                        <TextBlock HorizontalAlignment="Center">Run Script:</TextBlock>
+                        <TextBlock HorizontalAlignment="Center" Text="{Binding ScriptName}"></TextBlock>
+                    </StackPanel>
+                </Button>
+                <Button FontSize="16" Padding="7,2" Margin="12,0,0,0" IsCancel="True">Cancel</Button>
             </StackPanel>
         </StackPanel>
     </StackPanel>

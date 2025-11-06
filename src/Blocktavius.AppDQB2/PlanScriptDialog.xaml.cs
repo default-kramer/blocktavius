@@ -109,14 +109,19 @@ public partial class PlanScriptDialog : Window
 		public string BackupMessage { get; }
 		public string BackupWarning { get; }
 
-		private bool _isExecuting;
-		public bool IsExecuting
+		private bool _canExecute = false;
+		public bool CanExecute
 		{
-			get => _isExecuting;
-			private set => ChangeProperty(ref _isExecuting, value, nameof(IsExecuting), nameof(IsNotExecuting));
+			get => _canExecute;
+			set => ChangeProperty(ref _canExecute, value);
 		}
 
-		public bool IsNotExecuting => !IsExecuting;
+		private string _runScriptError = "";
+		public string RunScriptError
+		{
+			get => _runScriptError;
+			set => ChangeProperty(ref _runScriptError, value);
+		}
 
 		private bool _destIsSource;
 		public bool DestIsSource
@@ -200,6 +205,7 @@ public partial class PlanScriptDialog : Window
 		{
 			DestIsSource = Deps.DestIsSource;
 			SourceSlotName = Deps.SelectedSourceSlot?.Name ?? "";
+			CanExecute = Deps.SelectedDestSlot != null && Deps.SelectedSourceSlot != null;
 
 			PlanItems.Clear();
 
@@ -253,6 +259,16 @@ public partial class PlanScriptDialog : Window
 
 				PlanItems.Add(planItem);
 			}
+
+			if (destSlot == null)
+			{
+				var items = PlanItems.Select(DoNothingPlanItemVM.CopyFrom).ToList();
+				PlanItems.Clear();
+				foreach (var item in items)
+				{
+					PlanItems.Add(item);
+				}
+			}
 		}
 
 		private bool TryPlanSimpleCopy(SlotVM sourceSlot, string name, bool shouldCopy, bool forceBackup = false)
@@ -276,24 +292,25 @@ public partial class PlanScriptDialog : Window
 
 		public async Task Execute()
 		{
-			if (IsExecuting) return;
+			if (!CanExecute) return;
 
-			// TODO we need to ensure the plan can only be attempted once!
-			// Future attempts MUST use a new BackupDir!
+			CanExecute = false;
 
 			try
 			{
-				IsExecuting = true;
+				CanExecute = false;
 
 				if (Project.SelectedDestSlot == null)
 				{
+					RunScriptError = "Destination save slot not set";
 					return;
 				}
 
 				var stage = await rebuildTask;
 				if (stage == null || !stage.Saver.CanSave)
 				{
-					return; // TODO show some kind of error
+					RunScriptError = "Failed to construct the modified stage.";
+					return;
 				}
 
 				if (backupLocation != null && PlanItems.Any(p => p.WillBeBackedUp))
@@ -304,9 +321,20 @@ public partial class PlanScriptDialog : Window
 				var tasks = PlanItems.Select(item => item.Execute(Project.SelectedDestSlot)).ToList();
 				await Task.WhenAll(tasks);
 			}
-			finally
+			catch (AggregateException aggEx)
 			{
-				IsExecuting = false;
+				var sb = new StringBuilder();
+				string spacer = "";
+				foreach (var ex in aggEx.InnerExceptions)
+				{
+					sb.Append(spacer).Append(ex.Message);
+					spacer = Environment.NewLine + Environment.NewLine;
+				}
+				RunScriptError = sb.ToString();
+			}
+			catch (Exception ex)
+			{
+				RunScriptError = ex.Message;
 			}
 		}
 	}
@@ -369,6 +397,26 @@ public partial class PlanScriptDialog : Window
 
 			return (success, exception);
 		}
+	}
+
+	/// <summary>
+	/// For when there is no dest slot and we just want to list the files.
+	/// </summary>
+	class DoNothingPlanItemVM : IPlanItemVM
+	{
+		public bool WillBeBackedUp => false;
+		public bool WillBeModified => false;
+		public bool WillBeCopied => false;
+		public required string ShortName { get; init; }
+		public string Status => "";
+		public string StatusToolTip => "";
+
+		public static DoNothingPlanItemVM CopyFrom(IPlanItemVM orig)
+		{
+			return new DoNothingPlanItemVM { ShortName = orig.ShortName };
+		}
+
+		public Task Execute(WritableSlotVM targetSlot) => Task.CompletedTask;
 	}
 
 	class SimpleCopyPlanItemVM : PlanItemVM, IPlanItemVM
