@@ -25,9 +25,6 @@ namespace Blocktavius.AppDQB2
 		{
 			InitializeComponent();
 
-			lvScripts.SetBinding(ListView.ItemsSourceProperty, nameof(ProjectVM.Scripts));
-			lvScripts.DisplayMemberPath = nameof(ScriptVM.Name);
-
 			icScriptContent.SetBinding(DataContextProperty, nameof(ProjectVM.SelectedScript));
 			icScriptContent.SetBinding(ItemsControl.ItemsSourceProperty, nameof(ScriptVM.Nodes));
 
@@ -45,9 +42,20 @@ namespace Blocktavius.AppDQB2
 			}
 		}
 
-		private void lvScripts_MouseDown(object sender, MouseButtonEventArgs e)
+		private void PreviewScriptButton_Click(object sender, RoutedEventArgs e)
 		{
-			(this.DataContext as ProjectVM)?.OnScriptListViewClicked();
+			var mainWindow = this.VisualTreeAncestors().OfType<MainWindow>().FirstOrDefault();
+			mainWindow?.DoPreview();
+		}
+
+		private void RunScriptButton_Click(object sender, RoutedEventArgs e)
+		{
+			var project = this.DataContext as ProjectVM;
+			if (project != null && project.SelectedScript != null)
+			{
+				var dialog = new PlanScriptDialog();
+				dialog.ShowDialog(project);
+			}
 		}
 	}
 }

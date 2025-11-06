@@ -22,6 +22,13 @@ sealed class StgdatLoader
 
 	public bool TryLoad(string stgdatPath, out LoadResult result, out string error)
 	{
+		if (string.IsNullOrWhiteSpace(stgdatPath))
+		{
+			result = null!;
+			error = "File path cannot be empty";
+			return false;
+		}
+
 		var stgdatFile = new FileInfo(stgdatPath);
 		if (!stgdatFile.Exists)
 		{

@@ -24,5 +24,15 @@ namespace Blocktavius.AppDQB2
 		{
 			InitializeComponent();
 		}
+
+		private void EditChunkGrid_Click(object sender, RoutedEventArgs e)
+		{
+			var project = DataContext as ProjectVM;
+			if (project == null)
+			{
+				return;
+			}
+			EditChunkGridDialog.ShowDialog(project);
+		}
 	}
 }

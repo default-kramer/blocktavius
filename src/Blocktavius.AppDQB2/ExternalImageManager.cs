@@ -79,7 +79,15 @@ sealed class ExternalImageManager : IDisposable
 
 	private void AddNewImage(ExternalImageVM vm)
 	{
-		Application.Current.Dispatcher.Invoke(() =>
+		// Application.Current can actually be null here if you close the app quickly,
+		// before scanning all the images completes.
+		var dispatcher = Application.Current?.Dispatcher;
+		if (dispatcher == null)
+		{
+			return;
+		}
+
+		dispatcher.Invoke(() =>
 		{
 			lock (locker)
 			{

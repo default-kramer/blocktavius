@@ -12,26 +12,48 @@ namespace Blocktavius.AppDQB2
 	/// </summary>
 	public partial class App : Application
 	{
-		public static readonly Driver eyeOfRubissDriver;
-
-		static App()
+		protected override void OnStartup(StartupEventArgs e)
 		{
-			eyeOfRubissDriver = Driver.CreateAndStart(new Driver.Config()
+			base.OnStartup(e);
+
+			// Set the main window *before* showing the EditProfileWindow﻿, otherwise WPF
+			// assumes that EditProfileWindow is the main window and exits when it is closed.
+			var mainWindow = new MainWindow();
+			this.MainWindow = mainWindow;
+
+			var appdata = AppData.LoadOrCreate();
+
+			var profileDialog = new EditProfileWindow();
+			if (!profileDialog.ShowDialog(appdata, out var selectedProfile))
 			{
-				EyeOfRubissExePath = @"C:\Users\kramer\Documents\code\DQB2_WorldViewer\.EXPORT\EyeOfRubiss.exe",
-				UseCmdShell = true,
-			});
-		}
+				Shutdown();
+				return;
+			}
 
-		protected override void OnExit(ExitEventArgs e)
-		{
-			ShutdownEyeOfRubiss();
-			base.OnExit(e);
-		}
+			Global.CurrentProfile = selectedProfile;
 
-		public static void ShutdownEyeOfRubiss()
-		{
-			try { eyeOfRubissDriver?.Dispose(); } catch { }
+			Driver? eyeOfRubissDriver = null;
+			if (appdata.EyeOfRubissExePath != null)
+			{
+				eyeOfRubissDriver = Driver.CreateAndStart(new Driver.Config()
+				{
+					EyeOfRubissExePath = appdata.EyeOfRubissExePath,
+					UseCmdShell = true,
+				});
+			}
+
+			var vm = new ProjectVM(selectedProfile);
+			vm.ProjectFilePath = @"C:\Users\kramer\Documents\code\HermitsHeresy\examples\STB\foo.blocktaviusproject";
+
+			vm.Scripts.Add(new ScriptVM() { Name = "Main" });
+			vm.Scripts.Add(new ScriptVM() { Name = "Script 2" });
+			vm.SelectedScript = vm.Scripts.First();
+
+			mainWindow.DataContext = vm;
+			Global.SetCurrentProject(vm);
+
+			mainWindow.EyeOfRubissDriver = eyeOfRubissDriver;
+			mainWindow.Show();
 		}
 	}
 }

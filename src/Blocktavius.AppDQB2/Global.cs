@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Blocktavius.Core;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -39,19 +40,21 @@ static class Global
 	/// </summary>
 	public static bool IsDebug => System.Diagnostics.Debugger.IsAttached;
 
-	private static ProjectVM currentProject = new ProjectVM();
+	private static ProjectVM? currentProject = null;
 
 	public static void SetCurrentProject(ProjectVM project)
 	{
 		currentProject = project;
 	}
 
+	public static ProfileSettings? CurrentProfile { get; set; }
+
 	public sealed class AreasItemsSource : IItemsSource
 	{
 		public ItemCollection GetValues()
 		{
 			var list = new ItemCollection();
-			foreach (var layerVM in currentProject.Layers)
+			foreach (var layerVM in (currentProject?.Layers).EmptyIfNull())
 			{
 				var area = layerVM.SelfAsAreaVM;
 				if (area != null)
@@ -61,6 +64,15 @@ static class Global
 			}
 			return list;
 		}
+	}
+
+	public static IEnumerable<DependencyObject> LogicalAncestors(this DependencyObject obj)
+	{
+		do
+		{
+			yield return obj;
+			obj = LogicalTreeHelper.GetParent(obj);
+		} while (obj != null);
 	}
 
 	public static IEnumerable<DependencyObject> VisualTreeAncestors(this DependencyObject obj)
