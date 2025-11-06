@@ -15,12 +15,12 @@
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                 <Label VerticalAlignment="Center">To:</Label>
-                <ComboBox MinWidth="75" VerticalAlignment="Center" IsReadOnly="{Binding IsDone}"
+                <ComboBox MinWidth="75" VerticalAlignment="Center" IsEnabled="{Binding IsNotDone}"
                           ItemsSource="{Binding Project.DestSlots}" SelectedItem="{Binding Project.SelectedDestSlot}" DisplayMemberPath="Name"></ComboBox>
             </StackPanel>
             <StackPanel Margin="0,8,0,0" Orientation="Horizontal" HorizontalAlignment="Center">
                 <Label VerticalAlignment="Center">Include:</Label>
-                <ComboBox MinWidth="75" VerticalAlignment="Center" IsReadOnly="{Binding IsDone}"
+                <ComboBox MinWidth="75" VerticalAlignment="Center" IsEnabled="{Binding IsNotDone}"
                           ItemsSource="{Binding Project.InclusionModes}" SelectedItem="{Binding Project.SelectedInclusionMode}" DisplayMemberPath="DisplayName"></ComboBox>
             </StackPanel>
             <TextBlock Margin="0,20,0,0" TextWrapping="Wrap"><Run Text="From:  "></Run><Run Text="{Binding Project.SelectedSourceSlot.FullPath, Mode=OneWay}"></Run></TextBlock>
@@ -135,9 +135,10 @@
                     </StackPanel>
                 </Button>
                 <Button FontSize="16" Padding="7,2" Margin="12,0,0,0" IsCancel="True">
-                    <TextBlock Text="Cancel">
+                    <TextBlock>
                         <TextBlock.Style>
                             <Style TargetType="{x:Type TextBlock}">
+                                <Setter Property="Text" Value="Cancel"></Setter>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsDone}" Value="True">
                                         <Setter Property="Text" Value="Close"></Setter>

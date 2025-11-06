@@ -129,9 +129,11 @@ public partial class PlanScriptDialog : Window
 					// This is especially important so we don't re-use the same backup directory
 					throw new Exception("Assert fail - Cannot go from Done to Not-Done");
 				}
-				ChangeProperty(ref _isDone, value);
+				ChangeProperty(ref _isDone, value, nameof(IsDone), nameof(IsNotDone));
 			}
 		}
+
+		public bool IsNotDone => !IsDone;
 
 		private string _runScriptError = "";
 		public string RunScriptError
