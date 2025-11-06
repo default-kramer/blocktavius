@@ -40,7 +40,6 @@ public partial class PlanScriptDialog : Window
 	{
 		var vm = (PlanScriptVM)DataContext;
 		await vm.Execute();
-		//DialogResult = true;
 	}
 
 	/// <summary>
@@ -115,6 +114,23 @@ public partial class PlanScriptDialog : Window
 		{
 			get => _canExecute;
 			set => ChangeProperty(ref _canExecute, value);
+		}
+
+		// After the script runs (to success or failure), we change the dialog to readonly
+		// mode so that it cannot be run again.
+		private bool _isDone = false;
+		public bool IsDone
+		{
+			get => _isDone;
+			set
+			{
+				if (_isDone && !value)
+				{
+					// This is especially important so we don't re-use the same backup directory
+					throw new Exception("Assert fail - Cannot go from Done to Not-Done");
+				}
+				ChangeProperty(ref _isDone, value);
+			}
 		}
 
 		private string _runScriptError = "";
@@ -194,6 +210,8 @@ public partial class PlanScriptDialog : Window
 
 		protected override void OnSubscribedPropertyChanged(ViewModelBase sender, PropertyChangedEventArgs e)
 		{
+			if (IsDone) { return; }
+
 			Deps = ProjectDeps.Rebuild(Project);
 		}
 
@@ -204,6 +222,8 @@ public partial class PlanScriptDialog : Window
 
 		private void UpdatePlan()
 		{
+			if (IsDone) { return; }
+
 			DestIsSource = Deps.DestIsSource;
 			SourceSlotName = Deps.SelectedSourceSlot?.Name ?? "";
 			CanExecute = Deps.SelectedDestSlot != null && Deps.SelectedSourceSlot != null;
@@ -294,8 +314,13 @@ public partial class PlanScriptDialog : Window
 		public async Task Execute()
 		{
 			if (!CanExecute) return;
-
+			if (IsDone)
+			{
+				throw new Exception("Assert fail - Can only run once");
+			}
 			CanExecute = false;
+			IsDone = true;
+
 			if (Project.SelectedDestSlot == null)
 			{
 				RunScriptError = "Destination slot not set"; // should never happen
@@ -377,8 +402,8 @@ public partial class PlanScriptDialog : Window
 		public string CombineLogs(IReadOnlyList<IPlanItemVM> planItems)
 		{
 			var sb = new StringBuilder();
-			sb.AppendLine($"From: {FromSlot.Name}, {FromSlot.FullPath}");
-			sb.AppendLine($"  To: {ToSlot.Name}, {ToSlot.FullPath}");
+			sb.AppendLine($"From: {FromSlot.Name}  {FromSlot.FullPath}");
+			sb.AppendLine($"  To: {ToSlot.Name}  {ToSlot.FullPath}");
 
 			if (TopLevelException != null)
 			{

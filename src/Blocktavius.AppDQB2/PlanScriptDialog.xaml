@@ -15,11 +15,13 @@
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                 <Label VerticalAlignment="Center">To:</Label>
-                <ComboBox MinWidth="75" VerticalAlignment="Center" ItemsSource="{Binding Project.DestSlots}" SelectedItem="{Binding Project.SelectedDestSlot}" DisplayMemberPath="Name"></ComboBox>
+                <ComboBox MinWidth="75" VerticalAlignment="Center" IsReadOnly="{Binding IsDone}"
+                          ItemsSource="{Binding Project.DestSlots}" SelectedItem="{Binding Project.SelectedDestSlot}" DisplayMemberPath="Name"></ComboBox>
             </StackPanel>
             <StackPanel Margin="0,8,0,0" Orientation="Horizontal" HorizontalAlignment="Center">
                 <Label VerticalAlignment="Center">Include:</Label>
-                <ComboBox MinWidth="75" VerticalAlignment="Center" ItemsSource="{Binding Project.InclusionModes}" SelectedItem="{Binding Project.SelectedInclusionMode}" DisplayMemberPath="DisplayName"></ComboBox>
+                <ComboBox MinWidth="75" VerticalAlignment="Center" IsReadOnly="{Binding IsDone}"
+                          ItemsSource="{Binding Project.InclusionModes}" SelectedItem="{Binding Project.SelectedInclusionMode}" DisplayMemberPath="DisplayName"></ComboBox>
             </StackPanel>
             <TextBlock Margin="0,20,0,0" TextWrapping="Wrap"><Run Text="From:  "></Run><Run Text="{Binding Project.SelectedSourceSlot.FullPath, Mode=OneWay}"></Run></TextBlock>
             <TextBlock Margin="0,3,0,0" TextWrapping="Wrap"><Run Text="     To:  "></Run><Run Text="{Binding Project.SelectedDestSlot.FullPath, Mode=OneWay}"></Run></TextBlock>
@@ -126,13 +128,25 @@
                 <TextBlock Grid.Column="0" TextWrapping="Wrap" Text="{Binding BackupWarning}" Foreground="Red" HorizontalAlignment="Center"></TextBlock>
             </Grid>
             <StackPanel Orientation="Horizontal" Margin="0,12,0,20" HorizontalAlignment="Center">
-                <Button FontSize="16" Padding="7,2" IsDefault="True" Click="OkButton_Click" IsEnabled="{Binding CanExecute}">
+                <Button FontSize="16" Padding="7,2" Click="OkButton_Click" IsEnabled="{Binding CanExecute}">
                     <StackPanel Orientation="Vertical">
                         <TextBlock HorizontalAlignment="Center">Run Script:</TextBlock>
                         <TextBlock HorizontalAlignment="Center" Text="{Binding ScriptName}"></TextBlock>
                     </StackPanel>
                 </Button>
-                <Button FontSize="16" Padding="7,2" Margin="12,0,0,0" IsCancel="True">Cancel</Button>
+                <Button FontSize="16" Padding="7,2" Margin="12,0,0,0" IsCancel="True">
+                    <TextBlock Text="Cancel">
+                        <TextBlock.Style>
+                            <Style TargetType="{x:Type TextBlock}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsDone}" Value="True">
+                                        <Setter Property="Text" Value="Close"></Setter>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Button>
             </StackPanel>
         </StackPanel>
     </StackPanel>
