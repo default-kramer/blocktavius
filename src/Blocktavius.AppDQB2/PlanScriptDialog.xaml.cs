@@ -1,5 +1,6 @@
 using Blocktavius.DQB2;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -295,17 +296,28 @@ public partial class PlanScriptDialog : Window
 			if (!CanExecute) return;
 
 			CanExecute = false;
+			if (Project.SelectedDestSlot == null)
+			{
+				RunScriptError = "Destination slot not set"; // should never happen
+				return;
+			}
+			if (Project.SelectedSourceSlot == null)
+			{
+				RunScriptError = "Source slot not set"; // should never happen
+				return;
+			}
+
+			var context = new ExecutionContext()
+			{
+				FromSlot = Project.SelectedSourceSlot,
+				ToSlot = Project.SelectedDestSlot,
+			};
+
+			var planItems = PlanItems.ToList();
+			var backupDir = planItems.Any(p => p.WillBeBackedUp) ? this.backupLocation : null;
 
 			try
 			{
-				CanExecute = false;
-
-				if (Project.SelectedDestSlot == null)
-				{
-					RunScriptError = "Destination save slot not set";
-					return;
-				}
-
 				var stage = await rebuildTask;
 				if (stage == null || !stage.Saver.CanSave)
 				{
@@ -313,16 +325,17 @@ public partial class PlanScriptDialog : Window
 					return;
 				}
 
-				if (backupLocation != null && PlanItems.Any(p => p.WillBeBackedUp))
+				if (backupDir != null)
 				{
-					backupLocation.Create();
+					backupDir.Create();
 				}
 
-				var tasks = PlanItems.Select(item => item.Execute(Project.SelectedDestSlot)).ToList();
+				var tasks = planItems.Select(context.Execute).ToList();
 				await Task.WhenAll(tasks);
 			}
 			catch (AggregateException aggEx)
 			{
+				context.TopLevelException = aggEx;
 				var sb = new StringBuilder();
 				string spacer = "";
 				foreach (var ex in aggEx.InnerExceptions)
@@ -334,12 +347,73 @@ public partial class PlanScriptDialog : Window
 			}
 			catch (Exception ex)
 			{
+				context.TopLevelException = ex;
 				RunScriptError = ex.Message;
+			}
+			finally
+			{
+				if (context != null && backupDir != null)
+				{
+					try
+					{
+						var path = Path.Combine(backupDir.FullName, "_executionLog.txt");
+						File.WriteAllText(path, context.CombineLogs(planItems));
+					}
+					catch (Exception) { }
+				}
 			}
 		}
 	}
 
 	const int minMilliseconds = 600;
+
+	sealed class ExecutionContext
+	{
+		private readonly ConcurrentDictionary<IPlanItemVM, StringBuilder> logs = new();
+		public required SlotVM FromSlot { get; init; }
+		public required WritableSlotVM ToSlot { get; init; }
+		public Exception? TopLevelException { get; set; } = null;
+
+		public string CombineLogs(IReadOnlyList<IPlanItemVM> planItems)
+		{
+			var sb = new StringBuilder();
+			sb.AppendLine($"From: {FromSlot.Name}, {FromSlot.FullPath}");
+			sb.AppendLine($"  To: {ToSlot.Name}, {ToSlot.FullPath}");
+
+			if (TopLevelException != null)
+			{
+				sb.AppendLine().AppendLine("=== ERROR ===");
+				sb.AppendLine(TopLevelException.ToString());
+			}
+
+			foreach (var item in planItems)
+			{
+				sb.AppendLine().AppendLine($"=== {item.ShortName} ===");
+				sb.AppendLine($"    Backup? {item.WillBeBackedUp}");
+				sb.AppendLine($"      Copy? {item.WillBeCopied}");
+				sb.AppendLine($"    Modify? {item.WillBeModified}");
+				sb.Append(logs.GetValueOrDefault(item)?.ToString() ?? $"No action taken.{Environment.NewLine}");
+			}
+
+			return sb.ToString();
+		}
+
+		public StringBuilder GetLogger(IPlanItemVM planItem) => logs.GetOrAdd(planItem, new StringBuilder());
+
+		public async Task Execute(IPlanItemVM planItem)
+		{
+			try
+			{
+				await planItem.Execute(this);
+			}
+			catch (Exception ex)
+			{
+				var logger = GetLogger(planItem);
+				logger.AppendLine("Unhandled exception!").AppendLine(ex.ToString());
+				throw;
+			}
+		}
+	}
 
 	interface IPlanItemVM
 	{
@@ -350,7 +424,7 @@ public partial class PlanScriptDialog : Window
 		string Status { get; }
 		string StatusToolTip { get; }
 
-		Task Execute(WritableSlotVM targetSlot);
+		Task Execute(ExecutionContext context);
 	}
 
 	abstract class PlanItemVM : ViewModelBase
@@ -416,7 +490,7 @@ public partial class PlanScriptDialog : Window
 			return new DoNothingPlanItemVM { ShortName = orig.ShortName };
 		}
 
-		public Task Execute(WritableSlotVM targetSlot) => Task.CompletedTask;
+		public Task Execute(ExecutionContext context) => Task.CompletedTask;
 	}
 
 	class SimpleCopyPlanItemVM : PlanItemVM, IPlanItemVM
@@ -434,10 +508,12 @@ public partial class PlanScriptDialog : Window
 		public bool WillBeBackedUp => BackupDir != null && (ForceBackup || (WillBeCopied && !DestIsSource));
 		public bool WillBeModified => false;
 
-		public async Task Execute(WritableSlotVM targetSlot)
+		public async Task Execute(ExecutionContext context)
 		{
+			WritableSlotVM targetSlot = context.ToSlot;
 			Status = "";
 			StatusToolTip = "";
+			var fullLog = context.GetLogger(this);
 
 			var targetFile = new FileInfo(targetSlot.GetFullPath(SourceFile.Name));
 			bool doBackup = WillBeBackedUp && targetFile.Exists;
@@ -449,6 +525,7 @@ public partial class PlanScriptDialog : Window
 				{
 					Status = "Skipped";
 					StatusToolTip = "File did not exist, nothing to back up.";
+					fullLog.AppendLine("Skipped - File did not exist, nothing to back up.");
 				}
 				return;
 			}
@@ -459,20 +536,27 @@ public partial class PlanScriptDialog : Window
 			if (doBackup)
 			{
 				var (success, exception) = await DoBackup(targetFile);
-				if (!success)
+				if (success)
+				{
+					fullLog.AppendLine("Backup completed.");
+				}
+				else
 				{
 					if (doCopy)
 					{
 						errorDetails.Append("Backup failed; copy skipped.");
+						fullLog.AppendLine("Backup failed; copy skipped.");
 					}
 					else
 					{
 						errorDetails.Append("Backup failed. Nothing else to do.");
+						fullLog.AppendLine("Backup failed. Nothing else to do.");
 					}
 
 					if (exception != null)
 					{
 						errorDetails.AppendLine().AppendLine().Append(exception.Message);
+						fullLog.AppendLine(exception.ToString());
 					}
 
 					await minDelay;
@@ -490,10 +574,12 @@ public partial class PlanScriptDialog : Window
 					try
 					{
 						SourceFile.CopyTo(targetFile.FullName, overwrite: true);
+						fullLog.AppendLine("Copy completed.");
 					}
 					catch (Exception ex)
 					{
 						errorDetails.AppendLine("Backup succeeded; copy failed.").AppendLine().Append(ex.Message);
+						fullLog.AppendLine("Backup succeeded; copy failed.").AppendLine(ex.ToString());
 					}
 				});
 			}
@@ -516,11 +602,13 @@ public partial class PlanScriptDialog : Window
 		public bool WillBeCopied => !DestIsSource;
 		public bool WillBeBackedUp => BackupDir != null;
 
-		public async Task Execute(WritableSlotVM targetSlot)
+		public async Task Execute(ExecutionContext context)
 		{
+			WritableSlotVM targetSlot = context.ToSlot;
 			Status = "";
 			StatusToolTip = "";
 			var minDelay = Task.Delay(minMilliseconds);
+			var fullLog = context.GetLogger(this);
 
 			Status = "Rebuilding...";
 			var stage = await RebuildStageTask;
@@ -537,12 +625,18 @@ public partial class PlanScriptDialog : Window
 			if (doBackup)
 			{
 				var (success, exception) = await DoBackup(targetFile);
-				if (!success)
+				if (success)
+				{
+					fullLog.AppendLine("Backup completed.");
+				}
+				else
 				{
 					errorDetails.Append("Backup failed; stopping.");
+					fullLog.AppendLine("Backup failed; stopping.");
 					if (exception != null)
 					{
 						errorDetails.AppendLine().AppendLine().Append(exception.Message);
+						fullLog.AppendLine(exception.ToString());
 					}
 
 					await minDelay;
@@ -558,10 +652,12 @@ public partial class PlanScriptDialog : Window
 				try
 				{
 					stage.Saver.Save(targetSlot.WritableSlot, stage, targetFile);
+					fullLog.AppendLine("Scripted stage constructed successfully!");
 				}
 				catch (Exception ex)
 				{
 					errorDetails.AppendLine("Failed to save stage.").AppendLine().Append(ex.Message);
+					fullLog.AppendLine("Failed to save stage.").AppendLine(ex.ToString());
 				}
 			});
 
