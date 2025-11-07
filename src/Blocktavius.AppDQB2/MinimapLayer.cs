@@ -28,9 +28,13 @@ sealed class MinimapLayer : ViewModelBase, ILayerVM
 
 	public void RebuildImage(ProjectVM project)
 	{
-		const int islandId = 0; // TODO
+		if (project.SelectedSourceStage == null || project.SelectedSourceStage.MinimapIslandIds.Count < 1)
+		{
+			return;
+		}
 
-		var StgdatPath = project.StgdatFilePath ?? "";
+		int islandId = project.SelectedSourceStage.MinimapIslandIds.First();
+		var StgdatPath = project.SelectedSourceStage.StgdatFile.FullName;
 
 		var cmndatPath = Path.Combine(new FileInfo(StgdatPath).Directory?.FullName ?? "<<FAIL>>", "CMNDAT.BIN");
 		var cmndatFile = new FileInfo(cmndatPath);

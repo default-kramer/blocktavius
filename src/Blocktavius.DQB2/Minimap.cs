@@ -55,14 +55,6 @@ public class Minimap
 	const int OUTRO_SIZE = 4;
 	const int ISLAND_DATA_SIZE = INTRO_SIZE + TILE_DATA_SIZE + OUTRO_SIZE;
 
-	/* Sapphire's Python script has this for island IDs:
-Island_names = ((0,"Isle of\nAwakening\n\nからっぽ島","aqua"),(1,"Furrowfield\n\nモンゾーラ島","medium sea green"),
-                (2,"Khrumbul-Dun\nオッカムル島","orange"),(20,"Upper level","#C47400"),(21,"Lower level","#944D00"),
-                (3,"Moonbrooke\n\nムーンブルク島","#00FFC0"),(4,"Malhalla\n\n破壊天体シドー","#BBBBFF"),
-                (8,"Skelkatraz\n\n監獄島","grey"),(10,"Buildertopia 1\n\nかいたく島1","#FFDDDD"),(11,"Buildertopia 2\n\nかいたく島2","#FFE6DD"),
-                (13,"Buildertopia 3\n\nかいたく島3","#FFEEDD"),(7,"Angler's Isle\n\nツリル島","#DDF0FF"),(12,"Battle Atoll   バトル島","#FF9999"))
-	*/
-
 	public I2DSampler<MinimapTile> ReadMap(int islandId)
 	{
 		int start = INTRO_SIZE + ISLAND_DATA_SIZE * islandId;
