@@ -20,7 +20,11 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 	public ProjectVM(ProfileSettings profile)
 	{
 		Layers = new();
-		Layers.Add(minimapLayer);
+		if (MinimapRenderer.IsEnabled)
+		{
+			minimapLayer = new();
+			Layers.Add(minimapLayer);
+		}
 		Layers.Add(chunkGridLayer);
 		SelectedLayer = Layers.FirstOrDefault();
 
@@ -104,7 +108,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 	}
 
 	private readonly ChunkGridLayer chunkGridLayer = new();
-	private readonly MinimapLayer minimapLayer = new();
+	private readonly MinimapLayer? minimapLayer;
 
 	public ExternalImageManager? ImageManager() => imageManager;
 
@@ -200,7 +204,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 		if (TryLoadStage(out var result))
 		{
 			chunkGridLayer.RebuildImage(result.Stage.ChunksInUse.Concat(expansion));
-			minimapLayer.RebuildImage(this);
+			minimapLayer?.RebuildImage(this);
 		}
 	}
 

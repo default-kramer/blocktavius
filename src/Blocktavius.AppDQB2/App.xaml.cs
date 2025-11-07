@@ -22,6 +22,7 @@ namespace Blocktavius.AppDQB2
 			this.MainWindow = mainWindow;
 
 			var appdata = AppData.LoadOrCreate();
+			MinimapRenderer.Initialize(appdata);
 
 			var profileDialog = new EditProfileWindow();
 			if (!profileDialog.ShowDialog(appdata, out var selectedProfile))

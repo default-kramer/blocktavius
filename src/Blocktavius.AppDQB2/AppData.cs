@@ -26,6 +26,8 @@ public sealed class AppData
 
 	public string? EyeOfRubissExePath => dataInMemory.EyeOfRubissExePath;
 
+	public string? MinimapTilesheetPath => dataInMemory.MinimapTilesheetPath;
+
 	internal bool TryLoadMostRecentProfile(out ProfileSettings profile)
 	{
 		var path = dataInMemory.MostRecentProfilePath;
@@ -108,10 +110,14 @@ public sealed class AppData
 		// TODO attempt to locate Eye of Rubiss
 		string? eyeOfRubissPath = null;
 
+		// TODO same
+		string? minimapTilesheetPath = null;
+
 		return new JsonData
 		{
 			MostRecentProfilePath = profilePath,
 			EyeOfRubissExePath = eyeOfRubissPath,
+			MinimapTilesheetPath = minimapTilesheetPath,
 		};
 	}
 
@@ -119,5 +125,11 @@ public sealed class AppData
 	{
 		public required string? MostRecentProfilePath { get; init; }
 		public required string? EyeOfRubissExePath { get; init; }
+
+		/// <summary>
+		/// Path to this file: https://github.com/Sapphire645/DQB2MinimapExporter/blob/main/Script/Data/SheetRetro.png
+		/// If null minimap rendering is disabled.
+		/// </summary>
+		public required string? MinimapTilesheetPath { get; init; }
 	}
 }

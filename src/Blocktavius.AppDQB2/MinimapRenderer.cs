@@ -31,17 +31,33 @@ public static class MinimapRenderer
 		{ 8, 8 }, { 9, 10 }, { 10, 9 }, { 11, 7 }, { 18, 8 }
 	};
 
-	private const string sheetRetroPath = @"C:\Users\kramer\Documents\code\DQB2MinimapExporter\Script\Data\SheetRetro.png";
-	private static readonly List<BitmapSource> tiles;
+	private static IReadOnlyList<BitmapSource>? tiles = null;
 
-	static MinimapRenderer()
+	public static bool IsEnabled => tiles != null;
+
+	public static void Initialize(AppData appData)
 	{
-		var tilesetImage = new BitmapImage(new Uri(sheetRetroPath, UriKind.RelativeOrAbsolute));
-		tiles = ExtractTiles(tilesetImage, TileSize, TileSize);
+		if (string.IsNullOrWhiteSpace(appData.MinimapTilesheetPath))
+		{
+			tiles = null;
+			return;
+		}
+
+		try
+		{
+			var tilesetImage = new BitmapImage(new Uri(appData.MinimapTilesheetPath, UriKind.RelativeOrAbsolute));
+			tiles = ExtractTiles(tilesetImage, TileSize, TileSize);
+		}
+		catch { tiles = null; }
 	}
 
-	public static BitmapSource Render(I2DSampler<MinimapTile> map, MinimapRenderOptions options)
+	public static BitmapSource? Render(I2DSampler<MinimapTile> map, MinimapRenderOptions options)
 	{
+		if (tiles == null)
+		{
+			return null;
+		}
+
 		// Create a drawing visual to render onto
 		int imageWidth = map.Bounds.Size.X * TileSize;
 		int imageHeight = map.Bounds.Size.Z * TileSize;
