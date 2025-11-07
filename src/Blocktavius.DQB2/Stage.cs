@@ -12,8 +12,22 @@ namespace Blocktavius.DQB2;
 /// </summary>
 public interface IStage
 {
+	/// <summary>
+	/// Returns a sampler with max possible bounds extending from (0,0) to (64,64).
+	/// The sampler's actual bounds will be cropped to the smallest possible rect.
+	/// Null indicates the chunk is not in use.
+	/// CAUTION! Notice how the XZ you pass into this sampler does not mean
+	/// what XZ usually means. Possibly confusing, but I don't think it's enough
+	/// to justify creating an I2DSampler{TIndexer, TResult} yet...
+	/// </summary>
+	I2DSampler<ChunkOffset?> ChunkGridCropped { get; }
+
 	bool TryReadChunk(ChunkOffset offset, out IChunk chunk);
 
+	/// <summary>
+	/// Here "original" approximately means "existed when the STGDAT file was loaded".
+	/// Differs from <see cref="ChunksInUse"/> only when the chunk grid is modified.
+	/// </summary>
 	IReadOnlyList<ChunkOffset> OriginalChunksInUse { get; }
 
 	IReadOnlyList<ChunkOffset> ChunksInUse { get; }
@@ -54,6 +68,7 @@ public sealed class ImmutableStage : ICloneableStage
 		this.chunkGrid = chunkGrid;
 	}
 
+	public I2DSampler<ChunkOffset?> ChunkGridCropped => chunkGrid.croppedOffsetSampler;
 	public IReadOnlyList<ChunkOffset> OriginalChunksInUse => ChunksInUse;
 	public IReadOnlyList<ChunkOffset> ChunksInUse => chunkGrid.chunksInUse;
 
@@ -91,6 +106,7 @@ sealed class MutableStage : IMutableStage
 		this.OriginalChunksInUse = originalChunksInUse;
 	}
 
+	public I2DSampler<ChunkOffset?> ChunkGridCropped => chunkGrid.croppedOffsetSampler;
 	public IReadOnlyList<ChunkOffset> ChunksInUse => chunkGrid.chunksInUse;
 
 	public bool TryGetChunk(ChunkOffset offset, out IMutableChunk chunk)

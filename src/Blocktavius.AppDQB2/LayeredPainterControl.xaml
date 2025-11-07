@@ -46,6 +46,14 @@
                                 </Style>
                             </ContentControl.Style>
                             <ContentControl.Resources>
+                                <DataTemplate DataType="{x:Type local:MinimapLayer}">
+                                    <Image Source="{Binding MinimapImage}">
+                                        <!-- Tilesheet has tiles at 16x16 but we need 8x8 to match the 1-pixel-per-XZ convention -->
+                                        <Image.RenderTransform>
+                                            <ScaleTransform ScaleX="0.5" ScaleY="0.5"></ScaleTransform>
+                                        </Image.RenderTransform>
+                                    </Image>
+                                </DataTemplate>
                                 <DataTemplate DataType="{x:Type local:ChunkGridLayer}">
                                     <Image Source="{Binding ChunkGridImage}"></Image>
                                 </DataTemplate>

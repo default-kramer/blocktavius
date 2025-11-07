@@ -56,20 +56,11 @@ sealed class ChunkGridLayer : ViewModelBase, ILayerVM
 	{
 		Task.Run(() =>
 		{
-			var cmndatPath = Path.Combine(new FileInfo(StgdatPath).Directory?.FullName ?? "<<FAIL>>", "CMNDAT.BIN");
-			var cmndatFile = new FileInfo(cmndatPath);
-			if (cmndatFile.Exists)
-			{
-				var map = Minimap.FromCmndatFile(cmndatFile);
-				var image = MinimapRenderer.Render(map.ReadMap(0), new MinimapRenderOptions());
-				ChunkGridImage = image;
-			}
-			/*
 			if (stgdatLoader.TryLoad(stgdatPath, out var result, out _))
 			{
 				var image = BuildImage(result.Stage.ChunksInUse);
 				Application.Current.Dispatcher.Invoke(() => { ChunkGridImage = image; });
-			}*/
+			}
 		});
 	}
 

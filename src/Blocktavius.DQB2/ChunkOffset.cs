@@ -13,6 +13,12 @@ public record struct ChunkOffset(int OffsetX, int OffsetZ)
 
 	public Rect Bounds => new Rect(NorthwestCorner, NorthwestCorner.Add(ChunkMath.i32, ChunkMath.i32));
 
+	/// <summary>
+	/// Caution! For use in samplers only!
+	/// Do not confuse this with <see cref="NorthwestCorner"/>.
+	/// </summary>
+	public XZ RawUnscaledOffset => new XZ(OffsetX, OffsetZ);
+
 	public static ChunkOffset FromXZ(XZ xz)
 	{
 		return new ChunkOffset(xz.X / ChunkMath.i32, xz.Z / ChunkMath.i32);
