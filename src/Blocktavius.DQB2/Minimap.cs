@@ -42,7 +42,15 @@ public class Minimap
 
 	// Each island has an "intro", tile data, and "outro".
 	// I'm not sure if there's anything useful in the intro or the outro.
-	const int INTRO_SIZE = 512;
+	// UPDATE: I made a mistake, there is no "intro" at all.
+	// I asked Sapphire who responded:
+	//    Yup, it does [skip the top row]. Because for some reason I found that area was corrupt or something, so I skipped it
+	//    Though maybe it was an unrelated error
+	//    It didn't really matter in the end, since no island would have tiles over there
+	//
+	// So I'll skip the top row also; better safe than sorry.
+	const bool skipTopRow = true;
+	const int INTRO_SIZE = 0;
 	const int TILE_DATA_SIZE = 256 * 256 * 2;
 	const int OUTRO_SIZE = 4;
 	const int ISLAND_DATA_SIZE = INTRO_SIZE + TILE_DATA_SIZE + OUTRO_SIZE;
@@ -128,6 +136,10 @@ Island_names = ((0,"Isle of\nAwakening\n\nからっぽ島","aqua"),(1,"Furrowfie
 			if (!Bounds.Contains(xz))
 			{
 				throw new ArgumentOutOfRangeException(nameof(xz));
+			}
+			if (skipTopRow && xz.Z == 0)
+			{
+				return MinimapTile.Empty;
 			}
 
 			int index = xz.Z * MAP_DIMENSION + xz.X;
