@@ -259,6 +259,8 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 		var chunkGridLayer = Layers.LastOrDefault() as ChunkGridLayer;
 		var minimapLayer = Layers.FirstOrDefault() as MinimapLayer;
 
+		// Remove special/fixed layers to make the merge logic easier.
+		// We will re-add these layers at the end.
 		if (chunkGridLayer != null) { Layers.Remove(chunkGridLayer); }
 		if (minimapLayer != null) { Layers.Remove(minimapLayer); }
 
