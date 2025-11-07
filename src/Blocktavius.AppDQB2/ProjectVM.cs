@@ -329,6 +329,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 			if (ChangeProperty(ref _selectedSourceStage, value, nameof(SelectedSourceStage), nameof(StgdatFilePath), nameof(DestFullPath)))
 			{
 				chunkGridLayer.StgdatPath = StgdatFilePath ?? "";
+				minimapLayer?.RebuildImage(this);
 			}
 		}
 	}
