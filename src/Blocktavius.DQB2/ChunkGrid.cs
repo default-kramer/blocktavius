@@ -20,30 +20,20 @@ class ChunkGrid<TChunk> where TChunk : class
 {
 	private const int i64 = 64;
 
-	private readonly IReadOnlyList<TChunk?> chunkGrid;
+	// Keep our internal usage of ChunkOffset.RawUnscaledOffset as private as possible.
+	private readonly I2DSampler<TChunk?> chunkSampler;
+
+	// Too bad, we can't keep this one private:
+	public readonly I2DSampler<ChunkOffset?> croppedOffsetSampler;
 
 	/// <summary>
 	/// Sorted list of offsets which have chunks
 	/// </summary>
 	public readonly IReadOnlyList<ChunkOffset> chunksInUse;
 
-	public ChunkGrid(IReadOnlyList<TChunk?> chunkGrid)
+	internal ChunkGrid(MutableChunkGrid<TChunk> grid)
 	{
-		if (chunkGrid.Count != i64 * i64)
-		{
-			throw new ArgumentException($"{nameof(chunkGrid)} has wrong size: {chunkGrid.Count}");
-		}
-		this.chunkGrid = chunkGrid;
-
-		var inUse = new List<ChunkOffset>();
-		foreach (var offset in AllOffsets())
-		{
-			if (GridLookup(offset, chunkGrid) != null)
-			{
-				inUse.Add(offset);
-			}
-		}
-		this.chunksInUse = inUse;
+		(this.chunkSampler, this.croppedOffsetSampler, this.chunksInUse) = grid.Finish();
 	}
 
 	private static IEnumerable<ChunkOffset> AllOffsets()
@@ -57,33 +47,20 @@ class ChunkGrid<TChunk> where TChunk : class
 		}
 	}
 
-	public TChunk? GetChunkOrNull(XZ xz) => GridLookup(ChunkOffset.FromXZ(xz), chunkGrid);
+	public TChunk? GetChunkOrNull(XZ xz) => chunkSampler.Sample(ChunkOffset.FromXZ(xz).RawUnscaledOffset);
 
-	public TChunk? GetChunkOrNull(ChunkOffset offset) => GridLookup(offset, chunkGrid);
-
-	private static TChunk? GridLookup(ChunkOffset offset, IReadOnlyList<TChunk?> chunkGrid)
-	{
-		int index = offset.OffsetZ * i64 + offset.OffsetX;
-		if (index < 0 || index >= chunkGrid.Count)
-		{
-			return default;
-		}
-		return chunkGrid[index];
-	}
+	public TChunk? GetChunkOrNull(ChunkOffset offset) => chunkSampler.Sample(offset.RawUnscaledOffset);
 
 	public ChunkGrid<TNewChunk> Clone<TNewChunk>(Func<ChunkOffset, TChunk, TNewChunk> chunkCloner) where TNewChunk : class
 	{
-		var newGrid = new List<TNewChunk?>(chunkGrid.Count);
-		foreach (var item in chunkGrid.Zip(AllOffsets()))
+		var newGrid = new MutableChunkGrid<TNewChunk>();
+		foreach (var offset in AllOffsets())
 		{
-			if (item.First == null)
+			var existing = GetChunkOrNull(offset);
+			if (existing != null)
 			{
-				newGrid.Add(null);
-			}
-			else
-			{
-				var newChunk = chunkCloner(item.Second, item.First);
-				newGrid.Add(newChunk);
+				var replacement = chunkCloner(offset, existing);
+				newGrid.SetUsed(offset, replacement);
 			}
 		}
 		return new ChunkGrid<TNewChunk>(newGrid);
@@ -96,24 +73,63 @@ class ChunkGrid<TChunk> where TChunk : class
 	/// </summary>
 	public ChunkGrid<TChunk> Expand(IReadOnlySet<ChunkOffset> includeChunks, Func<ChunkOffset, TChunk> chunkCreator)
 	{
-		var newGrid = new List<TChunk?>(chunkGrid.Count);
-		foreach (var item in chunkGrid.Zip(AllOffsets()))
+		var newGrid = new MutableChunkGrid<TChunk>();
+		foreach (var offset in AllOffsets())
 		{
-			TChunk? chunk;
-			if (item.First != null)
+			var existingChunk = GetChunkOrNull(offset);
+			if (existingChunk != null)
 			{
-				chunk = item.First; // keep existing
+				newGrid.SetUsed(offset, existingChunk);
 			}
-			else if (includeChunks.Contains(item.Second))
+			else if (includeChunks.Contains(offset))
 			{
-				chunk = chunkCreator(item.Second); // create new
+				newGrid.SetUsed(offset, chunkCreator(offset));
 			}
-			else
-			{
-				chunk = null;
-			}
-			newGrid.Add(chunk);
 		}
 		return new ChunkGrid<TChunk>(newGrid);
+	}
+}
+
+class MutableChunkGrid<TChunk> where TChunk : class
+{
+	private const int i64 = 64;
+
+	private readonly MutableArray2D<TChunk?> array;
+	private readonly HashSet<ChunkOffset> inUse = new();
+	private readonly Rect.BoundsFinder croppedBoundsFinder = new();
+	private bool finished = false;
+
+	public MutableChunkGrid()
+	{
+		array = new MutableArray2D<TChunk?>(new Rect(XZ.Zero, new XZ(i64, i64)), null);
+	}
+
+	public void SetUsed(ChunkOffset offset, TChunk chunk)
+	{
+		if (finished)
+		{
+			throw new InvalidOperationException("Cannot mutate after Finish()");
+		}
+
+		var xz = offset.RawUnscaledOffset;
+		array.Put(xz, chunk);
+		inUse.Add(offset);
+		croppedBoundsFinder.Include(xz);
+	}
+
+	public (I2DSampler<TChunk?> tSampler, I2DSampler<ChunkOffset?> croppedSampler, IReadOnlyList<ChunkOffset> inUse) Finish()
+	{
+		finished = true;
+
+		var cropped = array.Crop(croppedBoundsFinder.CurrentBounds() ?? Rect.Zero)
+			.Project((chunk, xz) =>
+			{
+				ChunkOffset? offset = (chunk == null) ? null : new ChunkOffset(xz.X, xz.Z);
+				return offset;
+			});
+
+		var sortedOffsets = inUse.OrderBy(o => o.OffsetZ).ThenBy(o => o.OffsetX).ToList();
+
+		return (array, cropped, sortedOffsets);
 	}
 }

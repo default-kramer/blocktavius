@@ -62,6 +62,8 @@ sealed class SlotStageVM
 	/// </summary>
 	public required int? KnownStageSortOrder { get; init; }
 
+	public required IReadOnlyList<int> MinimapIslandIds { get; init; }
+
 	public bool IsKnownStage => KnownStageSortOrder.HasValue;
 	public string Filename => StgdatFile.Name;
 
@@ -71,15 +73,18 @@ sealed class SlotStageVM
 
 		string name;
 		int? knownOrder;
-		if (knownInfo.HasValue)
+		IReadOnlyList<int> minimapIds;
+		if (knownInfo != null)
 		{
-			name = $"{knownInfo.Value.name} ({stgatFile.Name})";
-			knownOrder = knownInfo.Value.sortOrder;
+			name = $"{knownInfo.Name} ({stgatFile.Name})";
+			knownOrder = knownInfo.SortOrder;
+			minimapIds = knownInfo.MinimapIslandIds;
 		}
 		else
 		{
 			name = stgatFile.Name;
 			knownOrder = null;
+			minimapIds = [];
 		}
 
 		return new SlotStageVM
@@ -87,23 +92,99 @@ sealed class SlotStageVM
 			StgdatFile = stgatFile,
 			Name = name,
 			KnownStageSortOrder = knownOrder,
+			MinimapIslandIds = minimapIds,
 		};
 	}
 
-	private static (string name, int sortOrder)? GetKnownStageName(string filename)
+	sealed record KnownStageInfo
 	{
+		public required string Name { get; init; }
+		public required int SortOrder { get; init; }
+		public required IReadOnlyList<int> MinimapIslandIds { get; init; }
+	}
+
+	private static KnownStageInfo? GetKnownStageName(string filename)
+	{
+		/* Sapphire's minimap Python script has this for island IDs:
+Island_names = ((0,"Isle of\nAwakening\n\nからっぽ島","aqua"),(1,"Furrowfield\n\nモンゾーラ島","medium sea green"),
+			(2,"Khrumbul-Dun\nオッカムル島","orange"),(20,"Upper level","#C47400"),(21,"Lower level","#944D00"),
+			(3,"Moonbrooke\n\nムーンブルク島","#00FFC0"),(4,"Malhalla\n\n破壊天体シドー","#BBBBFF"),
+			(8,"Skelkatraz\n\n監獄島","grey"),(10,"Buildertopia 1\n\nかいたく島1","#FFDDDD"),(11,"Buildertopia 2\n\nかいたく島2","#FFE6DD"),
+			(13,"Buildertopia 3\n\nかいたく島3","#FFEEDD"),(7,"Angler's Isle\n\nツリル島","#DDF0FF"),(12,"Battle Atoll   バトル島","#FF9999"))
+		*/
+
 		switch (filename.ToLowerInvariant())
 		{
-			case "stgdat01.bin": return ("Isle of Awakening", 1);
-			case "stgdat02.bin": return ("Furrowfield", 2);
-			case "stgdat03.bin": return ("Khrumbul-Dun", 3);
-			case "stgdat04.bin": return ("Moonbrooke", 4);
-			case "stgdat05.bin": return ("Malhalla", 5);
-			case "stgdat09.bin": return ("Angler's Isle", 9);
-			case "stgdat10.bin": return ("Skelkatraz", 10);
-			case "stgdat12.bin": return ("Buildertopia 1", 12);
-			case "stgdat13.bin": return ("Buildertopia 2", 13);
-			case "stgdat16.bin": return ("Buildertopia 3", 16);
+			case "stgdat01.bin":
+				return new KnownStageInfo
+				{
+					Name = "Isle of Awakening",
+					SortOrder = 1,
+					MinimapIslandIds = [0],
+				};
+			case "stgdat02.bin":
+				return new KnownStageInfo
+				{
+					Name = "Furrowfield",
+					SortOrder = 2,
+					MinimapIslandIds = [1],
+				};
+			case "stgdat03.bin":
+				return new KnownStageInfo
+				{
+					Name = "Khrumbul-Dun",
+					SortOrder = 3,
+					MinimapIslandIds = [2, 20, 21],
+				};
+			case "stgdat04.bin":
+				return new KnownStageInfo
+				{
+					Name = "Moonbrooke",
+					SortOrder = 4,
+					MinimapIslandIds = [3],
+				};
+			case "stgdat05.bin":
+				return new KnownStageInfo
+				{
+					Name = "Malhalla",
+					SortOrder = 5,
+					MinimapIslandIds = [4],
+				};
+			case "stgdat09.bin":
+				return new KnownStageInfo
+				{
+					Name = "Angler's Isle",
+					SortOrder = 9,
+					MinimapIslandIds = [7],
+				};
+			case "stgdat10.bin":
+				return new KnownStageInfo
+				{
+					Name = "Skelkatraz",
+					SortOrder = 10,
+					MinimapIslandIds = [8],
+				};
+			case "stgdat12.bin":
+				return new KnownStageInfo
+				{
+					Name = "Buildertopia 1",
+					SortOrder = 12,
+					MinimapIslandIds = [10],
+				};
+			case "stgdat13.bin":
+				return new KnownStageInfo
+				{
+					Name = "Buildertopia 2",
+					SortOrder = 13,
+					MinimapIslandIds = [11],
+				};
+			case "stgdat16.bin":
+				return new KnownStageInfo
+				{
+					Name = "Buildertopia 3",
+					SortOrder = 16,
+					MinimapIslandIds = [13],
+				};
 			default: return null;
 		}
 	}

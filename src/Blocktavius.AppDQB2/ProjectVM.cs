@@ -20,6 +20,11 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 	public ProjectVM(ProfileSettings profile)
 	{
 		Layers = new();
+		if (MinimapRenderer.IsEnabled)
+		{
+			minimapLayer = new();
+			Layers.Add(minimapLayer);
+		}
 		Layers.Add(chunkGridLayer);
 		SelectedLayer = Layers.FirstOrDefault();
 
@@ -103,6 +108,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 	}
 
 	private readonly ChunkGridLayer chunkGridLayer = new();
+	private readonly MinimapLayer? minimapLayer;
 
 	public ExternalImageManager? ImageManager() => imageManager;
 
@@ -198,6 +204,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 		if (TryLoadStage(out var result))
 		{
 			chunkGridLayer.RebuildImage(result.Stage.ChunksInUse.Concat(expansion));
+			minimapLayer?.RebuildImage(this);
 		}
 	}
 
@@ -212,7 +219,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 		return stgdatLoader.TryLoad(this.StgdatFilePath, out loadResult, out _);
 	}
 
-	public bool TryRebuildStage(out IStage stage)
+	public bool TryLoadMutableStage(out IMutableStage stage, bool expandChunks)
 	{
 		if (!TryLoadStage(out var loadResult))
 		{
@@ -220,8 +227,21 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 			return false;
 		}
 
-		IMutableStage workingStage = loadResult.Stage.Clone();
-		workingStage.ExpandChunks(ChunkExpansion);
+		stage = loadResult.Stage.Clone();
+		if (expandChunks)
+		{
+			stage.ExpandChunks(ChunkExpansion);
+		}
+		return true;
+	}
+
+	public bool TryRebuildStage(out IStage stage)
+	{
+		if (!TryLoadMutableStage(out var workingStage, expandChunks: true))
+		{
+			stage = null!;
+			return false;
+		}
 
 		var context = new StageRebuildContext(workingStage);
 
@@ -240,11 +260,13 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 
 	public void OnImagesSelected(ImageChooserDialog.VM result)
 	{
-		int keepAtEnd = 0;
-		if (Layers.LastOrDefault() is ChunkGridLayer)
-		{
-			keepAtEnd++;
-		}
+		var chunkGridLayer = Layers.LastOrDefault() as ChunkGridLayer;
+		var minimapLayer = Layers.FirstOrDefault() as MinimapLayer;
+
+		// Remove special/fixed layers to make the merge logic easier.
+		// We will re-add these layers at the end.
+		if (chunkGridLayer != null) { Layers.Remove(chunkGridLayer); }
+		if (minimapLayer != null) { Layers.Remove(minimapLayer); }
 
 		bool changed = false;
 		foreach (var img in result.Images)
@@ -253,7 +275,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 
 			if (img.IsChecked && !wasChecked)
 			{
-				int where = Layers.Count - keepAtEnd;
+				int where = Layers.Count;
 				Layers.Insert(where, new ExternalImageLayerVM { Image = img.ExternalImage });
 				changed = true;
 			}
@@ -267,6 +289,9 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 				changed = true;
 			}
 		}
+
+		if (minimapLayer != null) { Layers.Insert(0, minimapLayer); }
+		if (chunkGridLayer != null) { Layers.Add(chunkGridLayer); }
 
 		if (changed)
 		{
@@ -304,6 +329,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 			if (ChangeProperty(ref _selectedSourceStage, value, nameof(SelectedSourceStage), nameof(StgdatFilePath), nameof(DestFullPath)))
 			{
 				chunkGridLayer.StgdatPath = StgdatFilePath ?? "";
+				minimapLayer?.RebuildImage(this);
 			}
 		}
 	}

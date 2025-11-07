@@ -65,7 +65,7 @@ static class StageLoader
 		}
 
 		// Now load the chunks
-		var chunks = GC.AllocateUninitializedArray<byte[]?>(chunkOffsets.Count);
+		var mutableGrid = new MutableChunkGrid<byte[]>();
 		for (int i = 0; i < chunkOffsets.Count; i++)
 		{
 			byte[]? chunk;
@@ -75,15 +75,11 @@ static class StageLoader
 				int addr = GetChunkStartAddress(item.Value.chunkId);
 				chunk = GC.AllocateUninitializedArray<byte>(ChunkMath.BytesPerChunk);
 				body.AsSpan.Slice(addr, ChunkMath.BytesPerChunk).CopyTo(chunk);
+				mutableGrid.SetUsed(item.Value.offset, chunk);
 			}
-			else
-			{
-				chunk = null;
-			}
-			chunks[i] = chunk;
 		}
 
-		var chunkGrid = new ChunkGrid<byte[]>(chunks);
+		var chunkGrid = new ChunkGrid<byte[]>(mutableGrid);
 
 		var saver = new StageSaver
 		{
