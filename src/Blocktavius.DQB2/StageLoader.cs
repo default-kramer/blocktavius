@@ -56,11 +56,20 @@ static class StageLoader
 			throw new ArgumentException($"Stage has no chunks! {stgdatFilePath}");
 		}
 
+		// Handle the Moonbrooke bug (or any stage with 700 chunks).
+		// Moonbrooke is 272 bytes shorter than expected.
+		const int i700 = 700;
+		const int adjust700 = 272;
+
 		// Ensure the file is big enough for all chunks declared by the grid
-		int lastChunkEnd = GetChunkStartAddress(chunkIds.Max() + 1);
-		if (body.Length < lastChunkEnd)
+		int lengthToValidate = GetChunkStartAddress(chunkIds.Max() + 1);
+		if (chunkIds.Count == i700)
 		{
-			// TODO handle Moonbrooke here!
+			lengthToValidate -= adjust700;
+		}
+
+		if (body.Length < lengthToValidate)
+		{
 			throw StgdatTooShort(stgdatFilePath);
 		}
 
@@ -73,8 +82,25 @@ static class StageLoader
 			if (item.HasValue)
 			{
 				int addr = GetChunkStartAddress(item.Value.chunkId);
+				var slice = body.AsSpan.Slice(addr);
+
+				if (slice.Length >= ChunkMath.BytesPerChunk)
+				{
+					slice = slice.Slice(0, ChunkMath.BytesPerChunk);
+				}
+				else if (item.Value.chunkId == i700 - 1) // chunkId is zero-based
+				{
+					// allow this chunk to be too short
+				}
+				else
+				{
+					throw StgdatTooShort(stgdatFilePath);
+				}
+
+				// easter egg: using AllocateUninitializedArray might emulate the bug in DQB2,
+				// but dotnet seems to return zero-initialized arrays most/all of the time
 				chunk = GC.AllocateUninitializedArray<byte>(ChunkMath.BytesPerChunk);
-				body.AsSpan.Slice(addr, ChunkMath.BytesPerChunk).CopyTo(chunk);
+				slice.CopyTo(chunk);
 				mutableGrid.SetUsed(item.Value.offset, chunk);
 			}
 		}
