@@ -30,6 +30,23 @@
             </TabItem>
             <TabItem>
                 <TabItem.Header>
+                    <TextBlock Text="Crop+Zoom Test"></TextBlock>
+                </TabItem.Header>
+                <local:ZoomToCropControl Background="MintCream">
+                    <local:ZoomToCropControl.ZoomableContent>
+                        <Grid Width="300" Height="200">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1*"></ColumnDefinition>
+                                <ColumnDefinition Width="2*"></ColumnDefinition>
+                            </Grid.ColumnDefinitions>
+                            <Grid Grid.Column="0" Background="Aquamarine"></Grid>
+                            <Grid Grid.Column="1" Background="Yellow"></Grid>
+                        </Grid>
+                    </local:ZoomToCropControl.ZoomableContent>
+                </local:ZoomToCropControl>
+            </TabItem>
+            <TabItem>
+                <TabItem.Header>
                     <TextBlock>Scripts</TextBlock>
                 </TabItem.Header>
                 <local:ScriptsControl></local:ScriptsControl>
