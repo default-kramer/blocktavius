@@ -13,7 +13,7 @@
         </Grid.RowDefinitions>
 
         <!-- Measurement and Content Host (behind, invisible but measured) -->
-        <ScrollViewer x:Name="measurementViewer" Grid.Row="0" Panel.ZIndex="-1" Opacity="0" IsHitTestVisible="False" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled">
+        <ScrollViewer x:Name="measurementViewer" Grid.Row="0" Panel.ZIndex="-1" Opacity="0" IsHitTestVisible="False" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
             <ContentPresenter x:Name="contentHost" Content="{Binding RelativeSource={RelativeSource AncestorType=local:ZoomToCropControl}, Path=ZoomableContent}" />
         </ScrollViewer>
 
