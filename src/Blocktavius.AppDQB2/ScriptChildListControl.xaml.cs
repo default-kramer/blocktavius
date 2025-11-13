@@ -25,4 +25,15 @@ public partial class ScriptChildListControl : UserControl
 	{
 		InitializeComponent();
 	}
+
+	private void Border_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+	{
+		var child = (sender as FrameworkElement)?.DataContext as IChildNodeWrapperVM;
+		var project = this.DataContextAncestors().OfType<ProjectVM>().FirstOrDefault();
+		if (child == null || project == null)
+		{
+			return;
+		}
+		project.UpdateSelectedScriptNode(child.Child);
+	}
 }

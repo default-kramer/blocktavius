@@ -6,20 +6,36 @@
              xmlns:local="clr-namespace:Blocktavius.AppDQB2"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
-    <ItemsControl ItemsSource="{Binding ChildNodes}" HorizontalAlignment="Left" HorizontalContentAlignment="Left">
+    <ItemsControl ItemsSource="{Binding ChildNodes}" HorizontalAlignment="Left">
         <ItemsControl.ItemTemplate>
             <DataTemplate>
-                <Border BorderThickness="1" BorderBrush="Black" Margin="0,5,0,0">
-                    <StackPanel Orientation="Vertical" HorizontalAlignment="Left">
-                        <Border Background="LightGray" Padding="5" BorderThickness="0,0,0,1" BorderBrush="Black">
-                            <TextBlock Text="TODO - move up, move down, delete, etc..."></TextBlock>
-                        </Border>
-                        <StackPanel Orientation="Vertical" HorizontalAlignment="Left" Margin="5">
-                            <TextBlock Text="{Binding}"></TextBlock>
-                            <TextBlock Text="{Binding Child}"></TextBlock>
-                            <local:ScriptNodeControl DataContext="{Binding Child}"></local:ScriptNodeControl>
+                <Border BorderThickness="2" Margin="0,8,0,0" MouseLeftButtonDown="Border_MouseLeftButtonDown">
+                    <Border.Resources>
+                        <Style TargetType="{x:Type Border}">
+                            <Setter Property="BorderBrush" Value="Transparent"></Setter>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Child.IsSelected}" Value="True">
+                                    <Setter Property="BorderBrush" Value="Black"></Setter>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Resources>
+                    <Border BorderBrush="Black" BorderThickness="1">
+                        <StackPanel Orientation="Vertical" HorizontalAlignment="Left">
+                            <Border Background="LightGray" Padding="5" BorderThickness="0,0,0,1" BorderBrush="Black">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button Command="{Binding CommandMoveUp}">Move Up</Button>
+                                    <Button Command="{Binding CommandMoveDown}">Move Down</Button>
+                                    <Button Command="{Binding CommandDelete}">Delete</Button>
+                                </StackPanel>
+                            </Border>
+                            <StackPanel Orientation="Vertical" HorizontalAlignment="Left" Margin="5">
+                                <TextBlock Text="{Binding}"></TextBlock>
+                                <TextBlock Text="{Binding Child}"></TextBlock>
+                                <local:ScriptNodeControl DataContext="{Binding Child}"></local:ScriptNodeControl>
+                            </StackPanel>
                         </StackPanel>
-                    </StackPanel>
+                    </Border>
                 </Border>
             </DataTemplate>
         </ItemsControl.ItemTemplate>

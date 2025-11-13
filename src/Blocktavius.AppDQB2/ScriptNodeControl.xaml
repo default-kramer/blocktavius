@@ -11,8 +11,8 @@
         <ContentControl.Resources>
             <DataTemplate DataType="{x:Type local:ScriptVM}">
                 <StackPanel Orientation="Vertical">
-                    <TextBlock Text="Data template specifically for Script VM"></TextBlock>
-                    <local:ScriptChildListControl Margin="15,0,0,0"></local:ScriptChildListControl>
+                    <TextBlock Text="DEBUG NOTE: Data template specifically for Script VM"></TextBlock>
+                    <local:ScriptChildListControl></local:ScriptChildListControl>
                 </StackPanel>
             </DataTemplate>
 
