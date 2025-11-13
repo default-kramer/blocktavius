@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Input;
 
 namespace Blocktavius.AppDQB2;
 
@@ -49,6 +50,10 @@ abstract class ScriptNodeVM : ViewModelBaseWithCustomTypeDescriptor
 interface IChildNodeWrapperVM
 {
 	ScriptNodeVM Child { get; }
+
+	ICommand CommandMoveUp { get; }
+	ICommand CommandMoveDown { get; }
+	ICommand CommandDelete { get; }
 }
 
 interface IStageMutator
@@ -85,10 +90,80 @@ sealed class ScriptSettingsVM : ScriptNodeVM
 
 sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator
 {
-	public sealed class ChildNodeWrapper : IChildNodeWrapperVM
+	public sealed class ChildNodeWrapper : ViewModelBase, IChildNodeWrapperVM
 	{
+		private readonly ScriptVM parent;
+		public ChildNodeWrapper(ScriptVM parent)
+		{
+			this.parent = parent;
+			parent.Nodes.CollectionChanged += Nodes_CollectionChanged;
+		}
+
+		private void Nodes_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+		{
+			if (Child is ScriptSettingsVM)
+			{
+				return; // cannot move or delete, always first in list
+			}
+
+			CommandMoveUp = BuildMoveCommand(this, -1);
+			CommandMoveDown = BuildMoveCommand(this, 1);
+			CommandDelete = new RelayCommand(_ => true, _ =>
+			{
+				parent.Nodes.CollectionChanged -= Nodes_CollectionChanged;
+				parent.Nodes.Remove(this);
+			});
+		}
+
 		public required ScriptNodeVM Child { get; init; }
 		public required IStageMutator? Mutator { get; init; }
+
+		private ICommand _commandMoveUp = NullCommand.Instance;
+		public ICommand CommandMoveUp
+		{
+			get => _commandMoveUp;
+			private set => ChangeProperty(ref _commandMoveUp, value);
+		}
+
+		private ICommand _commandMoveDown = NullCommand.Instance;
+		public ICommand CommandMoveDown
+		{
+			get => _commandMoveDown;
+			private set => ChangeProperty(ref _commandMoveDown, value);
+		}
+
+		private ICommand _commandDelete = NullCommand.Instance;
+		public ICommand CommandDelete
+		{
+			get => _commandDelete;
+			private set => ChangeProperty(ref _commandDelete, value);
+		}
+
+		private static ICommand BuildMoveCommand(ChildNodeWrapper item, int delta)
+		{
+			var nodes = item.parent.Nodes;
+
+			Func<(int from, int? to)> Compute = () =>
+			{
+				int from = nodes.IndexOf(item);
+				int to = from + delta;
+				if (to > 0 && to < nodes.Count) // index 0 is reserved for the script settings
+				{
+					return (from, to);
+				}
+				return (from, null);
+			};
+
+			return new RelayCommand(_ => Compute().to.HasValue, _ =>
+			{
+				var (from, to) = Compute();
+				if (to.HasValue)
+				{
+					nodes.RemoveAt(from);
+					nodes.Insert(to.Value, item);
+				}
+			});
+		}
 	}
 
 	public ScriptSettingsVM Settings { get; }
@@ -111,7 +186,7 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator
 
 	private void AddChild(ScriptNodeVM child)
 	{
-		Nodes.Add(new ChildNodeWrapper
+		Nodes.Add(new ChildNodeWrapper(this)
 		{
 			Child = child,
 			Mutator = child as IStageMutator,
