@@ -14,7 +14,8 @@
         </ItemsControl.ItemContainerStyle>
         <ItemsControl.ItemTemplate>
             <DataTemplate>
-                <Border BorderThickness="2" Margin="0,8,0,0" MouseLeftButtonDown="Border_MouseLeftButtonDown">
+                <!-- Background=Transparent is needed for hit testing here: -->
+                <Border BorderThickness="2" Margin="0,8,0,0" MouseLeftButtonDown="Border_MouseLeftButtonDown" Background="Transparent">
                     <Border.Resources>
                         <Style TargetType="{x:Type Border}">
                             <Setter Property="BorderBrush" Value="Transparent"></Setter>
