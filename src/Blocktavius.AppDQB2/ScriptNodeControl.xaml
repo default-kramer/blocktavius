@@ -15,6 +15,9 @@
                     <local:ScriptChildListControl></local:ScriptChildListControl>
                 </StackPanel>
             </DataTemplate>
+            <DataTemplate DataType="{x:Type local:ScriptSettingsVM}">
+                <TextBlock Text="Script Settings"></TextBlock>
+            </DataTemplate>
 
             <!-- Default DataTemplate for unhandled types -->
             <DataTemplate DataType="{x:Type local:ViewModelBase}">

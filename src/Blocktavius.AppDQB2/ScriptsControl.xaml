@@ -30,7 +30,7 @@
                                 </DataTemplate>
                             </GridViewColumn.CellTemplate>
                         </GridViewColumn>
-                        <GridViewColumn DisplayMemberBinding="{Binding Name}"></GridViewColumn>
+                        <GridViewColumn DisplayMemberBinding="{Binding Settings.ScriptName}"></GridViewColumn>
                     </GridView>
                 </ListView.View>
             </ListView>

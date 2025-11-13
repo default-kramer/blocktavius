@@ -29,11 +29,7 @@
                                     <Button Command="{Binding CommandDelete}">Delete</Button>
                                 </StackPanel>
                             </Border>
-                            <StackPanel Orientation="Vertical" HorizontalAlignment="Left" Margin="5">
-                                <TextBlock Text="{Binding}"></TextBlock>
-                                <TextBlock Text="{Binding Child}"></TextBlock>
-                                <local:ScriptNodeControl DataContext="{Binding Child}"></local:ScriptNodeControl>
-                            </StackPanel>
+                            <local:ScriptNodeControl DataContext="{Binding Child}" HorizontalAlignment="Left" Margin="5"></local:ScriptNodeControl>
                         </StackPanel>
                     </Border>
                 </Border>

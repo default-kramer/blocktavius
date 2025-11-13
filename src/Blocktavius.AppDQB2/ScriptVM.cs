@@ -66,6 +66,23 @@ abstract class ScriptNonleafNodeVM : ScriptNodeVM
 	public abstract IEnumerable<IChildNodeWrapperVM> ChildNodes { get; }
 }
 
+sealed class ScriptSettingsVM : ScriptNodeVM
+{
+	private bool _expandBedrock = false;
+	public bool ExpandBedrock
+	{
+		get => _expandBedrock;
+		set => ChangeProperty(ref _expandBedrock, value);
+	}
+
+	private string? _scriptName = null;
+	public string? ScriptName
+	{
+		get => _scriptName;
+		set => ChangeProperty(ref _scriptName, value);
+	}
+}
+
 sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator
 {
 	public sealed class ChildNodeWrapper : IChildNodeWrapperVM
@@ -74,34 +91,40 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator
 		public required IStageMutator? Mutator { get; init; }
 	}
 
+	public ScriptSettingsVM Settings { get; }
+
 	public ScriptVM()
 	{
+		Settings = new();
+		AddChild(Settings);
 		AddChild(new ScriptNodes.PutGroundNodeVM());
 		AddChild(new ScriptNodes.PutHillNodeVM());
 	}
 
-	private void AddChild<T>(T child) where T : ScriptNodeVM, IStageMutator
+	public ScriptVM SetScriptName(string? name)
 	{
-		Nodes.Add(new ChildNodeWrapper { Child = child, Mutator = child });
+		Settings.ScriptName = name;
+		return this;
 	}
 
+	public string? GetScriptName() => Settings.ScriptName;
+
+	private void AddChild(ScriptNodeVM child)
+	{
+		Nodes.Add(new ChildNodeWrapper
+		{
+			Child = child,
+			Mutator = child as IStageMutator,
+		});
+	}
+
+	[Browsable(false)]
 	public ObservableCollection<ChildNodeWrapper> Nodes { get; } = new();
 
+	[Browsable(false)]
 	public override IEnumerable<IChildNodeWrapperVM> ChildNodes => Nodes;
 
-	private bool expandBedrock = false;
-	public bool ExpandBedrock
-	{
-		get => expandBedrock;
-		set => ChangeProperty(ref expandBedrock, value);
-	}
 
-	private string? name = null;
-	public string? Name
-	{
-		get => name;
-		set => ChangeProperty(ref name, value);
-	}
 
 	private bool _isTheActiveScript = false;
 	public bool IsTheActiveScript
