@@ -15,12 +15,9 @@ using System.Windows.Shapes;
 
 namespace Blocktavius.AppDQB2;
 
-/// <summary>
-/// Interaction logic for LayeredPainterControl.xaml
-/// </summary>
-public partial class LayeredPainterControl : UserControl
+public partial class LayeredImagesControl : UserControl
 {
-	public LayeredPainterControl()
+	public LayeredImagesControl()
 	{
 		InitializeComponent();
 	}

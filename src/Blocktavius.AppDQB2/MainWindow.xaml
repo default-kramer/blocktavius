@@ -26,7 +26,7 @@
                 <TabItem.Header>
                     <TextBlock Text="Images"></TextBlock>
                 </TabItem.Header>
-                <local:LayeredPainterControl></local:LayeredPainterControl>
+                <local:LayeredImagesControl></local:LayeredImagesControl>
             </TabItem>
             <TabItem>
                 <TabItem.Header>
