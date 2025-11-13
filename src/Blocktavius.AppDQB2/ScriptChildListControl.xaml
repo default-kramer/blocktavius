@@ -7,6 +7,11 @@
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
     <ItemsControl ItemsSource="{Binding ChildNodes}" HorizontalAlignment="Left">
+        <ItemsControl.ItemContainerStyle>
+            <Style TargetType="ContentPresenter">
+                <Setter Property="HorizontalAlignment" Value="Stretch" />
+            </Style>
+        </ItemsControl.ItemContainerStyle>
         <ItemsControl.ItemTemplate>
             <DataTemplate>
                 <Border BorderThickness="2" Margin="0,8,0,0" MouseLeftButtonDown="Border_MouseLeftButtonDown">
@@ -21,7 +26,7 @@
                         </Style>
                     </Border.Resources>
                     <Border BorderBrush="Black" BorderThickness="1">
-                        <StackPanel Orientation="Vertical" HorizontalAlignment="Left">
+                        <StackPanel Orientation="Vertical" HorizontalAlignment="Stretch">
                             <Border Background="LightGray" Padding="5" BorderThickness="0,0,0,1" BorderBrush="Black">
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                     <Button Command="{Binding CommandMoveUp}">Move Up</Button>
