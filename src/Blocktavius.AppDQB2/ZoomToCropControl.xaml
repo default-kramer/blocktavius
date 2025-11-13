@@ -26,7 +26,16 @@
                     </Rectangle.Fill>
                 </Rectangle>
                 <Canvas x:Name="interactionCanvas" Background="Transparent" MouseDown="InteractionCanvas_MouseDown" MouseMove="InteractionCanvas_MouseMove" MouseUp="InteractionCanvas_MouseUp">
-                    <Rectangle x:Name="selectionRectangle" Stroke="Red" StrokeThickness="2" Visibility="Collapsed" />
+                    <!-- White border -->
+                    <Rectangle x:Name="selectionRectangleWhite"
+                               Stroke="White"
+                               StrokeThickness="4"
+                               Visibility="Collapsed" />
+                    <!-- Black outer line -->
+                    <Rectangle x:Name="selectionRectangle"
+                               Stroke="Black"
+                               StrokeThickness="2"
+                               Visibility="Collapsed" />
                 </Canvas>
             </Grid>
         </Viewbox>

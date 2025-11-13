@@ -76,17 +76,23 @@ public partial class ZoomToCropControl : UserControl
 		ResetZoom();
 	}
 
+	private IEnumerable<Rectangle> SelectionRects => [selectionRectangle, selectionRectangleWhite];
+
 	private void InteractionCanvas_MouseDown(object sender, MouseButtonEventArgs e)
 	{
 		if (e.LeftButton != MouseButtonState.Pressed || contentWidth <= 0) return;
 
 		isDragging = true;
 		selectionStartPoint = e.GetPosition(interactionCanvas);
-		selectionRectangle.SetValue(Canvas.LeftProperty, selectionStartPoint.X);
-		selectionRectangle.SetValue(Canvas.TopProperty, selectionStartPoint.Y);
-		selectionRectangle.Width = 0;
-		selectionRectangle.Height = 0;
-		selectionRectangle.Visibility = Visibility.Visible;
+		foreach (var rect in SelectionRects)
+		{
+			rect.SetValue(Canvas.LeftProperty, selectionStartPoint.X);
+			rect.SetValue(Canvas.TopProperty, selectionStartPoint.Y);
+			rect.Width = 0;
+			rect.Height = 0;
+			rect.Visibility = Visibility.Visible;
+		}
+
 		interactionCanvas.CaptureMouse();
 	}
 
@@ -99,10 +105,13 @@ public partial class ZoomToCropControl : UserControl
 			var top = Math.Min(currentPoint.Y, selectionStartPoint.Y);
 			var width = Math.Abs(currentPoint.X - selectionStartPoint.X);
 			var height = Math.Abs(currentPoint.Y - selectionStartPoint.Y);
-			selectionRectangle.SetValue(Canvas.LeftProperty, left);
-			selectionRectangle.SetValue(Canvas.TopProperty, top);
-			selectionRectangle.Width = width;
-			selectionRectangle.Height = height;
+			foreach (var rect in SelectionRects)
+			{
+				rect.SetValue(Canvas.LeftProperty, left);
+				rect.SetValue(Canvas.TopProperty, top);
+				rect.Width = width;
+				rect.Height = height;
+			}
 		}
 	}
 
@@ -112,7 +121,10 @@ public partial class ZoomToCropControl : UserControl
 		{
 			isDragging = false;
 			interactionCanvas.ReleaseMouseCapture();
-			selectionRectangle.Visibility = Visibility.Collapsed;
+			foreach (var rect in SelectionRects)
+			{
+				rect.Visibility = Visibility.Collapsed;
+			}
 
 			Point endPoint = e.GetPosition(interactionCanvas);
 			var selectionInView = new Rect(selectionStartPoint, endPoint);

@@ -28,7 +28,7 @@
                 </TabItem.Header>
                 <local:LayeredPainterControl></local:LayeredPainterControl>
             </TabItem>
-<TabItem>
+            <TabItem>
                 <TabItem.Header>
                     <TextBlock>Scripts</TextBlock>
                 </TabItem.Header>
