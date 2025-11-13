@@ -12,7 +12,7 @@ using Xceed.Wpf.Toolkit.PropertyGrid.Attributes;
 
 namespace Blocktavius.AppDQB2.ScriptNodes;
 
-sealed class PutHillNodeVM : ScriptNodeVM
+sealed class PutHillNodeVM : ScriptNodeVM, IStageMutator
 {
 	const string Common = "_Common";
 
@@ -74,7 +74,7 @@ sealed class PutHillNodeVM : ScriptNodeVM
 		set => ChangeProperty(ref lockRandomSeed, value);
 	}
 
-	public override StageMutation? BuildMutation(StageRebuildContext context)
+	public StageMutation? BuildMutation(StageRebuildContext context)
 	{
 		if (area == null || Block == null || hillDesigner == null)
 		{

@@ -9,7 +9,7 @@ using Xceed.Wpf.Toolkit.PropertyGrid.Attributes;
 
 namespace Blocktavius.AppDQB2.ScriptNodes;
 
-sealed class PutGroundNodeVM : ScriptNodeVM
+sealed class PutGroundNodeVM : ScriptNodeVM, IStageMutator
 {
 	private IAreaVM? area;
 	[ItemsSource(typeof(Global.AreasItemsSource))]
@@ -42,7 +42,7 @@ sealed class PutGroundNodeVM : ScriptNodeVM
 		set => ChangeProperty(ref _yRange, Math.Max(1, value), nameof(YRange), nameof(YMax));
 	}
 
-	public override StageMutation? BuildMutation(StageRebuildContext context)
+	public StageMutation? BuildMutation(StageRebuildContext context)
 	{
 		if (area == null)
 		{

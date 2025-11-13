@@ -44,19 +44,50 @@ abstract class ScriptNodeVM : ViewModelBaseWithCustomTypeDescriptor
 
 	[Browsable(false)]
 	public int BorderThickness => IsSelected ? 2 : 1;
-
-	public abstract StageMutation? BuildMutation(StageRebuildContext context);
 }
 
-sealed class ScriptVM : ViewModelBase
+interface IChildNodeWrapperVM
 {
-	public ScriptVM()
+	ScriptNodeVM Child { get; }
+}
+
+interface IStageMutator
+{
+	StageMutation? BuildMutation(StageRebuildContext context);
+}
+
+abstract class ScriptLeafNodeVM : ScriptNodeVM { }
+
+abstract class ScriptNonleafNodeVM : ScriptNodeVM
+{
+	/// <summary>
+	/// Should be an ObservableCollection{T} but generics make the XAML more complicated
+	/// </summary>
+	public abstract IEnumerable<IChildNodeWrapperVM> ChildNodes { get; }
+}
+
+sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator
+{
+	public sealed class ChildNodeWrapper : IChildNodeWrapperVM
 	{
-		Nodes.Add(new ScriptNodes.PutGroundNodeVM());
-		Nodes.Add(new ScriptNodes.PutHillNodeVM());
+		public required ScriptNodeVM Child { get; init; }
+		public required IStageMutator? Mutator { get; init; }
 	}
 
-	public ObservableCollection<ScriptNodeVM> Nodes { get; } = new();
+	public ScriptVM()
+	{
+		AddChild(new ScriptNodes.PutGroundNodeVM());
+		AddChild(new ScriptNodes.PutHillNodeVM());
+	}
+
+	private void AddChild<T>(T child) where T : ScriptNodeVM, IStageMutator
+	{
+		Nodes.Add(new ChildNodeWrapper { Child = child, Mutator = child });
+	}
+
+	public ObservableCollection<ChildNodeWrapper> Nodes { get; } = new();
+
+	public override IEnumerable<IChildNodeWrapperVM> ChildNodes => Nodes;
 
 	private bool expandBedrock = false;
 	public bool ExpandBedrock
@@ -72,17 +103,6 @@ sealed class ScriptVM : ViewModelBase
 		set => ChangeProperty(ref name, value);
 	}
 
-	private bool isSelected = false;
-	/// <summary>
-	/// TODO - this is used to know which item we show in the property grid (a script or a script node).
-	/// It might make more sense for each script to have a common root node for the property grid.
-	/// </summary>
-	public bool IsSelected
-	{
-		get => isSelected;
-		set => ChangeProperty(ref isSelected, value);
-	}
-
 	private bool _isTheActiveScript = false;
 	public bool IsTheActiveScript
 	{
@@ -95,15 +115,21 @@ sealed class ScriptVM : ViewModelBase
 		IsTheActiveScript = isActive;
 	}
 
-	public IEnumerable<StageMutation> RebuildMutations(StageRebuildContext context)
+	public StageMutation? BuildMutation(StageRebuildContext context)
 	{
-		foreach (var node in this.Nodes)
+		List<StageMutation> mutations = new();
+		foreach (var node in Nodes)
 		{
-			var mutation = node.BuildMutation(context);
+			var mutation = node.Mutator?.BuildMutation(context);
 			if (mutation != null)
 			{
-				yield return mutation;
+				mutations.Add(mutation);
 			}
 		}
+		if (mutations.Count > 0)
+		{
+			return StageMutation.Combine(mutations);
+		}
+		return null;
 	}
 }
