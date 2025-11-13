@@ -37,15 +37,8 @@ abstract class ScriptNodeVM : ViewModelBaseWithCustomTypeDescriptor
 	public bool IsSelected
 	{
 		get => isSelected;
-		set
-		{
-			ChangeProperty(ref isSelected, value);
-			OnPropertyChanged(nameof(BorderThickness));
-		}
+		set => ChangeProperty(ref isSelected, value);
 	}
-
-	[Browsable(false)]
-	public int BorderThickness => IsSelected ? 2 : 1;
 }
 
 interface IChildNodeWrapperVM
