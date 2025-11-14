@@ -69,13 +69,8 @@ public sealed class BindableRichTextBuilder()
 	public BindableRichTextBuilder AppendLine(string? text) => Append(text + Environment.NewLine);
 }
 
-public partial class BindableRichTextBox : UserControl
+public class BindableRichTextBox : RichTextBox
 {
-	public BindableRichTextBox()
-	{
-		InitializeComponent();
-	}
-
 	public static readonly DependencyProperty BindableRichTextProperty =
 		DependencyProperty.Register(
 			"BindableRichText",
@@ -91,18 +86,18 @@ public partial class BindableRichTextBox : UserControl
 
 	private static void OnBindableRichTextBuilderChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
 	{
-		if (d is BindableRichTextBox control)
+		if (d is BindableRichTextBox me)
 		{
 			if (e.NewValue is BindableRichText newText)
 			{
 				if (newText != e.OldValue as BindableRichText)
 				{
-					control.theRichTB.Document = newText.BuildDocument();
+					me.Document = newText.BuildDocument();
 				}
 			}
 			else
 			{
-				control.theRichTB.Document = BindableRichText.Empty.BuildDocument();
+				me.Document = BindableRichText.Empty.BuildDocument();
 			}
 		}
 	}
