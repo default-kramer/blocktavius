@@ -12,7 +12,7 @@ using Xceed.Wpf.Toolkit.PropertyGrid.Attributes;
 
 namespace Blocktavius.AppDQB2.ScriptNodes;
 
-sealed class PutHillNodeVM : ScriptNodeVM, IStageMutator
+sealed class PutHillNodeVM : ScriptLeafNodeVM, IStageMutator
 {
 	const string Common = "_Common";
 

@@ -9,7 +9,7 @@ using Xceed.Wpf.Toolkit.PropertyGrid.Attributes;
 
 namespace Blocktavius.AppDQB2.ScriptNodes;
 
-sealed class PutGroundNodeVM : ScriptNodeVM, IStageMutator
+sealed class PutGroundNodeVM : ScriptLeafNodeVM, IStageMutator
 {
 	private IAreaVM? area;
 	[ItemsSource(typeof(Global.AreasItemsSource))]

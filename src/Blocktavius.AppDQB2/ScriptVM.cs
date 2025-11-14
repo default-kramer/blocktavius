@@ -39,6 +39,12 @@ abstract class ScriptNodeVM : ViewModelBaseWithCustomTypeDescriptor
 		get => isSelected;
 		set => ChangeProperty(ref isSelected, value);
 	}
+
+	/// <summary>
+	/// A node that is capable of having child nodes should return true
+	/// even if it currently has zero children.
+	/// </summary>
+	public abstract bool CanHaveChildNodes { get; }
 }
 
 interface IChildNodeWrapperVM
@@ -55,7 +61,11 @@ interface IStageMutator
 	StageMutation? BuildMutation(StageRebuildContext context);
 }
 
-abstract class ScriptLeafNodeVM : ScriptNodeVM { }
+abstract class ScriptLeafNodeVM : ScriptNodeVM
+{
+	[Browsable(false)]
+	public override bool CanHaveChildNodes => false;
+}
 
 abstract class ScriptNonleafNodeVM : ScriptNodeVM
 {
@@ -63,9 +73,11 @@ abstract class ScriptNonleafNodeVM : ScriptNodeVM
 	/// Should be an ObservableCollection{T} but generics make the XAML more complicated
 	/// </summary>
 	public abstract IEnumerable<IChildNodeWrapperVM> ChildNodes { get; }
+
+	public override bool CanHaveChildNodes => true;
 }
 
-sealed class ScriptSettingsVM : ScriptNodeVM
+sealed class ScriptSettingsVM : ScriptLeafNodeVM
 {
 	private bool _expandBedrock = false;
 	public bool ExpandBedrock
