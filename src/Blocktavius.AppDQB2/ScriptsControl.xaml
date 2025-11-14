@@ -34,7 +34,7 @@
                     </GridView>
                 </ListView.View>
             </ListView>
-            <pg:PropertyGrid Grid.Row="2" x:Name="propGrid"></pg:PropertyGrid>
+            <pg:PropertyGrid Grid.Row="2" SelectedObject="{Binding SelectedScript.SelectedNode}"></pg:PropertyGrid>
             <GridSplitter Grid.Row="1" ResizeDirection="Rows" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Center"></GridSplitter>
         </Grid>
         <Grid Grid.Column="2">

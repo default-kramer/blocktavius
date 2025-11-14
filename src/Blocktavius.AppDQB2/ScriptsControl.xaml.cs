@@ -24,8 +24,6 @@ namespace Blocktavius.AppDQB2
 		public ScriptsControl()
 		{
 			InitializeComponent();
-
-			propGrid.SetBinding(PropertyGrid.SelectedObjectProperty, nameof(ProjectVM.SelectedScriptNode));
 		}
 
 		private void PreviewScriptButton_Click(object sender, RoutedEventArgs e)

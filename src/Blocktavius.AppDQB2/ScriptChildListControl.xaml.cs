@@ -30,12 +30,12 @@ public partial class ScriptChildListControl : UserControl
 	// will be handled and this node won't get selected as desired.
 	private void Border_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
 	{
-		var child = (sender as FrameworkElement)?.DataContext as IChildNodeWrapperVM;
-		var project = this.DataContextAncestors().OfType<ProjectVM>().FirstOrDefault();
-		if (child == null || project == null)
+		var item = (sender as FrameworkElement)?.DataContext as IChildNodeWrapperVM;
+		var manager = this.DataContextAncestors().OfType<ISelectedNodeManager>().FirstOrDefault();
+		if (item == null || manager == null)
 		{
 			return;
 		}
-		project.UpdateSelectedScriptNode(child.Child);
+		manager.ChangeSelectedNode(item.Child);
 	}
 }

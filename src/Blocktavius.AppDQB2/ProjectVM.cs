@@ -138,10 +138,6 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 		get => _selectedScript;
 		set
 		{
-			if (value != null)
-			{
-				SelectedScriptNode = value;
-			}
 			var prev = _selectedScript;
 			if (ChangeProperty(ref _selectedScript, value))
 			{
@@ -150,43 +146,6 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 			}
 		}
 	}
-
-	private object? _selectedScriptNode;
-	public object? SelectedScriptNode
-	{
-		get => _selectedScriptNode;
-		private set
-		{
-			void SetSelected(bool selected)
-			{
-				if (_selectedScriptNode is ScriptNodeVM node)
-				{
-					node.IsSelected = selected;
-				}
-				if (_selectedScriptNode is ScriptVM script)
-				{
-					script.IsSelected = selected;
-				}
-			}
-			if (value != _selectedScriptNode)
-			{
-				SetSelected(false);
-				ChangeProperty(ref _selectedScriptNode, value);
-				SetSelected(true);
-			}
-		}
-	}
-
-	public void UpdateSelectedScriptNode(ScriptNodeVM? node)
-	{
-		SelectedScriptNode = node;
-	}
-
-	public void OnScriptListViewClicked()
-	{
-		SelectedScriptNode = SelectedScript;
-	}
-
 
 	/// <summary>
 	/// Might include chunks that were already present in the STGDAT file.
@@ -292,9 +251,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 		if (changed)
 		{
 			// Force property grid to reload now that the layer choices have changed
-			var temp = SelectedScriptNode;
-			SelectedScriptNode = null;
-			SelectedScriptNode = temp;
+			SelectedScript?.RefreshPropertyGrid();
 		}
 	}
 

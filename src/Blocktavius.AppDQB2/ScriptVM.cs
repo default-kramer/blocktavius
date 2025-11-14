@@ -32,14 +32,29 @@ public interface IBlockProviderVM
 	ushort? UniformBlockId { get; }
 }
 
+interface ISelectedNodeManager
+{
+	bool IsSelected(ScriptNodeVM node);
+
+	void ChangeSelectedNode(ScriptNodeVM? node);
+}
+
 abstract class ScriptNodeVM : ViewModelBaseWithCustomTypeDescriptor
 {
-	private bool isSelected = false;
+	private bool _isSelected = false;
+	/// <summary>
+	/// Intended only for binding (to display the thicker/highlight border on the selcted node)
+	/// </summary>
 	[Browsable(false)]
 	public bool IsSelected
 	{
-		get => isSelected;
-		set => ChangeProperty(ref isSelected, value);
+		get => _isSelected;
+		private set => ChangeProperty(ref _isSelected, value);
+	}
+
+	internal void UpdateSelected(ISelectedNodeManager manager)
+	{
+		IsSelected = manager.IsSelected(this);
 	}
 
 	/// <summary>
@@ -119,7 +134,7 @@ sealed class ScriptSettingsVM : ScriptLeafNodeVM
 	}
 }
 
-sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator
+sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 {
 	public ScriptSettingsVM Settings { get; } = new();
 	public ObservableCollection<ChildNodeWrapper> Nodes { get; } = new();
@@ -180,6 +195,37 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator
 			return StageMutation.Combine(mutations);
 		}
 		return null;
+	}
+
+	private ScriptNodeVM? _selectedNode = null;
+	public ScriptNodeVM? SelectedNode
+	{
+		get => _selectedNode;
+		private set => ChangeProperty(ref _selectedNode, value);
+	}
+
+	bool ISelectedNodeManager.IsSelected(ScriptNodeVM node) => node == SelectedNode;
+	void ISelectedNodeManager.ChangeSelectedNode(ScriptNodeVM? node)
+	{
+		var prev = SelectedNode;
+		SelectedNode = node;
+		prev?.UpdateSelected(this);
+		node?.UpdateSelected(this);
+	}
+
+	/// <summary>
+	/// This is needed so that (for example) when new images/layers are added,
+	/// the drop-downs in the property grid will include them.
+	/// </summary>
+	public void RefreshPropertyGrid()
+	{
+		var node = SelectedNode;
+		if (node != null)
+		{
+			ISelectedNodeManager manager = this;
+			manager.ChangeSelectedNode(null);
+			manager.ChangeSelectedNode(node);
+		}
 	}
 
 	public sealed class ChildNodeWrapper : ViewModelBase, IChildNodeWrapperVM, IWeakEventListener
