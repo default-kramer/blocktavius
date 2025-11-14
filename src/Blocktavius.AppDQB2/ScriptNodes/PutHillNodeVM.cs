@@ -89,9 +89,10 @@ sealed class PutHillNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutato
 	private void RebuildLongStatus()
 	{
 		var rtb = new BindableRichTextBuilder();
-		rtb.AppendLine("Put Hill:");
-		rtb.Append("  Area: ").AppendLine(Area?.DisplayName);
-		rtb.Append("  Kind: ").AppendLine(HillDesigner?.GetType()?.Name);
+		rtb.Append("Put Hill:");
+		rtb.AppendLine().Append("  Area: ").FallbackIfNull("None Selected", Area?.DisplayName);
+		rtb.AppendLine().Append("  Kind: ").FallbackIfNull("None Selected", HillDesigner?.GetType()?.Name);
+		rtb.AppendLine().Append("  Elevation: ").Append(Elevation.ToString()).Append(", Block: ").FallbackIfNull("None Selected", Block?.DisplayName);
 		LongStatus = rtb.Build();
 	}
 

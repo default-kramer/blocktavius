@@ -58,15 +58,38 @@ public sealed class BindableRichTextBuilder()
 
 	public BindableRichTextBuilder Append(string? text)
 	{
+		if (text == null)
+		{
+			return this;
+		}
 		runs.Add(new BindableRichText.Run
 		{
-			Text = text ?? "",
+			Text = text,
 			Color = Colors.Black,
 		});
 		return this;
 	}
 
 	public BindableRichTextBuilder AppendLine(string? text) => Append(text + Environment.NewLine);
+
+	public BindableRichTextBuilder AppendLine() => AppendLine(null);
+
+	public BindableRichTextBuilder FallbackIfNull(string fallbackText, params string?[] strings)
+	{
+		foreach (var str in strings)
+		{
+			if (str != null)
+			{
+				return Append(str);
+			}
+		}
+		runs.Add(new BindableRichText.Run
+		{
+			Text = fallbackText,
+			Color = Colors.Red,
+		});
+		return this;
+	}
 }
 
 public class BindableRichTextBox : RichTextBox
