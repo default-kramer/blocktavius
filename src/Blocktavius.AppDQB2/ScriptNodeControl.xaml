@@ -7,27 +7,5 @@
              xmlns:sys="clr-namespace:System;assembly=mscorlib"
              mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="800">
-    <ContentControl Content="{Binding}">
-        <ContentControl.Resources>
-            <DataTemplate DataType="{x:Type local:ScriptVM}">
-                <StackPanel Orientation="Vertical">
-                    <TextBlock Text="DEBUG NOTE: Data template specifically for Script VM"></TextBlock>
-                    <local:ScriptChildListControl></local:ScriptChildListControl>
-                </StackPanel>
-            </DataTemplate>
-            <DataTemplate DataType="{x:Type local:ScriptSettingsVM}">
-                <TextBlock Text="Script Settings"></TextBlock>
-            </DataTemplate>
-
-            <!-- Default DataTemplate for unhandled types -->
-            <DataTemplate DataType="{x:Type local:ViewModelBase}">
-                <Border BorderBrush="Red" BorderThickness="2" Padding="5">
-                    <StackPanel Orientation="Vertical">
-                        <TextBlock FontWeight="Bold" Foreground="Red" Text="ERROR: No DataTemplate found for this type!"></TextBlock>
-                        <TextBlock FontWeight="Bold" Foreground="Red" Text="{Binding}"></TextBlock>
-                    </StackPanel>
-                </Border>
-            </DataTemplate>
-        </ContentControl.Resources>
-    </ContentControl>
+    <ContentControl Content="{Binding}" ContentTemplateSelector="{DynamicResource SCRIPT_NODE_TEMPLATE_SELECTOR}"></ContentControl>
 </UserControl>

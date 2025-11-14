@@ -15,16 +15,39 @@ class ViewModelBase : INotifyPropertyChanged
 {
 	public event PropertyChangedEventHandler? PropertyChanged;
 
+	private readonly ThreadLocal<int> changeStack = new();
+
+	protected virtual void AfterPropertyChanges() { }
+
 	protected bool ChangeProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null, params string[] moreProperties)
 	{
 		if (object.Equals(field, value)) { return false; }
 
-		field = value;
-		OnPropertyChanged(propertyName);
-		foreach (var prop in moreProperties)
+		changeStack.Value++;
+		try
 		{
-			OnPropertyChanged(prop);
+			field = value;
+			OnPropertyChanged(propertyName);
+			foreach (var prop in moreProperties)
+			{
+				OnPropertyChanged(prop);
+			}
 		}
+		finally
+		{
+			changeStack.Value--;
+		}
+
+		if (changeStack.Value == 0)
+		{
+			AfterPropertyChanges();
+		}
+		else if (changeStack.Value < 0)
+		{
+			changeStack.Value = 0;
+			throw new Exception("Assert fail - change stack must never go negative!");
+		}
+
 		return true;
 	}
 

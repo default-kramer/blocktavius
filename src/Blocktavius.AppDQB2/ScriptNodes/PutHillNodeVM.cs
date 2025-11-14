@@ -12,7 +12,7 @@ using Xceed.Wpf.Toolkit.PropertyGrid.Attributes;
 
 namespace Blocktavius.AppDQB2.ScriptNodes;
 
-sealed class PutHillNodeVM : ScriptLeafNodeVM, IStageMutator
+sealed class PutHillNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutator
 {
 	const string Common = "_Common";
 
@@ -72,6 +72,27 @@ sealed class PutHillNodeVM : ScriptLeafNodeVM, IStageMutator
 	{
 		get => lockRandomSeed;
 		set => ChangeProperty(ref lockRandomSeed, value);
+	}
+
+	private string _longStatus = "";
+	public string LongStatus
+	{
+		get => _longStatus;
+		private set => ChangeProperty(ref _longStatus, value);
+	}
+
+	protected override void AfterPropertyChanges()
+	{
+		RebuildLongStatus();
+	}
+
+	private void RebuildLongStatus()
+	{
+		var sb = new StringBuilder();
+		sb.AppendLine("Put Hill:");
+		sb.Append("  Area: ").AppendLine(Area?.DisplayName);
+		sb.Append("  Kind: ").AppendLine(HillDesigner?.GetType()?.Name);
+		LongStatus = sb.ToString();
 	}
 
 	public StageMutation? BuildMutation(StageRebuildContext context)

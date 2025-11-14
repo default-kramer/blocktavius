@@ -18,6 +18,8 @@ public interface IAreaVM
 	bool IsArea(XZ imageTranslation, out AreaWrapper area);
 
 	bool IsRegional(out TileTagger<bool> tagger);
+
+	string? DisplayName { get; }
 }
 
 public interface IBlockProviderVM
@@ -45,6 +47,8 @@ abstract class ScriptNodeVM : ViewModelBaseWithCustomTypeDescriptor
 	/// even if it currently has zero children.
 	/// </summary>
 	public abstract bool CanHaveChildNodes { get; }
+
+	public abstract bool SelectDataTemplate(out string resourceKey);
 }
 
 interface IChildNodeWrapperVM
@@ -61,10 +65,31 @@ interface IStageMutator
 	StageMutation? BuildMutation(StageRebuildContext context);
 }
 
+/// <summary>
+/// When implemented by a <see cref="ScriptLeafNodeVM"/>, enables a data template
+/// that shows the contents of <see cref="LongStatus"/>.
+/// This content can contain newlines.
+/// </summary>
+interface IHaveLongStatusText
+{
+	string LongStatus { get; }
+}
+
 abstract class ScriptLeafNodeVM : ScriptNodeVM
 {
 	[Browsable(false)]
 	public override bool CanHaveChildNodes => false;
+
+	public override bool SelectDataTemplate(out string resourceKey)
+	{
+		if (this is IHaveLongStatusText)
+		{
+			resourceKey = ScriptNodeTemplateSelector.TemplateNames.SCRIPT_NODE_LONG_STATUS_TEMPLATE;
+			return true;
+		}
+		resourceKey = "";
+		return false;
+	}
 }
 
 abstract class ScriptNonleafNodeVM : ScriptNodeVM
@@ -106,6 +131,8 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator
 		AddChild(new ScriptNodes.PutGroundNodeVM());
 		AddChild(new ScriptNodes.PutHillNodeVM());
 	}
+
+	public override bool SelectDataTemplate(out string resourceKey) { resourceKey = ""; return false; }
 
 	public ScriptVM SetScriptName(string? name)
 	{
