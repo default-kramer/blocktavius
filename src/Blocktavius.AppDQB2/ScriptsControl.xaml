@@ -37,17 +37,7 @@
             <pg:PropertyGrid Grid.Row="2" SelectedObject="{Binding SelectedScript.SelectedNode}"></pg:PropertyGrid>
             <GridSplitter Grid.Row="1" ResizeDirection="Rows" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Center"></GridSplitter>
         </Grid>
-        <Grid Grid.Column="2">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"></RowDefinition>
-                <RowDefinition></RowDefinition>
-            </Grid.RowDefinitions>
-            <local:ScriptNodeControl Grid.Row="1" DataContext="{Binding SelectedScript}"></local:ScriptNodeControl>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,16,0,16">
-                <Button FontSize="16" Padding="7,4,7,4" Click="PreviewScriptButton_Click">PREVIEW</Button>
-                <Button FontSize="16" Padding="7,4,7,4" Margin="12,0,0,0" Click="RunScriptButton_Click">RUN...</Button>
-            </StackPanel>
-        </Grid>
+        <local:ScriptNodeControl Grid.Column="2" DataContext="{Binding SelectedScript}" Margin="12"></local:ScriptNodeControl>
         <GridSplitter Grid.Column="1" ResizeDirection="Columns" Width="5" VerticalAlignment="Stretch" HorizontalAlignment="Center"></GridSplitter>
     </Grid>
 </UserControl>

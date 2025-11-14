@@ -25,21 +25,5 @@ namespace Blocktavius.AppDQB2
 		{
 			InitializeComponent();
 		}
-
-		private void PreviewScriptButton_Click(object sender, RoutedEventArgs e)
-		{
-			var mainWindow = this.VisualTreeAncestors().OfType<MainWindow>().FirstOrDefault();
-			mainWindow?.DoPreview();
-		}
-
-		private void RunScriptButton_Click(object sender, RoutedEventArgs e)
-		{
-			var project = this.DataContext as ProjectVM;
-			if (project != null && project.SelectedScript != null)
-			{
-				var dialog = new PlanScriptDialog();
-				dialog.ShowDialog(project);
-			}
-		}
 	}
 }

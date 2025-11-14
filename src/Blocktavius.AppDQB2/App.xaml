@@ -20,10 +20,7 @@
             </local:ScriptNodeTemplateSelector.FallbackTemplate>
             <local:ScriptNodeTemplateSelector.KnownTemplates>
                 <DataTemplate x:Key="{x:Type local:ScriptVM}">
-                    <StackPanel Orientation="Vertical">
-                        <TextBlock Text="DEBUG NOTE: Data template specifically for Script VM"></TextBlock>
-                        <local:ScriptChildListControl></local:ScriptChildListControl>
-                    </StackPanel>
+                    <local:ScriptEditorControl></local:ScriptEditorControl>
                 </DataTemplate>
                 <DataTemplate x:Key="{x:Type local:ScriptSettingsVM}">
                     <TextBlock Text="Script Settings"></TextBlock>
