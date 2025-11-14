@@ -80,6 +80,7 @@ sealed class PutHillNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutato
 	}
 
 	private BindableRichText _longStatus = BindableRichText.Empty;
+	[Browsable(false)]
 	public BindableRichText LongStatus
 	{
 		get => _longStatus;

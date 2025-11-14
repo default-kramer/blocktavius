@@ -2,6 +2,7 @@
 using Blocktavius.DQB2;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -48,6 +49,7 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 	}
 
 	private BindableRichText _longStatus = BindableRichText.Empty;
+	[Browsable(false)]
 	public BindableRichText LongStatus
 	{
 		get => _longStatus;
