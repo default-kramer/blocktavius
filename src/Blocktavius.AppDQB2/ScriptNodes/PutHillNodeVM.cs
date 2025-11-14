@@ -16,6 +16,11 @@ sealed class PutHillNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutato
 {
 	const string Common = "_Common";
 
+	public PutHillNodeVM()
+	{
+		RebuildLongStatus();
+	}
+
 	private HillType? selectedHillType;
 	[Category(Common)]
 	[ItemsSource(typeof(HillType.PropGridItemsSource))]
