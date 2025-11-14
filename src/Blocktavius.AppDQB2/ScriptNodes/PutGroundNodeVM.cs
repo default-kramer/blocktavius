@@ -9,8 +9,13 @@ using Xceed.Wpf.Toolkit.PropertyGrid.Attributes;
 
 namespace Blocktavius.AppDQB2.ScriptNodes;
 
-sealed class PutGroundNodeVM : ScriptLeafNodeVM, IStageMutator
+sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutator
 {
+	public PutGroundNodeVM()
+	{
+		RebuildLongStatus();
+	}
+
 	private IAreaVM? area;
 	[ItemsSource(typeof(Global.AreasItemsSource))]
 	public IAreaVM? Area
@@ -40,6 +45,27 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IStageMutator
 	{
 		get => _yRange;
 		set => ChangeProperty(ref _yRange, Math.Max(1, value), nameof(YRange), nameof(YMax));
+	}
+
+	private BindableRichText _longStatus = BindableRichText.Empty;
+	public BindableRichText LongStatus
+	{
+		get => _longStatus;
+		private set => ChangeProperty(ref _longStatus, value);
+	}
+
+	protected override void AfterPropertyChanges()
+	{
+		RebuildLongStatus();
+	}
+
+	private void RebuildLongStatus()
+	{
+		var rtb = new BindableRichTextBuilder();
+		rtb.Append("Put Ground:");
+		rtb.AppendLine().Append("  Area: ").FallbackIfNull("None Selected", Area?.DisplayName);
+		rtb.AppendLine().Append($"  Min Elevation: {YMin}, Max Elevation: {YMax}");
+		LongStatus = rtb.Build();
 	}
 
 	public StageMutation? BuildMutation(StageRebuildContext context)
