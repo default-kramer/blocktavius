@@ -159,7 +159,7 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 
 	private void AddChild(ScriptNodeVM child)
 	{
-		Nodes.Add(new ChildNodeWrapper(Nodes)
+		Nodes.Add(new ChildNodeWrapper(this)
 		{
 			Child = child,
 			Mutator = child as IStageMutator,
@@ -213,6 +213,15 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 		node?.UpdateSelected(this);
 	}
 
+	private void DeleteNode(ChildNodeWrapper node)
+	{
+		Nodes.Remove(node);
+		if (SelectedNode == node.Child)
+		{
+			SelectedNode = null;
+		}
+	}
+
 	/// <summary>
 	/// This is needed so that (for example) when new images/layers are added,
 	/// the drop-downs in the property grid will include them.
@@ -230,10 +239,12 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 
 	public sealed class ChildNodeWrapper : ViewModelBase, IChildNodeWrapperVM, IWeakEventListener
 	{
+		private readonly ScriptVM parent;
 		private readonly ObservableCollection<ChildNodeWrapper> nodes;
-		public ChildNodeWrapper(ObservableCollection<ChildNodeWrapper> nodes)
+		public ChildNodeWrapper(ScriptVM parent)
 		{
-			this.nodes = nodes;
+			this.parent = parent;
+			this.nodes = parent.Nodes;
 			CollectionChangedEventManager.AddListener(nodes, this);
 		}
 
@@ -273,7 +284,7 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 			CommandDelete = new RelayCommand(_ => true, _ =>
 			{
 				CollectionChangedEventManager.RemoveListener(nodes, this);
-				nodes.Remove(this);
+				parent.DeleteNode(this);
 			});
 			return true;
 		}
