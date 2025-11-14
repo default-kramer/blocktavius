@@ -17,42 +17,72 @@ class ViewModelBase : INotifyPropertyChanged
 
 	private readonly ThreadLocal<int> changeStack = new();
 
+	/// <summary>
+	/// Delays the <see cref="AfterPropertyChanges"/> callback until this scope completes.
+	/// The caller MUST use <see cref="ChangeScope.Complete()"/>; disposal is not sufficient.
+	/// (If an exception occurs, invoking the callback could make things worse or cloud the original exception.)
+	/// </summary>
+	protected ChangeScope DeferChanges() => new ChangeScope(this);
+
+	protected ref struct ChangeScope : IDisposable
+	{
+		private readonly ViewModelBase viewModel;
+		private bool completed = false;
+
+		public ChangeScope(ViewModelBase vm)
+		{
+			viewModel = vm;
+			viewModel.changeStack.Value++;
+		}
+
+		private void Complete(bool raiseEvent)
+		{
+			if (completed)
+			{
+				return;
+			}
+
+			viewModel.changeStack.Value--;
+			completed = true;
+
+			if (raiseEvent && viewModel.changeStack.Value == 0)
+			{
+				viewModel.AfterPropertyChanges();
+			}
+
+			if (viewModel.changeStack.Value < 0)
+			{
+				viewModel.changeStack.Value = 0;
+				throw new Exception("Assert fail - change stack must never go negative!");
+			}
+		}
+
+		public void Complete() => Complete(raiseEvent: true);
+		public void Dispose() => Complete(raiseEvent: false);
+	}
+
 	protected virtual void AfterPropertyChanges() { }
 
 	protected bool ChangeProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null, params string[] moreProperties)
 	{
 		if (object.Equals(field, value)) { return false; }
 
-		changeStack.Value++;
-		try
+		using var scope = DeferChanges();
+		field = value;
+		OnPropertyChanged(propertyName);
+		foreach (var prop in moreProperties)
 		{
-			field = value;
-			OnPropertyChanged(propertyName);
-			foreach (var prop in moreProperties)
-			{
-				OnPropertyChanged(prop);
-			}
+			OnPropertyChanged(prop);
 		}
-		finally
-		{
-			changeStack.Value--;
-		}
-
-		if (changeStack.Value == 0)
-		{
-			AfterPropertyChanges();
-		}
-		else if (changeStack.Value < 0)
-		{
-			changeStack.Value = 0;
-			throw new Exception("Assert fail - change stack must never go negative!");
-		}
+		scope.Complete();
 
 		return true;
 	}
 
-	protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+	protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
 	{
+		using var scope = DeferChanges();
+
 		var args = new PropertyChangedEventArgs(propertyName);
 		PropertyChanged?.Invoke(this, args);
 
@@ -67,6 +97,8 @@ class ViewModelBase : INotifyPropertyChanged
 				subscribers.Remove(kvp.Key);
 			}
 		}
+
+		scope.Complete();
 	}
 
 	private readonly Dictionary<object, WeakReference<ViewModelBase>> subscribers = new();
