@@ -26,6 +26,8 @@ public partial class ScriptChildListControl : UserControl
 		InitializeComponent();
 	}
 
+	// This needs to be hooked up to PreviewMouseLeftButtonDown, otherwise clicks inside a RichTextBox
+	// will be handled and this node won't get selected as desired.
 	private void Border_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
 	{
 		var child = (sender as FrameworkElement)?.DataContext as IChildNodeWrapperVM;
