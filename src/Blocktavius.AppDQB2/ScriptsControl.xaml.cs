@@ -25,21 +25,7 @@ namespace Blocktavius.AppDQB2
 		{
 			InitializeComponent();
 
-			icScriptContent.SetBinding(DataContextProperty, nameof(ProjectVM.SelectedScript));
-			icScriptContent.SetBinding(ItemsControl.ItemsSourceProperty, nameof(ScriptVM.Nodes));
-
 			propGrid.SetBinding(PropertyGrid.SelectedObjectProperty, nameof(ProjectVM.SelectedScriptNode));
-		}
-
-		private void Border_MouseDown(object sender, MouseButtonEventArgs e)
-		{
-			var node = (sender as FrameworkElement)?.DataContext as ScriptNodeVM;
-			var project = this.DataContext as ProjectVM;
-
-			if (node != null && project != null)
-			{
-				project.UpdateSelectedScriptNode(node);
-			}
 		}
 
 		private void PreviewScriptButton_Click(object sender, RoutedEventArgs e)

@@ -30,7 +30,7 @@
                                 </DataTemplate>
                             </GridViewColumn.CellTemplate>
                         </GridViewColumn>
-                        <GridViewColumn DisplayMemberBinding="{Binding Name}"></GridViewColumn>
+                        <GridViewColumn DisplayMemberBinding="{Binding Settings.ScriptName}"></GridViewColumn>
                     </GridView>
                 </ListView.View>
             </ListView>
@@ -42,19 +42,7 @@
                 <RowDefinition Height="Auto"></RowDefinition>
                 <RowDefinition></RowDefinition>
             </Grid.RowDefinitions>
-            <ItemsControl Grid.Row="1" x:Name="icScriptContent">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Padding="5" Margin="3" BorderThickness="{Binding BorderThickness}" BorderBrush="Black" MouseDown="Border_MouseDown">
-                            <StackPanel Orientation="Vertical">
-                                <TextBlock Text="{Binding}"></TextBlock>
-                                <TextBlock Text="Put Shared Stuff here (drag+drop, delete, swap)..."></TextBlock>
-                                <TextBlock Text="Put node-specific content here..."></TextBlock>
-                            </StackPanel>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+            <local:ScriptNodeControl Grid.Row="1" DataContext="{Binding SelectedScript}"></local:ScriptNodeControl>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,16,0,16">
                 <Button FontSize="16" Padding="7,4,7,4" Click="PreviewScriptButton_Click">PREVIEW</Button>
                 <Button FontSize="16" Padding="7,4,7,4" Margin="12,0,0,0" Click="RunScriptButton_Click">RUN...</Button>

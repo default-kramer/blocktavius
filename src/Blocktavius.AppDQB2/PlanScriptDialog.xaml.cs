@@ -168,7 +168,7 @@ public partial class PlanScriptDialog : Window
 			{
 				throw new ArgumentException("SelectedScript must not be null here");
 			}
-			ScriptName = project.SelectedScript.Name ?? "<Untitled Script>";
+			ScriptName = project.SelectedScript.GetScriptName() ?? "<Untitled Script>";
 			Title = $"Plan and Run -- {ScriptName}";
 
 			rebuildTask = Task.Run(() =>

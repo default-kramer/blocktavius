@@ -46,8 +46,8 @@ namespace Blocktavius.AppDQB2
 			var vm = new ProjectVM(selectedProfile);
 			vm.ProjectFilePath = @"C:\Users\kramer\Documents\code\HermitsHeresy\examples\STB\foo.blocktaviusproject";
 
-			vm.Scripts.Add(new ScriptVM() { Name = "Main" });
-			vm.Scripts.Add(new ScriptVM() { Name = "Script 2" });
+			vm.Scripts.Add(new ScriptVM().SetScriptName("Main"));
+			vm.Scripts.Add(new ScriptVM().SetScriptName("Script 2"));
 			vm.SelectedScript = vm.Scripts.First();
 
 			mainWindow.DataContext = vm;

@@ -2,6 +2,7 @@
 using Blocktavius.DQB2;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -9,8 +10,13 @@ using Xceed.Wpf.Toolkit.PropertyGrid.Attributes;
 
 namespace Blocktavius.AppDQB2.ScriptNodes;
 
-sealed class PutGroundNodeVM : ScriptNodeVM
+sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutator
 {
+	public PutGroundNodeVM()
+	{
+		RebuildLongStatus();
+	}
+
 	private IAreaVM? area;
 	[ItemsSource(typeof(Global.AreasItemsSource))]
 	public IAreaVM? Area
@@ -42,7 +48,29 @@ sealed class PutGroundNodeVM : ScriptNodeVM
 		set => ChangeProperty(ref _yRange, Math.Max(1, value), nameof(YRange), nameof(YMax));
 	}
 
-	public override StageMutation? BuildMutation(StageRebuildContext context)
+	private BindableRichText _longStatus = BindableRichText.Empty;
+	[Browsable(false)]
+	public BindableRichText LongStatus
+	{
+		get => _longStatus;
+		private set => ChangeProperty(ref _longStatus, value);
+	}
+
+	protected override void AfterPropertyChanges()
+	{
+		RebuildLongStatus();
+	}
+
+	private void RebuildLongStatus()
+	{
+		var rtb = new BindableRichTextBuilder();
+		rtb.Append("Put Ground:");
+		rtb.AppendLine().Append("  Area: ").FallbackIfNull("None Selected", Area?.DisplayName);
+		rtb.AppendLine().Append($"  Min Elevation: {YMin}, Max Elevation: {YMax}");
+		LongStatus = rtb.Build();
+	}
+
+	public StageMutation? BuildMutation(StageRebuildContext context)
 	{
 		if (area == null)
 		{

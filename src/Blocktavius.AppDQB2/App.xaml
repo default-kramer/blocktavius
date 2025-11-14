@@ -4,5 +4,31 @@
              xmlns:local="clr-namespace:Blocktavius.AppDQB2"
              ShutdownMode="OnMainWindowClose">
     <Application.Resources>
+        <DataTemplate x:Key="SCRIPT_NODE_LONG_STATUS_TEMPLATE">
+            <local:BindableRichTextBox BindableRichText="{Binding LongStatus}" IsReadOnly="True" MaxWidth="400" BorderThickness="0"></local:BindableRichTextBox>
+        </DataTemplate>
+        <local:ScriptNodeTemplateSelector x:Key="SCRIPT_NODE_TEMPLATE_SELECTOR">
+            <local:ScriptNodeTemplateSelector.FallbackTemplate>
+                <DataTemplate>
+                    <Border BorderBrush="Red" BorderThickness="2" Padding="5">
+                        <StackPanel Orientation="Vertical">
+                            <TextBlock FontWeight="Bold" Foreground="Red" Text="ERROR: No DataTemplate found for this type!"></TextBlock>
+                            <TextBlock FontWeight="Bold" Foreground="Red" Text="{Binding}"></TextBlock>
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </local:ScriptNodeTemplateSelector.FallbackTemplate>
+            <local:ScriptNodeTemplateSelector.KnownTemplates>
+                <DataTemplate x:Key="{x:Type local:ScriptVM}">
+                    <StackPanel Orientation="Vertical">
+                        <TextBlock Text="DEBUG NOTE: Data template specifically for Script VM"></TextBlock>
+                        <local:ScriptChildListControl></local:ScriptChildListControl>
+                    </StackPanel>
+                </DataTemplate>
+                <DataTemplate x:Key="{x:Type local:ScriptSettingsVM}">
+                    <TextBlock Text="Script Settings"></TextBlock>
+                </DataTemplate>
+            </local:ScriptNodeTemplateSelector.KnownTemplates>
+        </local:ScriptNodeTemplateSelector>
     </Application.Resources>
 </Application>

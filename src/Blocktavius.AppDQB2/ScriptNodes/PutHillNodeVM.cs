@@ -12,9 +12,14 @@ using Xceed.Wpf.Toolkit.PropertyGrid.Attributes;
 
 namespace Blocktavius.AppDQB2.ScriptNodes;
 
-sealed class PutHillNodeVM : ScriptNodeVM
+sealed class PutHillNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutator
 {
 	const string Common = "_Common";
+
+	public PutHillNodeVM()
+	{
+		RebuildLongStatus();
+	}
 
 	private HillType? selectedHillType;
 	[Category(Common)]
@@ -74,7 +79,30 @@ sealed class PutHillNodeVM : ScriptNodeVM
 		set => ChangeProperty(ref lockRandomSeed, value);
 	}
 
-	public override StageMutation? BuildMutation(StageRebuildContext context)
+	private BindableRichText _longStatus = BindableRichText.Empty;
+	[Browsable(false)]
+	public BindableRichText LongStatus
+	{
+		get => _longStatus;
+		private set => ChangeProperty(ref _longStatus, value);
+	}
+
+	protected override void AfterPropertyChanges()
+	{
+		RebuildLongStatus();
+	}
+
+	private void RebuildLongStatus()
+	{
+		var rtb = new BindableRichTextBuilder();
+		rtb.Append("Put Hill:");
+		rtb.AppendLine().Append("  Area: ").FallbackIfNull("None Selected", Area?.DisplayName);
+		rtb.AppendLine().Append("  Kind: ").FallbackIfNull("None Selected", HillDesigner?.GetType()?.Name);
+		rtb.AppendLine().Append("  Elevation: ").Append(Elevation.ToString()).Append(", Block: ").FallbackIfNull("None Selected", Block?.DisplayName);
+		LongStatus = rtb.Build();
+	}
+
+	public StageMutation? BuildMutation(StageRebuildContext context)
 	{
 		if (area == null || Block == null || hillDesigner == null)
 		{

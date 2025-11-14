@@ -244,14 +244,10 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 		}
 
 		var context = new StageRebuildContext(workingStage);
-
-		var script = this.SelectedScript;
-		if (script != null)
+		var mutation = this.SelectedScript?.BuildMutation(context);
+		if (mutation != null)
 		{
-			foreach (var mutation in script.RebuildMutations(context))
-			{
-				workingStage.Mutate(mutation);
-			}
+			workingStage.Mutate(mutation);
 		}
 
 		stage = workingStage;
