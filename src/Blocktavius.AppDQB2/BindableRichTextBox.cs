@@ -46,7 +46,7 @@ public sealed record BindableRichText
 	public sealed record Run
 	{
 		public required string Text { get; init; }
-		public required Color Color { get; init; } // Added Color property
+		public required Color Color { get; init; }
 	}
 }
 

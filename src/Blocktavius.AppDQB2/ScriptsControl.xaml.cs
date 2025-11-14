@@ -28,19 +28,6 @@ namespace Blocktavius.AppDQB2
 			propGrid.SetBinding(PropertyGrid.SelectedObjectProperty, nameof(ProjectVM.SelectedScriptNode));
 		}
 
-		private void Border_MouseDown(object sender, MouseButtonEventArgs e) // TODO no longer used
-		{
-			var dc = (sender as FrameworkElement)?.DataContext;
-			var node = dc as ScriptNodeVM
-				?? (dc as IChildNodeWrapperVM)?.Child;
-			var project = this.DataContext as ProjectVM;
-
-			if (node != null && project != null)
-			{
-				project.UpdateSelectedScriptNode(node);
-			}
-		}
-
 		private void PreviewScriptButton_Click(object sender, RoutedEventArgs e)
 		{
 			var mainWindow = this.VisualTreeAncestors().OfType<MainWindow>().FirstOrDefault();
