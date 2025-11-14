@@ -72,7 +72,7 @@ interface IStageMutator
 /// </summary>
 interface IHaveLongStatusText
 {
-	string LongStatus { get; }
+	BindableRichText LongStatus { get; }
 }
 
 abstract class ScriptLeafNodeVM : ScriptNodeVM

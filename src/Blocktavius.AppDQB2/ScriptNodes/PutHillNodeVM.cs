@@ -74,8 +74,8 @@ sealed class PutHillNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutato
 		set => ChangeProperty(ref lockRandomSeed, value);
 	}
 
-	private string _longStatus = "";
-	public string LongStatus
+	private BindableRichText _longStatus = BindableRichText.Empty;
+	public BindableRichText LongStatus
 	{
 		get => _longStatus;
 		private set => ChangeProperty(ref _longStatus, value);
@@ -88,11 +88,11 @@ sealed class PutHillNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutato
 
 	private void RebuildLongStatus()
 	{
-		var sb = new StringBuilder();
-		sb.AppendLine("Put Hill:");
-		sb.Append("  Area: ").AppendLine(Area?.DisplayName);
-		sb.Append("  Kind: ").AppendLine(HillDesigner?.GetType()?.Name);
-		LongStatus = sb.ToString();
+		var rtb = new BindableRichTextBuilder();
+		rtb.AppendLine("Put Hill:");
+		rtb.Append("  Area: ").AppendLine(Area?.DisplayName);
+		rtb.Append("  Kind: ").AppendLine(HillDesigner?.GetType()?.Name);
+		LongStatus = rtb.Build();
 	}
 
 	public StageMutation? BuildMutation(StageRebuildContext context)

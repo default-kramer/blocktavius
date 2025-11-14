@@ -5,7 +5,7 @@
              ShutdownMode="OnMainWindowClose">
     <Application.Resources>
         <DataTemplate x:Key="SCRIPT_NODE_LONG_STATUS_TEMPLATE">
-            <TextBlock Text="{Binding LongStatus}"></TextBlock>
+            <local:BindableRichTextBox BindableRichText="{Binding LongStatus}"></local:BindableRichTextBox>
         </DataTemplate>
         <local:ScriptNodeTemplateSelector x:Key="SCRIPT_NODE_TEMPLATE_SELECTOR">
             <local:ScriptNodeTemplateSelector.FallbackTemplate>
