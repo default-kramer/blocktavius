@@ -19,6 +19,8 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 		public required int? Scale { get; init; }
 		public required int? YMin { get; init; }
 		public required int? YRange { get; init; }
+		public required string? AreaPersistId { get; init; }
+		public required string? BlockPersistId { get; init; }
 
 		public bool TryDeserializeV1(out ScriptNodeVM node, ScriptDeserializationContext context)
 		{
@@ -26,6 +28,8 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 			me.Scale = this.Scale.GetValueOrDefault(me.Scale);
 			me.YMin = this.YMin.GetValueOrDefault(me.YMin);
 			me.YRange = this.YRange.GetValueOrDefault(me.YRange);
+			me.Area = context.AreaManager.FindArea(this.AreaPersistId);
+			me.Block = context.BlockManager.FindBlock(this.BlockPersistId);
 			node = me;
 			return true;
 		}
@@ -38,6 +42,8 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 			Scale = this.Scale,
 			YMin = this.YMin,
 			YRange = this.YRange,
+			AreaPersistId = this.Area?.PersistentId,
+			BlockPersistId = this.Block?.PersistentId,
 		};
 	}
 
@@ -55,6 +61,14 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 	{
 		get => area;
 		set => ChangeProperty(ref area, value);
+	}
+
+	private IBlockProviderVM? blockProvider = Blockdata.AnArbitraryBlockVM;
+	[Editor(typeof(PropGridEditors.BlockProviderEditor), typeof(PropGridEditors.BlockProviderEditor))]
+	public IBlockProviderVM? Block
+	{
+		get => blockProvider;
+		set => ChangeProperty(ref blockProvider, value);
 	}
 
 	private int scale = 23;
