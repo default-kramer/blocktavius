@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Blocktavius.AppDQB2.Persistence.V1;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -35,6 +36,28 @@ class SlotVM
 	}
 
 	public string GetFullPath(string filename) => Slot.GetFullPath(filename);
+
+	internal SlotReferenceV1 ToPersistModel()
+	{
+		return new SlotReferenceV1()
+		{
+			SlotNumber = Slot.SlotNumber,
+			SlotName = Slot.Name,
+		};
+	}
+
+	internal bool MatchesByNumber(SlotReferenceV1? slotRef)
+	{
+		return slotRef != null
+			&& slotRef.SlotNumber.HasValue
+			&& slotRef.SlotNumber == this.Slot.SlotNumber;
+	}
+
+	internal bool MatchesByName(SlotReferenceV1? slotRef)
+	{
+		return slotRef != null
+			&& slotRef.SlotName == this.Slot.Name;
+	}
 }
 
 class WritableSlotVM : SlotVM
