@@ -27,6 +27,12 @@ public abstract class HillType
 		hillTypes.Add(new SimpleHillType<T>());
 	}
 
+	public static HillType? FindTypeOf(IHillDesigner designer)
+	{
+		var expectType = designer.GetType();
+		return hillTypes.FirstOrDefault(t => t.CreateNewDesigner().GetType() == expectType);
+	}
+
 	static HillType()
 	{
 		Register<WinsomeHillDesigner>();

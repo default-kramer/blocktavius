@@ -1,4 +1,5 @@
-﻿using Blocktavius.Core;
+﻿using Blocktavius.AppDQB2.Persistence;
+using Blocktavius.Core;
 using Blocktavius.Core.Generators.Hills;
 using Blocktavius.DQB2;
 using System;
@@ -13,6 +14,31 @@ namespace Blocktavius.AppDQB2.ScriptNodes.HillDesigners;
 // Maybe create a base class for this kind?
 sealed class PlainHillDesigner : ViewModelBase, IHillDesigner
 {
+	[PersistentHillDesigner(Discriminator = "PlainHill-7791")]
+	sealed record PersistModel : IPersistentHillDesigner
+	{
+		public required int? Steepness { get; init; }
+		public required PlainHill.CornerType? CornerType { get; init; }
+
+		public bool TryDeserializeV1(ScriptDeserializationContext context, out IHillDesigner designer)
+		{
+			var me = new PlainHillDesigner();
+			me.Steepness = this.Steepness ?? me.Steepness;
+			me.CornerType = this.CornerType ?? me.CornerType;
+			designer = me;
+			return true;
+		}
+	}
+
+	IPersistentHillDesigner IHillDesigner.ToPersistModel()
+	{
+		return new PersistModel
+		{
+			Steepness = this.Steepness,
+			CornerType = this.CornerType,
+		};
+	}
+
 	public StageMutation? CreateMutation(HillDesignContext context)
 	{
 		if (context.AreaVM.IsArea(context.ImageCoordTranslation, out var area))
@@ -43,7 +69,7 @@ sealed class PlainHillDesigner : ViewModelBase, IHillDesigner
 		set => ChangeProperty(ref steepness, value);
 	}
 
-	private PlainHill.CornerType _cornerType;
+	private PlainHill.CornerType _cornerType = PlainHill.CornerType.Bevel;
 	public PlainHill.CornerType CornerType
 	{
 		get => _cornerType;

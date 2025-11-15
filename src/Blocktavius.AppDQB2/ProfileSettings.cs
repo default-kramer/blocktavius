@@ -403,7 +403,7 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 		sb.Append(Environment.GetEnvironmentVariable("COMPUTERNAME") ?? "no computername").Append("::");
 		sb.Append(Environment.GetEnvironmentVariable("USERNAME") ?? "no username").Append("::");
 
-		var enc = Encoding.GetEncoding(65001); // utf-8 code page
+		var enc = Encoding.UTF8;
 		byte[] buffer = enc.GetBytes(sb.ToString());
 		byte[] hashBytes = System.Security.Cryptography.SHA256.HashData(buffer);
 		return Convert.ToBase64String(hashBytes);

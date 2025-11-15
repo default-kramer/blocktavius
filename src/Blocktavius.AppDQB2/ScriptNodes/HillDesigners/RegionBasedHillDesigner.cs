@@ -1,4 +1,5 @@
-﻿using Blocktavius.Core;
+﻿using Blocktavius.AppDQB2.Persistence;
+using Blocktavius.Core;
 using Blocktavius.DQB2;
 using System;
 using System.Collections.Generic;
@@ -53,4 +54,6 @@ abstract class RegionBasedHillDesigner : ViewModelBase, IHillDesigner
 	}
 
 	protected abstract StageMutation? CreateMutation(HillDesignContext context, Region region);
+
+	public abstract IPersistentHillDesigner ToPersistModel();
 }

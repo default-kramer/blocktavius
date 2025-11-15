@@ -65,16 +65,23 @@ sealed class ExternalImageManager : IDisposable
 			return;
 		}
 
-		var newId = Guid.NewGuid();
-		string dictKey = fullPath.ToLowerInvariant();
 		string relativePath = Path.GetRelativePath(projectDir.FullName, fullPath);
-		var vm = externalImageDict.GetOrAdd(dictKey, (_) => new ExternalImageVM(newId, new FileInfo(fullPath), relativePath));
+		var vm = FindOrCreate(relativePath, out bool wasFreshlyAdded);
 		vm.ReloadIfStale();
-
-		if (vm.UniqueId == newId) // this means we just added a new one
+		if (wasFreshlyAdded)
 		{
 			AddNewImage(vm);
 		}
+	}
+
+	public ExternalImageVM FindOrCreate(string relativePath, out bool wasFreshlyAdded)
+	{
+		var newId = Guid.NewGuid();
+		string fullPath = Path.Combine(projectDir.FullName, relativePath);
+		string dictKey = fullPath.ToLowerInvariant();
+		var vm = externalImageDict.GetOrAdd(dictKey, _ => new ExternalImageVM(newId, new FileInfo(fullPath), relativePath));
+		wasFreshlyAdded = vm.UniqueId == newId;
+		return vm;
 	}
 
 	private void AddNewImage(ExternalImageVM vm)

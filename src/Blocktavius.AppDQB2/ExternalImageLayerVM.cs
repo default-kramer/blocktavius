@@ -1,4 +1,5 @@
-﻿using Blocktavius.Core;
+﻿using Blocktavius.AppDQB2.Persistence.V1;
+using Blocktavius.Core;
 using System;
 using System.IO;
 using System.Windows;
@@ -17,6 +18,8 @@ sealed class ExternalImageLayerVM : ViewModelBase, ILayerVM, IAreaVM
 	public string DisplayName => Image.RelativePath;
 
 	IEnumerable<ExternalImageVM> ILayerVM.ExternalImage { get { yield return Image; } }
+
+	string IAreaVM.PersistentId => $"IMG:{Image.RelativePath}";
 
 	private bool _isVisible = true;
 	public bool IsVisible
@@ -40,5 +43,14 @@ sealed class ExternalImageLayerVM : ViewModelBase, ILayerVM, IAreaVM
 	{
 		tagger = null!;
 		return false;
+	}
+
+	internal ImageReferenceV1 ToPersistModel()
+	{
+		return new Persistence.V1.ImageReferenceV1()
+		{
+			RelativePath = Image.RelativePath,
+			IsVisible = IsVisible,
+		};
 	}
 }

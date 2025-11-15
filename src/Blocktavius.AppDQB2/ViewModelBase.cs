@@ -11,7 +11,7 @@ using Xceed.Wpf.Toolkit.PropertyGrid.Attributes;
 
 namespace Blocktavius.AppDQB2;
 
-class ViewModelBase : INotifyPropertyChanged
+abstract class ViewModelBase : INotifyPropertyChanged
 {
 	public event PropertyChangedEventHandler? PropertyChanged;
 

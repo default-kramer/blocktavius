@@ -10,8 +10,9 @@ public static class PlainHill
 {
 	public enum CornerType
 	{
-		Bevel,
-		Square,
+		// Values must be stable for serialization
+		Bevel = 1,
+		Square = 2,
 	};
 
 	public sealed record Settings

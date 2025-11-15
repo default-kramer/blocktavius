@@ -1,4 +1,5 @@
-﻿using Blocktavius.Core;
+﻿using Blocktavius.AppDQB2.Persistence;
+using Blocktavius.Core;
 using Blocktavius.DQB2;
 using System;
 using System.Collections.Generic;
@@ -10,8 +11,45 @@ using Xceed.Wpf.Toolkit.PropertyGrid.Attributes;
 
 namespace Blocktavius.AppDQB2.ScriptNodes;
 
-sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutator
+sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutator, IDynamicScriptNodeVM
 {
+	[PersistentScriptNode(Discriminator = "PutGround-3656")]
+	sealed record PersistModel : IPersistentScriptNode
+	{
+		public required int? Scale { get; init; }
+		public required int? YMin { get; init; }
+		public required int? YRange { get; init; }
+		public required string? AreaPersistId { get; init; }
+		public required string? BlockPersistId { get; init; }
+
+		public bool TryDeserializeV1(out ScriptNodeVM node, ScriptDeserializationContext context)
+		{
+			var me = new PutGroundNodeVM();
+			me.Scale = this.Scale.GetValueOrDefault(me.Scale);
+			me.YMin = this.YMin.GetValueOrDefault(me.YMin);
+			me.YRange = this.YRange.GetValueOrDefault(me.YRange);
+			me.Area = context.AreaManager.FindArea(this.AreaPersistId);
+			me.Block = context.BlockManager.FindBlock(this.BlockPersistId);
+			node = me;
+			return true;
+		}
+	}
+
+	public IPersistentScriptNode ToPersistModel()
+	{
+		return new PersistModel
+		{
+			Scale = this.Scale,
+			YMin = this.YMin,
+			YRange = this.YRange,
+			AreaPersistId = this.Area?.PersistentId,
+			BlockPersistId = this.Block?.PersistentId,
+		};
+	}
+
+	IStageMutator? IDynamicScriptNodeVM.SelfAsMutator => this;
+	ScriptNodeVM IDynamicScriptNodeVM.SelfAsVM => this;
+
 	public PutGroundNodeVM()
 	{
 		RebuildLongStatus();
@@ -23,6 +61,14 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 	{
 		get => area;
 		set => ChangeProperty(ref area, value);
+	}
+
+	private IBlockProviderVM? blockProvider = Blockdata.AnArbitraryBlockVM;
+	[Editor(typeof(PropGridEditors.BlockProviderEditor), typeof(PropGridEditors.BlockProviderEditor))]
+	public IBlockProviderVM? Block
+	{
+		get => blockProvider;
+		set => ChangeProperty(ref blockProvider, value);
 	}
 
 	private int scale = 23;
@@ -66,23 +112,24 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 		var rtb = new BindableRichTextBuilder();
 		rtb.Append("Put Ground:");
 		rtb.AppendLine().Append("  Area: ").FallbackIfNull("None Selected", Area?.DisplayName);
+		rtb.AppendLine().Append("  Block: ").FallbackIfNull("None Selected", Block?.DisplayName);
 		rtb.AppendLine().Append($"  Min Elevation: {YMin}, Max Elevation: {YMax}");
 		LongStatus = rtb.Build();
 	}
 
 	public StageMutation? BuildMutation(StageRebuildContext context)
 	{
-		if (area == null)
+		if (Area == null || Block == null)
 		{
 			return null;
 		}
 
 		List<IArea> areas = new();
-		if (area.IsArea(context.ImageCoordTranslation, out var areaWrapper))
+		if (Area.IsArea(context.ImageCoordTranslation, out var areaWrapper))
 		{
 			areas.Add(areaWrapper.Area);
 		}
-		else if (area.IsRegional(out var tagger))
+		else if (Area.IsRegional(out var tagger))
 		{
 			var regions = tagger.GetRegions(true, context.ImageCoordTranslation);
 			areas.AddRange(regions);
@@ -113,11 +160,16 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 				.TranslateTo(fullRect.start);
 		}
 
+		if (Block.UniformBlockId == null)
+		{
+			throw new Exception($"TODO - need to handle {Block.GetType()}");
+		}
+
 		var mutations = new List<StageMutation>();
 		foreach (var area in areas)
 		{
 			var sampler = area.AsSampler().Project((inArea, xz) => inArea ? elevationSampler.Sample(xz) : -1);
-			mutations.Add(StageMutation.CreateHills(sampler, 500));
+			mutations.Add(StageMutation.CreateHills(sampler, Block.UniformBlockId.Value));
 		}
 
 		return StageMutation.Combine(mutations);
