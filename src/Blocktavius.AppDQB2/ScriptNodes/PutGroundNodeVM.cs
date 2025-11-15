@@ -10,8 +10,39 @@ using Xceed.Wpf.Toolkit.PropertyGrid.Attributes;
 
 namespace Blocktavius.AppDQB2.ScriptNodes;
 
-sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutator
+sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutator, IDynamicScriptNodeVM
 {
+	[Persistence.PersistentScriptNode(Discriminator = "PutGround-3656")]
+	sealed record PersistModel : Persistence.IPersistentScriptNode
+	{
+		public required int? Scale { get; init; }
+		public required int? YMin { get; init; }
+		public required int? YRange { get; init; }
+
+		public bool TryDeserializeV1(out ScriptNodeVM node)
+		{
+			var me = new PutGroundNodeVM();
+			me.Scale = this.Scale.GetValueOrDefault(me.Scale);
+			me.YMin = this.YMin.GetValueOrDefault(me.YMin);
+			me.YRange = this.YRange.GetValueOrDefault(me.YRange);
+			node = me;
+			return true;
+		}
+	}
+
+	public Persistence.IPersistentScriptNode ToPersistModel()
+	{
+		return new PersistModel
+		{
+			Scale = this.Scale,
+			YMin = this.YMin,
+			YRange = this.YRange,
+		};
+	}
+
+	IStageMutator? IDynamicScriptNodeVM.SelfAsMutator => this;
+	ScriptNodeVM IDynamicScriptNodeVM.SelfAsVM => this;
+
 	public PutGroundNodeVM()
 	{
 		RebuildLongStatus();

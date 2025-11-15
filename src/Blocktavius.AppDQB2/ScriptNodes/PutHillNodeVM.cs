@@ -12,8 +12,33 @@ using Xceed.Wpf.Toolkit.PropertyGrid.Attributes;
 
 namespace Blocktavius.AppDQB2.ScriptNodes;
 
-sealed class PutHillNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutator
+sealed class PutHillNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutator, IDynamicScriptNodeVM
 {
+	[Persistence.PersistentScriptNode(Discriminator = "PutHill-4481")]
+	sealed record PersistModel : Persistence.IPersistentScriptNode
+	{
+		public required int? Elevation { get; init; }
+
+		public bool TryDeserializeV1(out ScriptNodeVM node)
+		{
+			var me = new PutHillNodeVM();
+			me.Elevation = this.Elevation.GetValueOrDefault(me.Elevation);
+			node = me;
+			return true;
+		}
+	}
+
+	public Persistence.IPersistentScriptNode ToPersistModel()
+	{
+		return new PersistModel
+		{
+			Elevation = this.Elevation,
+		};
+	}
+
+	IStageMutator? IDynamicScriptNodeVM.SelfAsMutator => this;
+	ScriptNodeVM IDynamicScriptNodeVM.SelfAsVM => this;
+
 	const string Common = "_Common";
 
 	public PutHillNodeVM()

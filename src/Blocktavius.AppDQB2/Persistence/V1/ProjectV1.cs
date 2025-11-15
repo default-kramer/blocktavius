@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 
 namespace Blocktavius.AppDQB2.Persistence.V1;
 
@@ -33,11 +34,20 @@ sealed record ProjectV1
 	public required IReadOnlyList<ImageReferenceV1>? Images
 	{
 		get => _images;
-		set => _images = value?.ToContentEqualityList();
+		init => _images = value?.ToContentEqualityList();
 	}
 
 	public required bool? MinimapVisible { get; init; }
 	public required bool? ChunkGridVisible { get; init; }
+
+	private IContentEqualityList<ScriptV1>? _scripts = null;
+	public required IReadOnlyList<ScriptV1>? Scripts
+	{
+		get => _scripts;
+		init => _scripts = value?.ToContentEqualityList();
+	}
+
+	public required int? SelectedScriptIndex { get; init; }
 
 	public ProjectV1 VerifyProfileHash(ProfileSettings profile)
 	{
@@ -59,7 +69,8 @@ sealed record ProjectV1
 
 	private static readonly JsonSerializerOptions jsonOptions = new()
 	{
-		TypeInfoResolver = NullablePropertiesNotRequiredResolver.Instance,
+		TypeInfoResolver = new PolymorphicTypeResolver(),
+		WriteIndented = true,
 	};
 
 	public static ProjectV1? Load(string json)
@@ -69,7 +80,7 @@ sealed record ProjectV1
 
 	public void Save(Stream stream)
 	{
-		JsonSerializer.Serialize(stream, this, new JsonSerializerOptions { WriteIndented = true });
+		JsonSerializer.Serialize(stream, this, jsonOptions);
 	}
 }
 
@@ -100,4 +111,18 @@ sealed record ChunkOffsetV1
 		OffsetX = offset.OffsetX,
 		OffsetZ = offset.OffsetZ,
 	};
+}
+
+sealed record ScriptV1
+{
+	public required string? ScriptName { get; init; }
+
+	private IContentEqualityList<IPersistentScriptNode>? _scriptNodes = null;
+	public required IReadOnlyList<IPersistentScriptNode>? ScriptNodes
+	{
+		get => _scriptNodes;
+		init => _scriptNodes = value?.ToContentEqualityList();
+	}
+
+	public ScriptVM Deserialize() => ScriptVM.Load(this);
 }

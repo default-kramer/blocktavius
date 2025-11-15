@@ -1,4 +1,5 @@
-﻿using Blocktavius.Core;
+﻿using Blocktavius.AppDQB2.Persistence;
+using Blocktavius.Core;
 using Blocktavius.DQB2;
 using System;
 using System.Collections.Generic;
@@ -37,6 +38,20 @@ interface ISelectedNodeManager
 	bool IsSelected(ScriptNodeVM node);
 
 	void ChangeSelectedNode(ScriptNodeVM? node);
+}
+
+/// <summary>
+/// Interface for <see cref="ScriptNodeVM"/> types which are not recognized specially.
+/// They must implement <see cref="ToPersistModel"/> to participate in save+load.
+/// They may implement <see cref="SelfAsMutator"/> to participate in stage mutation.
+/// </summary>
+interface IDynamicScriptNodeVM
+{
+	ScriptNodeVM SelfAsVM { get; }
+
+	IStageMutator? SelfAsMutator { get; }
+
+	IPersistentScriptNode ToPersistModel();
 }
 
 abstract class ScriptNodeVM : ViewModelBaseWithCustomTypeDescriptor
@@ -130,18 +145,29 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 	public override IEnumerable<IChildNodeWrapperVM> ChildNodes => Nodes;
 	public IReadOnlyList<NodeKindVM> NodeKinds { get; }
 
-	public ScriptVM()
+	public ScriptVM(bool initSampleNodes) : this()
 	{
-		AddChild(Settings);
-		AddChild(new ScriptNodes.PutGroundNodeVM());
-		AddChild(new ScriptNodes.PutHillNodeVM());
+		if (initSampleNodes)
+		{
+			AddChild(new ScriptNodes.PutGroundNodeVM());
+			AddChild(new ScriptNodes.PutHillNodeVM());
+		}
+	}
 
+	internal ScriptVM()
+	{
 		var kinds = new List<NodeKindVM>();
 		kinds.Add(new NodeKindVM(() => new ScriptNodes.PutGroundNodeVM()) { DisplayName = "Put Ground" });
 		kinds.Add(new NodeKindVM(() => new ScriptNodes.PutHillNodeVM()) { DisplayName = "Put Hill" });
 		NodeKinds = kinds;
 
 		CommandAddNode = new RelayCommand(_ => SelectedNodeKind != null, DoCommandAddNode);
+
+		Nodes.Add(new ChildNodeWrapper(this)
+		{
+			Child = Settings,
+			DynamicChild = null,
+		});
 	}
 
 	private NodeKindVM? _selectedNodeKind;
@@ -172,12 +198,12 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 
 	public string? GetScriptName() => Settings.ScriptName;
 
-	private void AddChild(ScriptNodeVM child)
+	private void AddChild(IDynamicScriptNodeVM child)
 	{
 		Nodes.Add(new ChildNodeWrapper(this)
 		{
-			Child = child,
-			Mutator = child as IStageMutator,
+			Child = child.SelfAsVM,
+			DynamicChild = child,
 		});
 	}
 
@@ -264,7 +290,8 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 		}
 
 		public required ScriptNodeVM Child { get; init; }
-		public required IStageMutator? Mutator { get; init; }
+		public required IDynamicScriptNodeVM? DynamicChild { get; init; }
+		public IStageMutator? Mutator => DynamicChild?.SelfAsMutator;
 
 		private ICommand _commandMoveUp = NullCommand.Instance;
 		public ICommand CommandMoveUp
@@ -330,18 +357,50 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 			});
 		}
 	}
+
+	public Persistence.V1.ScriptV1 ToPersistModelConcrete()
+	{
+		return new Persistence.V1.ScriptV1
+		{
+			ScriptName = Settings.ScriptName,
+			ScriptNodes = this.Nodes.Select(n => n.DynamicChild).WhereNotNull().Select(dc => dc.ToPersistModel()).ToList(),
+		};
+	}
+
+	public static ScriptVM Load(Persistence.V1.ScriptV1 script)
+	{
+		var me = new ScriptVM();
+		me.Settings.ScriptName = script.ScriptName;
+
+		foreach (var node in script.ScriptNodes.EmptyIfNull())
+		{
+			if (node.TryDeserializeV1(out var nodeVM))
+			{
+				if (nodeVM is IDynamicScriptNodeVM vm)
+				{
+					me.AddChild(vm);
+				}
+				else
+				{
+					throw new Exception($"Expected an {nameof(IDynamicScriptNodeVM)} here, but got {nodeVM.GetType()}");
+				}
+			}
+		}
+
+		return me;
+	}
 }
 
 sealed class NodeKindVM
 {
-	private readonly Func<ScriptNodeVM> factory;
+	private readonly Func<IDynamicScriptNodeVM> factory;
 
-	public NodeKindVM(Func<ScriptNodeVM> factory)
+	public NodeKindVM(Func<IDynamicScriptNodeVM> factory)
 	{
 		this.factory = factory;
 	}
 
 	public required string DisplayName { get; init; }
 
-	public ScriptNodeVM CreateNode() => factory();
+	public IDynamicScriptNodeVM CreateNode() => factory();
 }

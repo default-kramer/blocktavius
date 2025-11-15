@@ -367,6 +367,8 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 			Images = Layers.OfType<ExternalImageLayerVM>().Select(vm => vm.ToPersistModel()).ToList(),
 			MinimapVisible = minimapLayer?.IsVisible,
 			ChunkGridVisible = chunkGridLayer.IsVisible,
+			Scripts = this.Scripts.Select(s => s.ToPersistModelConcrete()).ToList(),
+			SelectedScriptIndex = SelectedScript == null ? null : Scripts.IndexOf(SelectedScript),
 		};
 	}
 
@@ -423,8 +425,12 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 		Layers.Add(chunkGridLayer);
 		SelectedLayer = Layers.FirstOrDefault();
 
-		// TODO!
 		Scripts.Clear();
-		SelectedScript = null;
+		foreach (var script in project.Scripts.EmptyIfNull())
+		{
+			var scriptVM = script.Deserialize();
+			Scripts.Add(scriptVM);
+		}
+		SelectedScript = Scripts.ElementAtOrDefault(project.SelectedScriptIndex.GetValueOrDefault(-1));
 	}
 }
