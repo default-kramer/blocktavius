@@ -37,7 +37,9 @@
             <pg:PropertyGrid Grid.Row="2" SelectedObject="{Binding SelectedScript.SelectedNode}"></pg:PropertyGrid>
             <GridSplitter Grid.Row="1" ResizeDirection="Rows" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Center"></GridSplitter>
         </Grid>
-        <local:ScriptNodeControl Grid.Column="2" DataContext="{Binding SelectedScript}" Margin="12"></local:ScriptNodeControl>
+        <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+            <local:ScriptNodeControl DataContext="{Binding SelectedScript}" Margin="12"></local:ScriptNodeControl>
+        </ScrollViewer>
         <GridSplitter Grid.Column="1" ResizeDirection="Columns" Width="5" VerticalAlignment="Stretch" HorizontalAlignment="Center"></GridSplitter>
     </Grid>
 </UserControl>
