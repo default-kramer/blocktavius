@@ -15,6 +15,15 @@
             <Button FontSize="16" Padding="7,4,7,4" Margin="20,0,0,0" Click="PreviewScriptButton_Click">PREVIEW</Button>
             <Button FontSize="16" Padding="7,4,7,4" Margin="12,0,0,0" Click="RunScriptButton_Click">RUN...</Button>
         </StackPanel>
-        <local:ScriptChildListControl></local:ScriptChildListControl>
+        <StackPanel Orientation="Vertical" HorizontalAlignment="Left">
+            <local:ScriptChildListControl></local:ScriptChildListControl>
+            <StackPanel Orientation="Vertical" HorizontalAlignment="Stretch" Margin="0,12,0,0">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <ComboBox ItemsSource="{Binding NodeKinds}" SelectedItem="{Binding SelectedNodeKind}"
+                              DisplayMemberPath="DisplayName" MinWidth="90"></ComboBox>
+                    <Button Command="{Binding CommandAddNode}" Margin="3,0,0,0">Add</Button>
+                </StackPanel>
+            </StackPanel>
+        </StackPanel>
     </StackPanel>
 </UserControl>

@@ -57,12 +57,6 @@ abstract class ScriptNodeVM : ViewModelBaseWithCustomTypeDescriptor
 		IsSelected = manager.IsSelected(this);
 	}
 
-	/// <summary>
-	/// A node that is capable of having child nodes should return true
-	/// even if it currently has zero children.
-	/// </summary>
-	public abstract bool CanHaveChildNodes { get; }
-
 	public abstract bool SelectDataTemplate(out string resourceKey);
 }
 
@@ -92,9 +86,6 @@ interface IHaveLongStatusText
 
 abstract class ScriptLeafNodeVM : ScriptNodeVM
 {
-	[Browsable(false)]
-	public override bool CanHaveChildNodes => false;
-
 	public override bool SelectDataTemplate(out string resourceKey)
 	{
 		if (this is IHaveLongStatusText)
@@ -113,8 +104,6 @@ abstract class ScriptNonleafNodeVM : ScriptNodeVM
 	/// Should be an ObservableCollection{T} but generics make the XAML more complicated
 	/// </summary>
 	public abstract IEnumerable<IChildNodeWrapperVM> ChildNodes { get; }
-
-	public override bool CanHaveChildNodes => true;
 }
 
 sealed class ScriptSettingsVM : ScriptLeafNodeVM
@@ -139,12 +128,38 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 	public ScriptSettingsVM Settings { get; } = new();
 	public ObservableCollection<ChildNodeWrapper> Nodes { get; } = new();
 	public override IEnumerable<IChildNodeWrapperVM> ChildNodes => Nodes;
+	public IReadOnlyList<NodeKindVM> NodeKinds { get; }
 
 	public ScriptVM()
 	{
 		AddChild(Settings);
 		AddChild(new ScriptNodes.PutGroundNodeVM());
 		AddChild(new ScriptNodes.PutHillNodeVM());
+
+		var kinds = new List<NodeKindVM>();
+		kinds.Add(new NodeKindVM(() => new ScriptNodes.PutGroundNodeVM()) { DisplayName = "Put Ground" });
+		kinds.Add(new NodeKindVM(() => new ScriptNodes.PutHillNodeVM()) { DisplayName = "Put Hill" });
+		NodeKinds = kinds;
+
+		CommandAddNode = new RelayCommand(_ => SelectedNodeKind != null, DoCommandAddNode);
+	}
+
+	private NodeKindVM? _selectedNodeKind;
+	public NodeKindVM? SelectedNodeKind
+	{
+		get => _selectedNodeKind;
+		set => ChangeProperty(ref _selectedNodeKind, value);
+	}
+
+	public ICommand CommandAddNode { get; }
+	private void DoCommandAddNode(object? arg)
+	{
+		if (SelectedNodeKind == null)
+		{
+			return;
+		}
+		var node = SelectedNodeKind.CreateNode();
+		AddChild(node);
 	}
 
 	public override bool SelectDataTemplate(out string resourceKey) { resourceKey = ""; return false; }
@@ -315,4 +330,18 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 			});
 		}
 	}
+}
+
+sealed class NodeKindVM
+{
+	private readonly Func<ScriptNodeVM> factory;
+
+	public NodeKindVM(Func<ScriptNodeVM> factory)
+	{
+		this.factory = factory;
+	}
+
+	public required string DisplayName { get; init; }
+
+	public ScriptNodeVM CreateNode() => factory();
 }
