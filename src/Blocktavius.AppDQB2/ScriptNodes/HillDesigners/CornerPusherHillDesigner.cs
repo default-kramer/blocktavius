@@ -1,4 +1,5 @@
-﻿using Blocktavius.Core;
+﻿using Blocktavius.AppDQB2.Persistence;
+using Blocktavius.Core;
 using Blocktavius.Core.Generators.Hills;
 using Blocktavius.DQB2;
 using System;
@@ -12,6 +13,18 @@ namespace Blocktavius.AppDQB2.ScriptNodes.HillDesigners;
 
 sealed class CornerPusherHillDesigner : ShellBasedHillDesigner
 {
+	[PersistentHillDesigner(Discriminator = "CornerPusherHill-4527")]
+	sealed record PersistModel : IPersistentHillDesigner
+	{
+		public bool TryDeserializeV1(ScriptDeserializationContext context, out IHillDesigner designer)
+		{
+			designer = new CornerPusherHillDesigner();
+			return true;
+		}
+	}
+
+	public override IPersistentHillDesigner ToPersistModel() => new PersistModel();
+
 	protected override StageMutation? CreateMutation(HillDesignContext context, Shell shell)
 	{
 		if (shell.IsHole) { return null; }

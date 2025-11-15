@@ -367,14 +367,14 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 		};
 	}
 
-	public static ScriptVM Load(Persistence.V1.ScriptV1 script)
+	public static ScriptVM Load(Persistence.V1.ScriptV1 script, ScriptDeserializationContext context)
 	{
 		var me = new ScriptVM();
 		me.Settings.ScriptName = script.ScriptName;
 
 		foreach (var node in script.ScriptNodes.EmptyIfNull())
 		{
-			if (node.TryDeserializeV1(out var nodeVM))
+			if (node.TryDeserializeV1(out var nodeVM, context))
 			{
 				if (nodeVM is IDynamicScriptNodeVM vm)
 				{

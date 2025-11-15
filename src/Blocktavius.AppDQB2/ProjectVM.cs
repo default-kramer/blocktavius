@@ -425,12 +425,23 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 		Layers.Add(chunkGridLayer);
 		SelectedLayer = Layers.FirstOrDefault();
 
+		var scriptContext = new ScriptDeserializationContext(this);
 		Scripts.Clear();
 		foreach (var script in project.Scripts.EmptyIfNull())
 		{
-			var scriptVM = script.Deserialize();
+			var scriptVM = ScriptVM.Load(script, scriptContext);
 			Scripts.Add(scriptVM);
 		}
 		SelectedScript = Scripts.ElementAtOrDefault(project.SelectedScriptIndex.GetValueOrDefault(-1));
+	}
+}
+
+public sealed class ScriptDeserializationContext
+{
+	private readonly IReadOnlyList<ILayerVM> layers;
+
+	internal ScriptDeserializationContext(ProjectVM project)
+	{
+		this.layers = project.Layers;
 	}
 }

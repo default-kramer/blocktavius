@@ -19,7 +19,7 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 		public required int? YMin { get; init; }
 		public required int? YRange { get; init; }
 
-		public bool TryDeserializeV1(out ScriptNodeVM node)
+		public bool TryDeserializeV1(out ScriptNodeVM node, ScriptDeserializationContext context)
 		{
 			var me = new PutGroundNodeVM();
 			me.Scale = this.Scale.GetValueOrDefault(me.Scale);

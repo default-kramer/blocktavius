@@ -123,6 +123,4 @@ sealed record ScriptV1
 		get => _scriptNodes;
 		init => _scriptNodes = value?.ToContentEqualityList();
 	}
-
-	public ScriptVM Deserialize() => ScriptVM.Load(this);
 }

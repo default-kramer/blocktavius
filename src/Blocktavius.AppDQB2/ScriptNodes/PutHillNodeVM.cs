@@ -1,4 +1,5 @@
-﻿using Blocktavius.AppDQB2.ScriptNodes.HillDesigners;
+﻿using Blocktavius.AppDQB2.Persistence;
+using Blocktavius.AppDQB2.ScriptNodes.HillDesigners;
 using Blocktavius.Core;
 using Blocktavius.Core.Generators.Hills;
 using Blocktavius.DQB2;
@@ -15,24 +16,31 @@ namespace Blocktavius.AppDQB2.ScriptNodes;
 sealed class PutHillNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutator, IDynamicScriptNodeVM
 {
 	[Persistence.PersistentScriptNode(Discriminator = "PutHill-4481")]
-	sealed record PersistModel : Persistence.IPersistentScriptNode
+	sealed record PersistModel : IPersistentScriptNode
 	{
 		public required int? Elevation { get; init; }
+		public required IPersistentHillDesigner? HillDesigner { get; init; }
 
-		public bool TryDeserializeV1(out ScriptNodeVM node)
+		public bool TryDeserializeV1(out ScriptNodeVM node, ScriptDeserializationContext context)
 		{
 			var me = new PutHillNodeVM();
 			me.Elevation = this.Elevation.GetValueOrDefault(me.Elevation);
+			if (this.HillDesigner?.TryDeserializeV1(context, out var designer) == true)
+			{
+				me.HillDesigner = designer;
+				me.SelectedHillType = HillType.FindTypeOf(designer);
+			}
 			node = me;
 			return true;
 		}
 	}
 
-	public Persistence.IPersistentScriptNode ToPersistModel()
+	public IPersistentScriptNode ToPersistModel()
 	{
 		return new PersistModel
 		{
 			Elevation = this.Elevation,
+			HillDesigner = this.HillDesigner?.ToPersistModel(),
 		};
 	}
 
