@@ -112,23 +112,24 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 		var rtb = new BindableRichTextBuilder();
 		rtb.Append("Put Ground:");
 		rtb.AppendLine().Append("  Area: ").FallbackIfNull("None Selected", Area?.DisplayName);
+		rtb.AppendLine().Append("  Block: ").FallbackIfNull("None Selected", Block?.DisplayName);
 		rtb.AppendLine().Append($"  Min Elevation: {YMin}, Max Elevation: {YMax}");
 		LongStatus = rtb.Build();
 	}
 
 	public StageMutation? BuildMutation(StageRebuildContext context)
 	{
-		if (area == null)
+		if (Area == null || Block == null)
 		{
 			return null;
 		}
 
 		List<IArea> areas = new();
-		if (area.IsArea(context.ImageCoordTranslation, out var areaWrapper))
+		if (Area.IsArea(context.ImageCoordTranslation, out var areaWrapper))
 		{
 			areas.Add(areaWrapper.Area);
 		}
-		else if (area.IsRegional(out var tagger))
+		else if (Area.IsRegional(out var tagger))
 		{
 			var regions = tagger.GetRegions(true, context.ImageCoordTranslation);
 			areas.AddRange(regions);
@@ -159,11 +160,16 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 				.TranslateTo(fullRect.start);
 		}
 
+		if (Block.UniformBlockId == null)
+		{
+			throw new Exception($"TODO - need to handle {Block.GetType()}");
+		}
+
 		var mutations = new List<StageMutation>();
 		foreach (var area in areas)
 		{
 			var sampler = area.AsSampler().Project((inArea, xz) => inArea ? elevationSampler.Sample(xz) : -1);
-			mutations.Add(StageMutation.CreateHills(sampler, 500));
+			mutations.Add(StageMutation.CreateHills(sampler, Block.UniformBlockId.Value));
 		}
 
 		return StageMutation.Combine(mutations);
