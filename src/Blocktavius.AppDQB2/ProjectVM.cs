@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace Blocktavius.AppDQB2;
 
-sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
+sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAreaManager, Persistence.IBlockManager
 {
 	private readonly StgdatLoader stgdatLoader = new();
 	private ExternalImageManager? imageManager = null;
@@ -425,7 +425,12 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 		Layers.Add(chunkGridLayer);
 		SelectedLayer = Layers.FirstOrDefault();
 
-		var scriptContext = new ScriptDeserializationContext(this);
+		var scriptContext = new Persistence.ScriptDeserializationContext
+		{
+			AreaManager = this,
+			BlockManager = this,
+		};
+
 		Scripts.Clear();
 		foreach (var script in project.Scripts.EmptyIfNull())
 		{
@@ -434,14 +439,22 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 		}
 		SelectedScript = Scripts.ElementAtOrDefault(project.SelectedScriptIndex.GetValueOrDefault(-1));
 	}
-}
 
-public sealed class ScriptDeserializationContext
-{
-	private readonly IReadOnlyList<ILayerVM> layers;
-
-	internal ScriptDeserializationContext(ProjectVM project)
+	IAreaVM? Persistence.IAreaManager.FindArea(string? persistentId)
 	{
-		this.layers = project.Layers;
+		if (persistentId == null)
+		{
+			return null;
+		}
+		return Layers.Select(l => l.SelfAsAreaVM).WhereNotNull().FirstOrDefault(a => a.PersistentId == persistentId);
+	}
+
+	IBlockProviderVM? Persistence.IBlockManager.FindBlock(string? persistentId)
+	{
+		if (persistentId == null)
+		{
+			return null;
+		}
+		return Blockdata.AllBlockVMs.FirstOrDefault(x => x.PersistentId == persistentId);
 	}
 }

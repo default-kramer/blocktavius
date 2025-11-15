@@ -15,11 +15,14 @@ namespace Blocktavius.AppDQB2.ScriptNodes;
 
 sealed class PutHillNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutator, IDynamicScriptNodeVM
 {
-	[Persistence.PersistentScriptNode(Discriminator = "PutHill-4481")]
+	[PersistentScriptNode(Discriminator = "PutHill-4481")]
 	sealed record PersistModel : IPersistentScriptNode
 	{
 		public required int? Elevation { get; init; }
 		public required IPersistentHillDesigner? HillDesigner { get; init; }
+		public required string? AreaPersistId { get; init; }
+		public required string? BlockPersistId { get; init; }
+		public required bool? LockRandomSeed { get; init; }
 
 		public bool TryDeserializeV1(out ScriptNodeVM node, ScriptDeserializationContext context)
 		{
@@ -30,6 +33,8 @@ sealed class PutHillNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutato
 				me.HillDesigner = designer;
 				me.SelectedHillType = HillType.FindTypeOf(designer);
 			}
+			me.Area = context.AreaManager.FindArea(this.AreaPersistId);
+			me.Block = context.BlockManager.FindBlock(this.BlockPersistId);
 			node = me;
 			return true;
 		}
@@ -41,6 +46,9 @@ sealed class PutHillNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutato
 		{
 			Elevation = this.Elevation,
 			HillDesigner = this.HillDesigner?.ToPersistModel(),
+			AreaPersistId = this.Area?.PersistentId,
+			BlockPersistId = this.Block?.PersistentId,
+			LockRandomSeed = this.LockRandomSeed,
 		};
 	}
 

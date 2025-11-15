@@ -21,6 +21,8 @@ public interface IAreaVM
 	bool IsRegional(out TileTagger<bool> tagger);
 
 	string? DisplayName { get; }
+
+	string PersistentId { get; }
 }
 
 public interface IBlockProviderVM
@@ -31,6 +33,8 @@ public interface IBlockProviderVM
 	/// Null for something like a mottler
 	/// </summary>
 	ushort? UniformBlockId { get; }
+
+	string PersistentId { get; }
 }
 
 interface ISelectedNodeManager

@@ -19,6 +19,8 @@ sealed class ExternalImageLayerVM : ViewModelBase, ILayerVM, IAreaVM
 
 	IEnumerable<ExternalImageVM> ILayerVM.ExternalImage { get { yield return Image; } }
 
+	string IAreaVM.PersistentId => $"IMG:{Image.RelativePath}";
+
 	private bool _isVisible = true;
 	public bool IsVisible
 	{

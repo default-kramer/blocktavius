@@ -1,4 +1,5 @@
-﻿using Blocktavius.Core;
+﻿using Blocktavius.AppDQB2.Persistence;
+using Blocktavius.Core;
 using Blocktavius.DQB2;
 using System;
 using System.Collections.Generic;
@@ -12,8 +13,8 @@ namespace Blocktavius.AppDQB2.ScriptNodes;
 
 sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutator, IDynamicScriptNodeVM
 {
-	[Persistence.PersistentScriptNode(Discriminator = "PutGround-3656")]
-	sealed record PersistModel : Persistence.IPersistentScriptNode
+	[PersistentScriptNode(Discriminator = "PutGround-3656")]
+	sealed record PersistModel : IPersistentScriptNode
 	{
 		public required int? Scale { get; init; }
 		public required int? YMin { get; init; }
@@ -30,7 +31,7 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 		}
 	}
 
-	public Persistence.IPersistentScriptNode ToPersistModel()
+	public IPersistentScriptNode ToPersistModel()
 	{
 		return new PersistModel
 		{
