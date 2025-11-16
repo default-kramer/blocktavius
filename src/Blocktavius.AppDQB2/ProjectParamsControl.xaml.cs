@@ -34,5 +34,10 @@ namespace Blocktavius.AppDQB2
 			}
 			EditChunkGridDialog.ShowDialog(project);
 		}
+
+		private void ButtonSave_Click(object sender, RoutedEventArgs e)
+		{
+			(DataContext as ProjectVM)?.SaveChanges();
+		}
 	}
 }

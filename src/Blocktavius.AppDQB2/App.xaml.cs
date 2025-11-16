@@ -43,12 +43,14 @@ namespace Blocktavius.AppDQB2
 				});
 			}
 
-			var vm = new ProjectVM(selectedProfile);
-			vm.ProjectFilePath = @"C:\Users\kramer\Documents\code\HermitsHeresy\examples\STB\foo.blocktaviusproject";
+			var vm = ProjectVM.Load(selectedProfile, new FileInfo(@"C:\Users\kramer\Documents\code\HermitsHeresy\examples\STB\foo.blocktaviusproject"));
 
-			vm.Scripts.Add(new ScriptVM().SetScriptName("Main"));
-			vm.Scripts.Add(new ScriptVM().SetScriptName("Script 2"));
-			vm.SelectedScript = vm.Scripts.First();
+			if (vm.Scripts.Count == 0)
+			{
+				vm.Scripts.Add(new ScriptVM().SetScriptName("Main"));
+				vm.Scripts.Add(new ScriptVM().SetScriptName("Script 2"));
+				vm.SelectedScript = vm.Scripts.First();
+			}
 
 			mainWindow.DataContext = vm;
 			Global.SetCurrentProject(vm);

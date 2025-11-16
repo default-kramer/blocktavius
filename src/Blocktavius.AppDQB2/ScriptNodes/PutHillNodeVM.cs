@@ -1,4 +1,5 @@
-﻿using Blocktavius.AppDQB2.ScriptNodes.HillDesigners;
+﻿using Blocktavius.AppDQB2.Persistence;
+using Blocktavius.AppDQB2.ScriptNodes.HillDesigners;
 using Blocktavius.Core;
 using Blocktavius.Core.Generators.Hills;
 using Blocktavius.DQB2;
@@ -12,8 +13,48 @@ using Xceed.Wpf.Toolkit.PropertyGrid.Attributes;
 
 namespace Blocktavius.AppDQB2.ScriptNodes;
 
-sealed class PutHillNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutator
+sealed class PutHillNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutator, IDynamicScriptNodeVM
 {
+	[PersistentScriptNode(Discriminator = "PutHill-4481")]
+	sealed record PersistModel : IPersistentScriptNode
+	{
+		public required int? Elevation { get; init; }
+		public required IPersistentHillDesigner? HillDesigner { get; init; }
+		public required string? AreaPersistId { get; init; }
+		public required string? BlockPersistId { get; init; }
+		public required bool? LockRandomSeed { get; init; }
+
+		public bool TryDeserializeV1(out ScriptNodeVM node, ScriptDeserializationContext context)
+		{
+			var me = new PutHillNodeVM();
+			me.Elevation = this.Elevation.GetValueOrDefault(me.Elevation);
+			if (this.HillDesigner?.TryDeserializeV1(context, out var designer) == true)
+			{
+				me.HillDesigner = designer;
+				me.SelectedHillType = HillType.FindTypeOf(designer);
+			}
+			me.Area = context.AreaManager.FindArea(this.AreaPersistId);
+			me.Block = context.BlockManager.FindBlock(this.BlockPersistId);
+			node = me;
+			return true;
+		}
+	}
+
+	public IPersistentScriptNode ToPersistModel()
+	{
+		return new PersistModel
+		{
+			Elevation = this.Elevation,
+			HillDesigner = this.HillDesigner?.ToPersistModel(),
+			AreaPersistId = this.Area?.PersistentId,
+			BlockPersistId = this.Block?.PersistentId,
+			LockRandomSeed = this.LockRandomSeed,
+		};
+	}
+
+	IStageMutator? IDynamicScriptNodeVM.SelfAsMutator => this;
+	ScriptNodeVM IDynamicScriptNodeVM.SelfAsVM => this;
+
 	const string Common = "_Common";
 
 	public PutHillNodeVM()

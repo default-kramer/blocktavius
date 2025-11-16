@@ -1,4 +1,6 @@
-﻿using Blocktavius.DQB2;
+﻿using Blocktavius.AppDQB2.Persistence.V1;
+using Blocktavius.Core;
+using Blocktavius.DQB2;
 using GongSolutions.Wpf.DragDrop;
 using System;
 using System.Collections.Generic;
@@ -11,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace Blocktavius.AppDQB2;
 
-sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
+sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAreaManager, Persistence.IBlockManager
 {
 	private readonly StgdatLoader stgdatLoader = new();
 	private ExternalImageManager? imageManager = null;
@@ -96,14 +98,25 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 	public string? ProjectFilePath
 	{
 		get => _projectFilePath;
-		set
+	}
+
+	private ExternalImageManager SetProjectFilePath(string path)
+	{
+		ExternalImageManager Rebuild() => new ExternalImageManager(new DirectoryInfo(Path.GetDirectoryName(path) ?? "....fail"));
+
+		// TODO wait... probably this path and the image manager should be immutable too?
+		// Or not, because what happens on "Save As" then?
+		if (ChangeProperty(ref _projectFilePath, path, nameof(ProjectFilePath), nameof(ProjectFilePathToDisplay)))
 		{
-			ChangeProperty(ref _projectFilePath, value);
-			OnPropertyChanged(nameof(ProjectFilePathToDisplay));
-			// TODO - here we should probably check if any images are still referenced by the project
-			// and keep those in the new image manager (probably without watching them though... and with a warning?)
+			// TODO - what cleanup/reassignment do we have to do here?
 			imageManager?.Dispose();
-			imageManager = new ExternalImageManager(new System.IO.DirectoryInfo(System.IO.Path.GetDirectoryName(ProjectFilePath) ?? ".....fail"));
+			imageManager = Rebuild();
+			return imageManager;
+		}
+		else
+		{
+			imageManager = imageManager ?? Rebuild();
+			return imageManager;
 		}
 	}
 
@@ -128,6 +141,13 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 	{
 		get => _selectedLayer;
 		set => ChangeProperty(ref _selectedLayer, value);
+	}
+
+	private string _notes = "";
+	public string Notes
+	{
+		get => _notes;
+		set => ChangeProperty(ref _notes, value);
 	}
 
 	public ObservableCollection<ScriptVM> Scripts { get; } = new();
@@ -317,5 +337,124 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget
 	{
 		get => _selectedInclusionMode ?? InclusionModes.First();
 		set => ChangeProperty(ref _selectedInclusionMode, value);
+	}
+
+	public void SaveChanges()
+	{
+		var path = ProjectFilePath;
+		if (string.IsNullOrWhiteSpace(path))
+		{
+			throw new Exception("Assert fail - cannot save when ProjectFilePath is empty");
+		}
+
+		ProjectV1 persistModel = ToPersistModel();
+		using var stream = File.Open(path, FileMode.Create, FileAccess.Write);
+		persistModel.Save(stream);
+		stream.Flush();
+		stream.Close();
+	}
+
+	public ProjectV1 ToPersistModel()
+	{
+		return new ProjectV1()
+		{
+			ProfileVerificationHash = profile.VerificationHash,
+			SourceSlot = SelectedSourceSlot?.ToPersistModel(),
+			DestSlot = SelectedDestSlot?.ToPersistModel(),
+			SourceStgdatFilename = SelectedSourceStage?.Filename,
+			ChunkExpansion = this.ChunkExpansion.Select(ChunkOffsetV1.FromCore).ToList(),
+			Notes = this.Notes,
+			Images = Layers.OfType<ExternalImageLayerVM>().Select(vm => vm.ToPersistModel()).ToList(),
+			MinimapVisible = minimapLayer?.IsVisible,
+			ChunkGridVisible = chunkGridLayer.IsVisible,
+			Scripts = this.Scripts.Select(s => s.ToPersistModelConcrete()).ToList(),
+			SelectedScriptIndex = SelectedScript == null ? null : Scripts.IndexOf(SelectedScript),
+		};
+	}
+
+	public static ProjectVM Load(ProfileSettings profile, FileInfo projectFile)
+	{
+		var json = File.ReadAllText(projectFile.FullName);
+		var project = ProjectV1.Load(json);
+		if (project == null)
+		{
+			throw new Exception($"Invalid project file: {projectFile.FullName}");
+		}
+
+		var vm = new ProjectVM(profile);
+		var imageManager = vm.SetProjectFilePath(projectFile.FullName);
+		vm.Reload(project, imageManager);
+		return vm;
+	}
+
+	private void Reload(ProjectV1 project, ExternalImageManager imageManager)
+	{
+		project = project.VerifyProfileHash(profile);
+
+		SelectedSourceSlot = SourceSlots.FirstOrDefault(s => s.MatchesByNumber(project.SourceSlot))
+			?? SourceSlots.FirstOrDefault(s => s.MatchesByName(project.SourceSlot));
+		SelectedDestSlot = DestSlots.FirstOrDefault(s => s.MatchesByNumber(project.DestSlot))
+			?? DestSlots.FirstOrDefault(s => s.MatchesByNumber(project.DestSlot));
+
+		SelectedSourceStage = SelectedSourceSlot?.Stages.EmptyIfNull().FirstOrDefault(s =>
+			string.Equals(s.Filename, project.SourceStgdatFilename, StringComparison.OrdinalIgnoreCase));
+
+		Notes = project.Notes ?? "";
+		ChunkExpansion = project.ChunkExpansion.EmptyIfNull().Select(o => o.ToCore()).ToHashSet();
+
+		Layers.Clear();
+		if (minimapLayer != null)
+		{
+			minimapLayer.IsVisible = project.MinimapVisible.GetValueOrDefault(true);
+			Layers.Add(minimapLayer);
+		}
+		foreach (var image in project.Images.EmptyIfNull())
+		{
+			if (!string.IsNullOrWhiteSpace(image.RelativePath))
+			{
+				var imageVM = imageManager.FindOrCreate(image.RelativePath, out _);
+				var layerVM = new ExternalImageLayerVM
+				{
+					Image = imageVM,
+					IsVisible = image.IsVisible.GetValueOrDefault(false),
+				};
+				Layers.Add(layerVM);
+			}
+		}
+		chunkGridLayer.IsVisible = project.ChunkGridVisible.GetValueOrDefault(true);
+		Layers.Add(chunkGridLayer);
+		SelectedLayer = Layers.FirstOrDefault();
+
+		var scriptContext = new Persistence.ScriptDeserializationContext
+		{
+			AreaManager = this,
+			BlockManager = this,
+		};
+
+		Scripts.Clear();
+		foreach (var script in project.Scripts.EmptyIfNull())
+		{
+			var scriptVM = ScriptVM.Load(script, scriptContext);
+			Scripts.Add(scriptVM);
+		}
+		SelectedScript = Scripts.ElementAtOrDefault(project.SelectedScriptIndex.GetValueOrDefault(-1));
+	}
+
+	IAreaVM? Persistence.IAreaManager.FindArea(string? persistentId)
+	{
+		if (persistentId == null)
+		{
+			return null;
+		}
+		return Layers.Select(l => l.SelfAsAreaVM).WhereNotNull().FirstOrDefault(a => a.PersistentId == persistentId);
+	}
+
+	IBlockProviderVM? Persistence.IBlockManager.FindBlock(string? persistentId)
+	{
+		if (persistentId == null)
+		{
+			return null;
+		}
+		return Blockdata.AllBlockVMs.FirstOrDefault(x => x.PersistentId == persistentId);
 	}
 }

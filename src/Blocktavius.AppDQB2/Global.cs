@@ -23,6 +23,8 @@ sealed class BlockVM : IBlockProviderVM
 	public string DisplayName => $"{BlockName} ({BlockId})";
 
 	public ushort? UniformBlockId => (ushort)BlockId;
+
+	public string PersistentId => $"BLK:{BlockId}";
 }
 
 interface IBlockList

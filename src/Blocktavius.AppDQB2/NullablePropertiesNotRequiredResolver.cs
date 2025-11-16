@@ -11,7 +11,7 @@ namespace Blocktavius.AppDQB2;
 /// </summary>
 public class NullablePropertiesNotRequiredResolver : DefaultJsonTypeInfoResolver
 {
-	private NullablePropertiesNotRequiredResolver() { }
+	protected NullablePropertiesNotRequiredResolver() { }
 	public static readonly NullablePropertiesNotRequiredResolver Instance = new();
 
 	public override JsonTypeInfo GetTypeInfo(Type type, JsonSerializerOptions options)

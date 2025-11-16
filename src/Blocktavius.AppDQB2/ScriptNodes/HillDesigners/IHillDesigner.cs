@@ -11,4 +11,6 @@ namespace Blocktavius.AppDQB2.ScriptNodes.HillDesigners;
 public interface IHillDesigner
 {
 	StageMutation? CreateMutation(HillDesignContext context);
+
+	Persistence.IPersistentHillDesigner ToPersistModel();
 }
