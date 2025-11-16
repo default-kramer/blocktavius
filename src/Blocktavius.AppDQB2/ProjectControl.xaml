@@ -1,0 +1,39 @@
+﻿<UserControl x:Class="Blocktavius.AppDQB2.ProjectControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:Blocktavius.AppDQB2"
+             mc:Ignorable="d"
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition></RowDefinition>
+        </Grid.RowDefinitions>
+        <ToolBar>
+            <Button>File</Button>
+            <Button Click="PreviewButtonClicked">Preview</Button>
+        </ToolBar>
+        <TabControl Grid.Row="1">
+            <TabItem>
+                <TabItem.Header>
+                    <TextBlock>Project Parameters</TextBlock>
+                </TabItem.Header>
+                <local:ProjectParamsControl></local:ProjectParamsControl>
+            </TabItem>
+            <TabItem>
+                <TabItem.Header>
+                    <TextBlock Text="Images"></TextBlock>
+                </TabItem.Header>
+                <local:LayeredImagesControl></local:LayeredImagesControl>
+            </TabItem>
+            <TabItem>
+                <TabItem.Header>
+                    <TextBlock>Scripts</TextBlock>
+                </TabItem.Header>
+                <local:ScriptsControl></local:ScriptsControl>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</UserControl>

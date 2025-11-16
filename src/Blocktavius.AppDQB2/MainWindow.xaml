@@ -12,36 +12,7 @@
                 <local:StartupControl></local:StartupControl>
             </DataTemplate>
             <DataTemplate DataType="{x:Type local:ProjectVM}">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"></RowDefinition>
-                        <RowDefinition></RowDefinition>
-                    </Grid.RowDefinitions>
-                    <ToolBar>
-                        <Button>File</Button>
-                        <Button Click="PreviewButtonClicked">Preview</Button>
-                    </ToolBar>
-                    <TabControl Grid.Row="1">
-                        <TabItem>
-                            <TabItem.Header>
-                                <TextBlock>Project Parameters</TextBlock>
-                            </TabItem.Header>
-                            <local:ProjectParamsControl></local:ProjectParamsControl>
-                        </TabItem>
-                        <TabItem>
-                            <TabItem.Header>
-                                <TextBlock Text="Images"></TextBlock>
-                            </TabItem.Header>
-                            <local:LayeredImagesControl></local:LayeredImagesControl>
-                        </TabItem>
-                        <TabItem>
-                            <TabItem.Header>
-                                <TextBlock>Scripts</TextBlock>
-                            </TabItem.Header>
-                            <local:ScriptsControl></local:ScriptsControl>
-                        </TabItem>
-                    </TabControl>
-                </Grid>
+                <local:ProjectControl></local:ProjectControl>
             </DataTemplate>
         </ContentControl.Resources>
     </ContentControl>

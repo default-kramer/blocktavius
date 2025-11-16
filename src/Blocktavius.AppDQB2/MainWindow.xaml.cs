@@ -24,8 +24,6 @@ namespace Blocktavius.AppDQB2
 			base.OnClosed(e);
 		}
 
-		private void PreviewButtonClicked(object sender, RoutedEventArgs e) => DoPreview();
-
 		internal void DoPreview()
 		{
 			var vm = (this.DataContext as MainWindowVM)?.CurrentContent as ProjectVM;
