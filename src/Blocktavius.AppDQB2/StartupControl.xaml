@@ -29,8 +29,9 @@
             </TextBlock>
             <StackPanel Visibility="{Binding HasRecentProjectsVisibility}" Orientation="Vertical" Margin="0,6,0,0">
                 <ListView ItemsSource="{Binding RecentProjects}" SelectedItem="{Binding SelectedRecentProject}" DisplayMemberPath="DisplayName"></ListView>
-                <Button HorizontalAlignment="Center" Margin="0,6,0,0" FontSize="16" Padding="5,2" Command="{Binding CommandLoadRecent}">Open</Button>
+                <Button HorizontalAlignment="Center" Margin="0,6,0,0" FontSize="16" Padding="5,2" Command="{Binding CommandLoadRecent}">Open Recent</Button>
             </StackPanel>
+            <Button HorizontalAlignment="Center" Margin="0,12,0,0" FontSize="16" Padding="5,2" Click="ButtonBrowse_Click">Browse...</Button>
         </StackPanel>
     </Grid>
 </UserControl>

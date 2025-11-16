@@ -24,6 +24,9 @@ public partial class StartupControl : UserControl
 		InitializeComponent();
 	}
 
+	const string extension = ".blocktaviusproject";
+	const string filter = "Blocktavius projects (*.blocktaviusproject)|*.blocktaviusproject";
+
 	private void ButtonCreate_Click(object sender, RoutedEventArgs e)
 	{
 		var vm = this.DataContext as StartupVM;
@@ -34,12 +37,38 @@ public partial class StartupControl : UserControl
 		}
 
 		var dialog = new SaveFileDialog();
-		dialog.DefaultExt = ".blocktaviusproject";
+		dialog.DefaultExt = extension;
+		dialog.Filter = filter;
+		dialog.AddExtension = true;
+		if (dialog.ShowDialog() == true)
+		{
+			string path = dialog.FileName;
+			if (!path.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
+			{
+				path = path + extension;
+			}
+
+			var projectFile = new FileInfo(path);
+			var project = vm.CreateAndSaveProject(projectFile);
+			mainWindowVM.OpenProject(project);
+		}
+	}
+
+	private void ButtonBrowse_Click(object sender, RoutedEventArgs e)
+	{
+		var mainWindowVM = this.DataContextAncestors().OfType<MainWindow.MainWindowVM>().FirstOrDefault();
+		if (mainWindowVM == null)
+		{
+			return;
+		}
+
+		var dialog = new OpenFileDialog();
+		dialog.DefaultExt = extension;
+		dialog.Filter = filter;
 		if (dialog.ShowDialog() == true)
 		{
 			var projectFile = new FileInfo(dialog.FileName);
-			var project = vm.CreateAndSaveProject(projectFile);
-			mainWindowVM.OpenProject(project);
+			mainWindowVM.OpenProject(projectFile);
 		}
 	}
 }
