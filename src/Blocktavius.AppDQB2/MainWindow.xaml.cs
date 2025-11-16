@@ -40,12 +40,14 @@ namespace Blocktavius.AppDQB2
 			public MainWindowVM(ProfileSettings profile)
 			{
 				this.profile = profile;
-				_currentContent = new StartupVM()
-				{
-					Profile = profile,
-					LoadRecentProjectHandler = OpenProject,
-				};
+				_currentContent = BuildStartupVM();
 			}
+
+			private StartupVM BuildStartupVM() => new StartupVM
+			{
+				Profile = profile,
+				LoadRecentProjectHandler = OpenProject,
+			};
 
 			private object _currentContent;
 			public object CurrentContent
@@ -64,6 +66,12 @@ namespace Blocktavius.AppDQB2
 			{
 				var vm = ProjectVM.Load(profile, projectFile);
 				OpenProject(vm);
+			}
+
+			public void CloseCurrentProject()
+			{
+				Global.ClearCurrentProject();
+				CurrentContent = BuildStartupVM();
 			}
 		}
 	}

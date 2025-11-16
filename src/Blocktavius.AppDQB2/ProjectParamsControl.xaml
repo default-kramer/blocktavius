@@ -26,6 +26,7 @@
         <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
             <TextBox IsReadOnly="True" MinWidth="300" Text="{Binding ProjectFilePathToDisplay, Mode=OneWay}"></TextBox>
             <Button VerticalAlignment="Center" Margin="4,0,0,0" Click="ButtonSave_Click">Save</Button>
+            <Button VerticalAlignment="Center" Margin="4,0,0,0" Click="ButtonClose_Click">Close</Button>
         </StackPanel>
         <Label Grid.Row="2" Grid.Column="0" HorizontalAlignment="Right" VerticalAlignment="Center" Content="Source:" FontSize="14" FontWeight="Bold"></Label>
         <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">

@@ -39,5 +39,11 @@ namespace Blocktavius.AppDQB2
 		{
 			(DataContext as ProjectVM)?.SaveChanges();
 		}
+
+		private void ButtonClose_Click(object sender, RoutedEventArgs e)
+		{
+			var mainVM = this.DataContextAncestors().OfType<MainWindow.MainWindowVM>().FirstOrDefault();
+			mainVM?.CloseCurrentProject();
+		}
 	}
 }

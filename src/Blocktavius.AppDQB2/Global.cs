@@ -49,6 +49,8 @@ static class Global
 		currentProject = project;
 	}
 
+	public static void ClearCurrentProject() => currentProject = null;
+
 	public static ProfileSettings? CurrentProfile { get; set; }
 
 	public sealed class AreasItemsSource : IItemsSource
