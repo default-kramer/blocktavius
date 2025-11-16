@@ -34,6 +34,18 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		ForceUpdateProfile(profile);
 	}
 
+	public static ProjectVM CreateNew(ProfileSettings profile, FileInfo projectFile)
+	{
+		var vm = new ProjectVM(profile);
+		vm.SetProjectFilePath(projectFile.FullName);
+
+		vm.Scripts.Add(new ScriptVM().SetScriptName("Main"));
+		vm.Scripts.Add(new ScriptVM().SetScriptName("Script 2"));
+		vm.SelectedScript = vm.Scripts.First();
+
+		return vm;
+	}
+
 	internal bool BackupsEnabled(out DirectoryInfo backupDir)
 	{
 		backupDir = profile.BackupDir!;

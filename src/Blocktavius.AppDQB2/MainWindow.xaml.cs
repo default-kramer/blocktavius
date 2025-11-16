@@ -16,16 +16,6 @@ namespace Blocktavius.AppDQB2
 		public MainWindow()
 		{
 			InitializeComponent();
-
-			this.DataContextChanged += MainWindow_DataContextChanged;
-		}
-
-		private void MainWindow_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
-		{
-			if (e.NewValue is ProjectVM vm)
-			{
-				Global.SetCurrentProject(vm);
-			}
 		}
 
 		protected override void OnClosed(EventArgs e)
@@ -38,10 +28,44 @@ namespace Blocktavius.AppDQB2
 
 		internal void DoPreview()
 		{
-			var vm = this.DataContext as ProjectVM;
+			var vm = (this.DataContext as MainWindowVM)?.CurrentContent as ProjectVM;
 			if (EyeOfRubissDriver != null && vm != null && vm.TryRebuildStage(out var scriptedStage))
 			{
 				EyeOfRubissDriver.WriteStageAsync(scriptedStage).GetAwaiter().GetResult();
+			}
+		}
+
+		internal sealed class MainWindowVM : ViewModelBase
+		{
+			private readonly ProfileSettings profile;
+
+			public MainWindowVM(ProfileSettings profile)
+			{
+				this.profile = profile;
+				_currentContent = new StartupVM()
+				{
+					Profile = profile,
+					LoadRecentProjectHandler = OpenProject,
+				};
+			}
+
+			private object _currentContent;
+			public object CurrentContent
+			{
+				get => _currentContent;
+				private set => ChangeProperty(ref _currentContent, value);
+			}
+
+			public void OpenProject(ProjectVM vm)
+			{
+				Global.SetCurrentProject(vm);
+				CurrentContent = vm;
+			}
+
+			public void OpenProject(FileInfo projectFile)
+			{
+				var vm = ProjectVM.Load(profile, projectFile);
+				OpenProject(vm);
 			}
 		}
 	}
