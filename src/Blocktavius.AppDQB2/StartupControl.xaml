@@ -23,15 +23,14 @@
             <Button HorizontalAlignment="Center" Margin="0,6,0,0" FontSize="16" Padding="5,2" Click="ButtonCreate_Click">Create</Button>
         </StackPanel>
         <StackPanel Grid.Row="2" Margin="0,40,0,0" Orientation="Vertical" HorizontalAlignment="Center">
-            <TextBlock FontSize="20" FontWeight="Bold" HorizontalAlignment="Center">Recent Projects</TextBlock>
-            <TextBlock Visibility="{Binding NoRecentProjectsVisibility}" Margin="0,6,0,0" HorizontalAlignment="Center">
-                There are no recent projects to display.
-            </TextBlock>
-            <StackPanel Visibility="{Binding HasRecentProjectsVisibility}" Orientation="Vertical" Margin="0,6,0,0">
-                <ListView ItemsSource="{Binding RecentProjects}" SelectedItem="{Binding SelectedRecentProject}" DisplayMemberPath="DisplayName"></ListView>
+            <TextBlock FontSize="20" FontWeight="Bold" HorizontalAlignment="Center">Open Project</TextBlock>
+            <Button HorizontalAlignment="Center" Margin="0,6,0,0" FontSize="16" Padding="5,2" Click="ButtonBrowse_Click">Browse...</Button>
+            <StackPanel Visibility="{Binding HasRecentProjectsVisibility}" Orientation="Vertical" Margin="0,8,0,0">
+                <TextBlock HorizontalAlignment="Center" Text="Or choose a recent project:"></TextBlock>
+                <ListView Margin="0,4,0,0" MaxHeight="300"
+                          ItemsSource="{Binding RecentProjects}" SelectedItem="{Binding SelectedRecentProject}" DisplayMemberPath="DisplayName"></ListView>
                 <Button HorizontalAlignment="Center" Margin="0,6,0,0" FontSize="16" Padding="5,2" Command="{Binding CommandLoadRecent}">Open Recent</Button>
             </StackPanel>
-            <Button HorizontalAlignment="Center" Margin="0,12,0,0" FontSize="16" Padding="5,2" Click="ButtonBrowse_Click">Browse...</Button>
         </StackPanel>
     </Grid>
 </UserControl>
