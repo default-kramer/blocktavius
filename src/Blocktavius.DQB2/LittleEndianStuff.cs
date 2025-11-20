@@ -74,8 +74,12 @@ static class LittleEndianStuff
 
 		public void SetBlock(Point point, ushort block)
 		{
-			var shorts = MemoryMarshal.Cast<byte, ushort>(array);
-			shorts[ChunkMath.GetUshortIndex(point)] = block;
+			var index = ChunkMath.GetUshortIndex(point);
+			var shortArray = MemoryMarshal.Cast<byte, ushort>(array);
+			if ((shortArray[index] & 0x7FF) < 1158) // mask off chisel and test (equivalent to HH `simple?` proc)
+			{
+				shortArray[index] = block;
+			}
 		}
 
 		public ByteArrayBlockdata Clone()
