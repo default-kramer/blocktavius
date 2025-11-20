@@ -50,7 +50,7 @@ public partial class StartupControl : UserControl
 
 			var projectFile = new FileInfo(path);
 			var project = vm.CreateAndSaveProject(projectFile);
-			mainWindowVM.OpenProject(project);
+			mainWindowVM.OpenProject(projectFile, project);
 		}
 	}
 

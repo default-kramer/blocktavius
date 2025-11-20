@@ -25,6 +25,7 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 {
 	public required DirectoryInfo ConfigDir { get; init; }
 	public required FileInfo ConfigFile { get; init; }
+	public required RecentProjectManager RecentProjectManager { get; init; }
 
 	public bool TryFindSD(out DirectoryInfo sd)
 	{
@@ -137,6 +138,11 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 	private static string DefaultBackupDir(DirectoryInfo configDir)
 	{
 		return Path.Combine(configDir.FullName, "backups");
+	}
+
+	private static FileInfo DefaultRecentProjectsFile(DirectoryInfo configDir)
+	{
+		return new FileInfo(Path.Combine(configDir.FullName, "recentProjects.json"));
 	}
 
 	public void Save()
@@ -263,6 +269,8 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 			};
 		}).ToList();
 
+		var rpm = RecentProjectManager.LoadOrCreate(DefaultRecentProjectsFile(configDir));
+
 		return new ProfileSettings()
 		{
 			BackupDir = new DirectoryInfo(DefaultBackupDir(configDir)),
@@ -271,6 +279,7 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 			ProfileId = profileId,
 			VerificationHash = hash,
 			SaveSlots = slots,
+			RecentProjectManager = rpm,
 		};
 	}
 
@@ -331,6 +340,8 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 		string profileId = config.ProfileId ?? Guid.NewGuid().ToString();
 		string verificationHash = CreateVerificationHash(profileId);
 
+		var rpm = RecentProjectManager.LoadOrCreate(DefaultRecentProjectsFile(configDir));
+
 		settings = new ProfileSettings()
 		{
 			ConfigFile = configFile,
@@ -339,6 +350,7 @@ sealed class ProfileSettings : IEquatable<ProfileSettings>
 			VerificationHash = verificationHash,
 			SaveSlots = slots,
 			BackupDir = backupDir,
+			RecentProjectManager = rpm,
 		};
 		return true;
 	}

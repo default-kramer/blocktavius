@@ -11,17 +11,21 @@ namespace Blocktavius.AppDQB2;
 
 sealed class StartupVM : ViewModelBase
 {
-	public required ProfileSettings Profile { get; init; }
-	public required Action<FileInfo> LoadRecentProjectHandler { get; init; }
+	private readonly ProfileSettings Profile;
+	private readonly Action<FileInfo> LoadRecentProjectHandler;
+
 	public IReadOnlyList<RecentProjectVM> RecentProjects { get; }
 	public ICommand CommandLoadRecent { get; }
 
 	public Visibility HasRecentProjectsVisibility => RecentProjects.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
 	public Visibility NoRecentProjectsVisibility => RecentProjects.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
-	public StartupVM()
+	public StartupVM(ProfileSettings profile, Action<FileInfo> loadRecentProjectHandler)
 	{
-		RecentProjects = [new RecentProjectVM { ProjectFile = new FileInfo(@"C:\Users\kramer\Documents\code\HermitsHeresy\examples\STB\foo.blocktaviusproject") }];
+		this.Profile = profile;
+		this.LoadRecentProjectHandler = loadRecentProjectHandler;
+
+		RecentProjects = profile.RecentProjectManager.Projects.Select(RecentProjectVM.Create).ToList();
 		CommandLoadRecent = new RelayCommand(_ => SelectedRecentProject != null, LoadRecent);
 	}
 
@@ -53,5 +57,10 @@ sealed class StartupVM : ViewModelBase
 		public required FileInfo ProjectFile { get; init; }
 
 		public string DisplayName => ProjectFile.FullName;
+
+		public static RecentProjectVM Create(RecentProjectManager.RecentProject project) => new RecentProjectVM
+		{
+			ProjectFile = new FileInfo(project.FullPath),
+		};
 	}
 }

@@ -154,6 +154,7 @@ public partial class EditProfileWindow : Window
 			profile = new ProfileSettings
 			{
 				ConfigDir = loadedSettings.ConfigDir,
+				RecentProjectManager = loadedSettings.RecentProjectManager,
 				ConfigFile = loadedSettings.ConfigFile,
 				ProfileId = loadedSettings.ProfileId,
 				VerificationHash = loadedSettings.VerificationHash,

@@ -43,11 +43,7 @@ namespace Blocktavius.AppDQB2
 				_currentContent = BuildStartupVM();
 			}
 
-			private StartupVM BuildStartupVM() => new StartupVM
-			{
-				Profile = profile,
-				LoadRecentProjectHandler = OpenProject,
-			};
+			private StartupVM BuildStartupVM() => new(profile, OpenProject);
 
 			private object _currentContent;
 			public object CurrentContent
@@ -56,16 +52,15 @@ namespace Blocktavius.AppDQB2
 				private set => ChangeProperty(ref _currentContent, value);
 			}
 
-			public void OpenProject(ProjectVM vm)
-			{
-				Global.SetCurrentProject(vm);
-				CurrentContent = vm;
-			}
+			public void OpenProject(FileInfo projectFile) => OpenProject(projectFile, null);
 
-			public void OpenProject(FileInfo projectFile)
+			public void OpenProject(FileInfo projectFile, ProjectVM? preloadedVM)
 			{
-				var vm = ProjectVM.Load(profile, projectFile);
-				OpenProject(vm);
+				var vm = preloadedVM ?? ProjectVM.Load(profile, projectFile);
+				Global.SetCurrentProject(vm);
+				profile.RecentProjectManager.OnOpened(projectFile.FullName);
+
+				CurrentContent = vm;
 			}
 
 			public void CloseCurrentProject()
