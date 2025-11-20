@@ -134,7 +134,9 @@ sealed class ExternalImageVM : ViewModelBase
 		{
 			if (bitmapSource.Format != System.Windows.Media.PixelFormats.Bgra32)
 			{
-				bgra32Source = new FormatConvertedBitmap(bitmapSource, System.Windows.Media.PixelFormats.Bgra32, null, 0);
+				var converted = new FormatConvertedBitmap(bitmapSource, System.Windows.Media.PixelFormats.Bgra32, null, 0);
+				converted.Freeze();
+				bgra32Source = converted;
 			}
 			else
 			{
