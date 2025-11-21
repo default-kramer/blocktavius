@@ -79,7 +79,8 @@
                 </ListView.ItemTemplate>
             </ListView>
             <StackPanel Grid.Row="1">
-                <Button Click="ChooseImages_Click">Choose Images...</Button>
+                <Button Click="ChooseImages_Click" Margin="10" FontSize="16">Choose Images...</Button>
+                <Button Margin="10" FontSize="16" Command="{Binding CommandExportChunkMask}">Export Chunk Mask</Button>
             </StackPanel>
         </Grid>
     </Grid>

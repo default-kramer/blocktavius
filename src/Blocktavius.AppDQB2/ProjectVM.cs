@@ -10,6 +10,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Input;
+using System.Windows.Media.Imaging;
 
 namespace Blocktavius.AppDQB2;
 
@@ -18,6 +20,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 	private readonly StgdatLoader stgdatLoader = new();
 	private ExternalImageManager? imageManager = null;
 	private ProfileSettings profile;
+	public ICommand CommandExportChunkMask { get; }
 
 	public ProjectVM(ProfileSettings profile)
 	{
@@ -32,6 +35,26 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 
 		this.profile = profile;
 		ForceUpdateProfile(profile);
+
+		CommandExportChunkMask = new RelayCommand(_ => chunkGridLayer.ChunkGridImage != null, ExportChunkMask);
+	}
+
+	private void ExportChunkMask(object? arg)
+	{
+		var img = chunkGridLayer.ChunkGridImage;
+		var dir = new FileInfo(ProjectFilePath ?? "").Directory;
+		if (img == null || dir == null)
+		{
+			return;
+		}
+
+		var file = Path.Combine(dir.FullName, "exported-chunk-mask.png");
+		BitmapEncoder encoder = new PngBitmapEncoder();
+		encoder.Frames.Add(BitmapFrame.Create(img));
+		using (var fileStream = new FileStream(file, FileMode.Create))
+		{
+			encoder.Save(fileStream);
+		}
 	}
 
 	public static ProjectVM CreateNew(ProfileSettings profile, FileInfo projectFile)
