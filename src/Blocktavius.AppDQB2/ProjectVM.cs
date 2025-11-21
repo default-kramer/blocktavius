@@ -11,16 +11,23 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace Blocktavius.AppDQB2;
 
 sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAreaManager, Persistence.IBlockManager
 {
+	// immutable:
+	private readonly ChunkGridLayer chunkGridLayer = new();
+	private readonly MinimapLayer? minimapLayer;
 	private readonly StgdatLoader stgdatLoader = new();
+	public ICommand CommandExportChunkMask { get; }
+	public ICommand CommandExportMinimap { get; }
+
+	// mutable:
 	private ExternalImageManager? imageManager = null;
 	private ProfileSettings profile;
-	public ICommand CommandExportChunkMask { get; }
 
 	public ProjectVM(ProfileSettings profile)
 	{
@@ -37,20 +44,30 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		ForceUpdateProfile(profile);
 
 		CommandExportChunkMask = new RelayCommand(_ => chunkGridLayer.ChunkGridImage != null, ExportChunkMask);
+		CommandExportMinimap = new RelayCommand(_ => minimapLayer?.MinimapImage != null, ExportMinimap);
 	}
 
-	private void ExportChunkMask(object? arg)
+	private void ExportChunkMask(object? arg) => ExportImage(chunkGridLayer.ChunkGridImage, "exported-chunk-mask.png", 1.0);
+
+	private void ExportMinimap(object? arg) => ExportImage(minimapLayer?.MinimapImage, "exported-minimap.png", 0.5);
+
+	private void ExportImage(BitmapSource? img, string filename, double scale)
 	{
-		var img = chunkGridLayer.ChunkGridImage;
 		var dir = new FileInfo(ProjectFilePath ?? "").Directory;
 		if (img == null || dir == null)
 		{
 			return;
 		}
 
-		var file = Path.Combine(dir.FullName, "exported-chunk-mask.png");
+		var frame = BitmapFrame.Create(img);
+		if (scale != 1.0)
+		{
+			frame = BitmapFrame.Create(new TransformedBitmap(frame, new ScaleTransform(scale, scale)));
+		}
+
+		var file = Path.Combine(dir.FullName, filename);
 		BitmapEncoder encoder = new PngBitmapEncoder();
-		encoder.Frames.Add(BitmapFrame.Create(img));
+		encoder.Frames.Add(frame);
 		using (var fileStream = new FileStream(file, FileMode.Create))
 		{
 			encoder.Save(fileStream);
@@ -154,9 +171,6 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 			return imageManager;
 		}
 	}
-
-	private readonly ChunkGridLayer chunkGridLayer = new();
-	private readonly MinimapLayer? minimapLayer;
 
 	public ExternalImageManager? ImageManager() => imageManager;
 
