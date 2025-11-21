@@ -42,67 +42,32 @@ static class StageLoader
 			throw StgdatTooShort(stgdatFilePath);
 		}
 
-		var chunkOffsets = ReadChunkGrid(body.SliceUInt16(chunkGridStart).Slice(0, chunkGridLengthUInt16s));
-
-		// Our code assumes that chunk IDs always go from 0..N-1
-		// so validate that this is true, otherwise things could go really haywire.
-		var chunkIds = chunkOffsets.Where(x => x.HasValue).Select(x => x!.Value.chunkId).ToList();
-		if (!chunkIds.SequenceEqual(Enumerable.Range(0, chunkIds.Count)))
-		{
-			throw new ArgumentException($"Chunk IDs are not sorted! {stgdatFilePath}");
-		}
-		if (chunkIds.Count == 0)
-		{
-			throw new ArgumentException($"Stage has no chunks! {stgdatFilePath}");
-		}
-
-		// Handle the Moonbrooke bug (or any stage with 700 chunks).
-		// Moonbrooke is 272 bytes shorter than expected.
-		const int i700 = 700;
-		const int adjust700 = 272;
-
-		// Ensure the file is big enough for all chunks declared by the grid
-		int lengthToValidate = GetChunkStartAddress(chunkIds.Max() + 1);
-		if (chunkIds.Count == i700)
-		{
-			lengthToValidate -= adjust700;
-		}
-
-		if (body.Length < lengthToValidate)
-		{
-			throw StgdatTooShort(stgdatFilePath);
-		}
+		var chunkOffsets = ReadAndValidateChunks(body, stgdatFilePath);
 
 		// Now load the chunks
 		var mutableGrid = new MutableChunkGrid<byte[]>();
-		for (int i = 0; i < chunkOffsets.Count; i++)
+		foreach (var item in chunkOffsets)
 		{
-			byte[]? chunk;
-			var item = chunkOffsets[i];
-			if (item.HasValue)
+			int addr = GetChunkStartAddress(item.chunkId);
+			var slice = body.AsSpan.Slice(addr);
+			if (slice.Length >= ChunkMath.BytesPerChunk)
 			{
-				int addr = GetChunkStartAddress(item.Value.chunkId);
-				var slice = body.AsSpan.Slice(addr);
-
-				if (slice.Length >= ChunkMath.BytesPerChunk)
-				{
-					slice = slice.Slice(0, ChunkMath.BytesPerChunk);
-				}
-				else if (item.Value.chunkId == i700 - 1) // chunkId is zero-based
-				{
-					// allow this chunk to be too short
-				}
-				else
-				{
-					throw StgdatTooShort(stgdatFilePath);
-				}
-
-				// easter egg: using AllocateUninitializedArray might emulate the bug in DQB2,
-				// but dotnet seems to return zero-initialized arrays most/all of the time
-				chunk = GC.AllocateUninitializedArray<byte>(ChunkMath.BytesPerChunk);
-				slice.CopyTo(chunk);
-				mutableGrid.SetUsed(item.Value.offset, chunk);
+				slice = slice.Slice(0, ChunkMath.BytesPerChunk);
 			}
+			else if (item.isTruncated)
+			{
+				// last chunk was expected to be too short
+			}
+			else
+			{
+				throw StgdatTooShort(stgdatFilePath);
+			}
+
+			// easter egg: using AllocateUninitializedArray might emulate the bug in DQB2,
+			// but dotnet seems to return zero-initialized arrays most/all of the time
+			var chunk = GC.AllocateUninitializedArray<byte>(ChunkMath.BytesPerChunk);
+			slice.CopyTo(chunk);
+			mutableGrid.SetUsed(item.offset, chunk);
 		}
 
 		var chunkGrid = new ChunkGrid<byte[]>(mutableGrid);
@@ -121,6 +86,79 @@ static class StageLoader
 			ChunkGrid = chunkGrid,
 			Saver = saver,
 		};
+	}
+
+	/// <summary>
+	/// Reads the raw chunk grid and returns only those chunks which can be loaded.
+	/// Handles these special cases:
+	/// * The last chunk is allowed to be 272 bytes short (bug in DQB2, the "Moonbrooke bug")
+	/// * If the chunk grid declares extra chunks vs what the blockdata actually has,
+	///   those extra chunks are dropped.
+	/// </summary>
+	private static IReadOnlyList<(ChunkOffset offset, int chunkId, bool isTruncated)> ReadAndValidateChunks(LittleEndianStuff.ReadonlyBytes body, string stgdatFilePath)
+	{
+		var chunks = ReadChunkGrid(body.SliceUInt16(chunkGridStart).Slice(0, chunkGridLengthUInt16s))
+			.Where(x => x.HasValue)
+			.Select(x => (x!.Value.offset, x.Value.chunkId, isTruncated: false))
+			.ToList();
+
+		if (chunks.Count == 0)
+		{
+			throw new ArgumentException($"Stage has no chunks! {stgdatFilePath}");
+		}
+
+		// Our code assumes that chunk IDs always go from 0..N-1
+		// so validate that this is true, otherwise things could go really haywire.
+		bool chunkIdsAreCorrect = chunks.Select(c => c.chunkId).SequenceEqual(Enumerable.Range(0, chunks.Count));
+		if (!chunkIdsAreCorrect)
+		{
+			throw new ArgumentException($"Chunk IDs are not sorted! {stgdatFilePath}");
+		}
+
+		// Handle the Moonbrooke bug (or any stage with 700 chunks).
+		// Moonbrooke is 272 bytes shorter than expected.
+		// And Buildertopias are also 272 bytes short when they are 186 chunks!
+		// So let's be more robust about this...
+		const int truncationByteCount = 272;
+		while (chunks.Count > 0)
+		{
+			int expectedTotalLength = GetChunkStartAddress(chunks.Count);
+
+			if (body.Length > expectedTotalLength)
+			{
+				// This is actually expected. Buildertopias always have an uncompressed
+				// body length equal to GetChunkStartAddress(186) - 272.
+				// In other words, BTs always write 186 chunks worth of blockdata (the last chunk
+				// is truncated by 272 bytes) even for freshly-generated small islands.
+				// So for a small BT, let's say 45 chunks, the blockdata would be populated
+				// for chunk IDs 0-44 and be all zeroes for chunk IDs 45-185.
+				return chunks;
+			}
+			else if (body.Length == expectedTotalLength)
+			{
+				return chunks;
+			}
+			else if (body.Length == expectedTotalLength - truncationByteCount)
+			{
+				// it's fine (this will always happen for Moonbrooke)
+				var last = chunks[^1];
+				chunks[^1] = (last.offset, last.chunkId, isTruncated: true);
+				return chunks;
+			}
+			else if (body.Length > GetChunkStartAddress(chunks.Count - 1))
+			{
+				// Current chunk exists but is incomplete.
+				// Don't drop it; throw an exception instead.
+				throw StgdatTooShort(stgdatFilePath);
+			}
+			else
+			{
+				// The chunk declared by the grid does not exist in the blockdata. Drop it.
+				chunks.RemoveAt(chunks.Count - 1);
+			}
+		}
+
+		throw StgdatTooShort(stgdatFilePath);
 	}
 
 	private static (LittleEndianStuff.ReadonlyBytes header, LittleEndianStuff.ReadonlyBytes compressedBody) ReadStgdat(string stgdatFilePath)
