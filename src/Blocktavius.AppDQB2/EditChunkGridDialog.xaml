@@ -37,9 +37,17 @@
         <StackPanel Grid.Column="1" Margin="8">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="{Binding OnCellCount}"></TextBlock>
-                <TextBlock>/700 chunks used</TextBlock>
+                <TextBlock Text=" chunks used"></TextBlock>
             </StackPanel>
-            <TextBlock TextWrapping="Wrap" Margin="0,4,0,0">(Warning: Chunk 700 has a known bug, the "Moonbrooke bug". Recommended limit is 699 chunks.)</TextBlock>
+            <StackPanel Orientation="Vertical" Margin="0,4,0,0">
+                <TextBlock>Chunk Limits:</TextBlock>
+                <TextBlock Margin="10,0,0,0">Story Islands:</TextBlock>
+                <TextBlock Margin="20,0,0,0">Safe Limit: 699 chunks</TextBlock>
+                <TextBlock Margin="20,0,0,0">Buggy Limit: 700 chunks</TextBlock>
+                <TextBlock Margin="10,0,0,0">Buildertopia Islands:</TextBlock>
+                <TextBlock Margin="20,0,0,0">Safe Limit: 185 chunks</TextBlock>
+                <TextBlock Margin="20,0,0,0">Buggy Limit: 186 chunks</TextBlock>
+            </StackPanel>
             <TextBlock Margin="0,12,0,0">Left Mouse: Turn On</TextBlock>
             <TextBlock>Right Mouse: Turn Off</TextBlock>
             <TextBlock>Blue chunks cannot be turned off.</TextBlock>
