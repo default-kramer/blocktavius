@@ -608,7 +608,17 @@ public partial class PlanScriptDialog : Window
 				{
 					try
 					{
-						SourceFile.CopyTo(targetFile.FullName, overwrite: true);
+						// Steam Autocloud will report a conflict if you copy a file with an
+						// older Modified Timestamp, like this:
+						//    SourceFile.CopyTo(targetFile.FullName, overwrite: true);
+						// And maybe there's more to it than just the Modified Timestamp...
+						// Doing the copy this way seems to work well enough:
+						using var readStream = File.Open(SourceFile.FullName, FileMode.Open, FileAccess.Read);
+						using var writeStream = File.Open(targetFile.FullName, FileMode.Create, FileAccess.Write);
+						readStream.CopyTo(writeStream);
+						writeStream.Flush();
+						writeStream.Close();
+
 						fullLog.AppendLine("Copy completed.");
 					}
 					catch (Exception ex)
