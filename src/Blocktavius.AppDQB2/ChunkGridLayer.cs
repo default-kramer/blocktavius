@@ -16,8 +16,6 @@ sealed class ChunkGridLayer : ViewModelBase, ILayerVM
 {
 	IAreaVM? ILayerVM.SelfAsAreaVM => null;
 
-	private readonly StgdatLoader stgdatLoader = new();
-
 	public string LayerName => "Chunk Grid";
 
 	private bool _isVisible = true;
@@ -25,21 +23,6 @@ sealed class ChunkGridLayer : ViewModelBase, ILayerVM
 	{
 		get => _isVisible;
 		set => ChangeProperty(ref _isVisible, value);
-	}
-
-	private string _stgdatPath = "";
-	public string StgdatPath
-	{
-		get => _stgdatPath;
-		set
-		{
-			if (_stgdatPath != value)
-			{
-				ChangeProperty(ref _stgdatPath, value);
-				ChunkGridImage = null;
-				RebuildImage(value);
-			}
-		}
 	}
 
 	private BitmapSource? _chunkGridImage = null;
@@ -50,18 +33,6 @@ sealed class ChunkGridLayer : ViewModelBase, ILayerVM
 	}
 
 	public IEnumerable<ExternalImageVM> ExternalImage => Enumerable.Empty<ExternalImageVM>();
-
-	private void RebuildImage(string stgdatPath)
-	{
-		Task.Run(() =>
-		{
-			if (stgdatLoader.TryLoad(stgdatPath, out var result, out _))
-			{
-				var image = BuildImage(result.Stage.ChunksInUse);
-				Application.Current.Dispatcher.Invoke(() => { ChunkGridImage = image; });
-			}
-		});
-	}
 
 	public void RebuildImage(IEnumerable<ChunkOffset> chunks)
 	{

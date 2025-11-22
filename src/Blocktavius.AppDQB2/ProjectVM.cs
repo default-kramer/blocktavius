@@ -229,9 +229,14 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 	public void ExpandChunks(IReadOnlySet<ChunkOffset> expansion)
 	{
 		ChunkExpansion = expansion;
+		RebuildImages();
+	}
+
+	private void RebuildImages()
+	{
 		if (TryLoadStage(out var result))
 		{
-			chunkGridLayer.RebuildImage(result.Stage.ChunksInUse.Concat(expansion));
+			chunkGridLayer.RebuildImage(result.Stage.ChunksInUse.Concat(ChunkExpansion));
 			minimapLayer?.RebuildImage(this);
 		}
 	}
@@ -350,8 +355,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		{
 			if (ChangeProperty(ref _selectedSourceStage, value, nameof(SelectedSourceStage), nameof(StgdatFilePath), nameof(DestFullPath)))
 			{
-				chunkGridLayer.StgdatPath = StgdatFilePath ?? "";
-				minimapLayer?.RebuildImage(this);
+				RebuildImages();
 			}
 		}
 	}
@@ -438,6 +442,8 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 
 	private void Reload(ProjectV1 project, ExternalImageManager imageManager)
 	{
+		using var changeset = DeferChanges();
+
 		project = project.VerifyProfileHash(profile);
 
 		SelectedSourceSlot = SourceSlots.FirstOrDefault(s => s.MatchesByNumber(project.SourceSlot))
@@ -487,6 +493,10 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 			Scripts.Add(scriptVM);
 		}
 		SelectedScript = Scripts.ElementAtOrDefault(project.SelectedScriptIndex.GetValueOrDefault(-1));
+
+		changeset.Complete();
+
+		ExpandChunks(ChunkExpansion);
 	}
 
 	IAreaVM? Persistence.IAreaManager.FindArea(string? persistentId)

@@ -23,7 +23,7 @@ sealed class MinimapLayer : ViewModelBase, ILayerVM
 	public BitmapSource? MinimapImage
 	{
 		get => _minimapImage;
-		set => ChangeProperty(ref _minimapImage, value);
+		private set => ChangeProperty(ref _minimapImage, value);
 	}
 
 	public void RebuildImage(ProjectVM project)
