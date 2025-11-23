@@ -16,7 +16,7 @@ abstract class ViewModelBase : ReactiveObject
 {
 	public ViewModelBase()
 	{
-		//this.PropertyChanged += HandleOwnPropertyChanged;
+		this.PropertyChanged += HandleOwnPropertyChanged;
 	}
 
 	private readonly ThreadLocal<int> changeStack = new();
@@ -98,7 +98,6 @@ abstract class ViewModelBase : ReactiveObject
 
 	protected void OnPropertyChanged(string name) => this.RaisePropertyChanged(name); // TODO rename this later...
 
-	/*
 	private void HandleOwnPropertyChanged(object? myself, PropertyChangedEventArgs args)
 	{
 		foreach (var kvp in subscribers.ToList()) // ToList() so we can mutate the dictionary if needed
@@ -113,7 +112,6 @@ abstract class ViewModelBase : ReactiveObject
 			}
 		}
 	}
-	*/
 
 	private readonly Dictionary<object, WeakReference<ViewModelBase>> subscribers = new();
 
