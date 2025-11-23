@@ -1,8 +1,10 @@
 ﻿using Blocktavius.Core;
 using Blocktavius.DQB2;
+using ReactiveUI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reactive.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -36,11 +38,10 @@ sealed class ChunkGridLayer : ViewModelBase, ILayerVM
 
 	public void RebuildImage(IEnumerable<ChunkOffset> chunks)
 	{
-		Task.Run(() =>
-		{
-			var image = BuildImage(chunks);
-			Application.Current.Dispatcher.Invoke(() => { ChunkGridImage = image; });
-		});
+		// Use Observable.Start to run in background, then ObserveOn to update on UI thread
+		Observable.Start(() => BuildImage(chunks))
+			.ObserveOn(RxApp.MainThreadScheduler)
+			.Subscribe(image => ChunkGridImage = image);
 	}
 
 	private static BitmapSource BuildImage(IEnumerable<ChunkOffset> chunks)
