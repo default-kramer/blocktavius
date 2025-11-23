@@ -1,8 +1,10 @@
-﻿using Blocktavius.Core;
+using Blocktavius.Core;
 using Blocktavius.DQB2;
+using ReactiveUI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reactive.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -38,13 +40,12 @@ public partial class EditChunkGridDialog : Window
 		var vm = new VM();
 		foreach (var chunk in stage.ChunksInUse.Concat(project.ChunkExpansion))
 		{
-			vm[chunk].Status = ChunkStatus.Expanded;
+			vm[chunk].SetStatus(ChunkStatus.Expanded);
 		}
 		foreach (var chunk in stage.OriginalChunksInUse)
 		{
-			vm[chunk].Status = ChunkStatus.Original;
+			vm[chunk].SetStatus(ChunkStatus.Original);
 		}
-		vm.OnCellCount = vm.AllCells.Where(c => c.Status != ChunkStatus.Off).Count();
 
 		var dialog = new EditChunkGridDialog();
 		dialog.DataContext = vm;
@@ -64,6 +65,8 @@ public partial class EditChunkGridDialog : Window
 	{
 		public IReadOnlyList<RowVM> Rows { get; }
 
+		public int OnCellCount => 42;
+
 		public VM()
 		{
 			Rows = Enumerable.Range(0, i64).Select(z => new RowVM(this, z)).ToList();
@@ -75,13 +78,6 @@ public partial class EditChunkGridDialog : Window
 		}
 
 		public IEnumerable<CellVM> AllCells => Rows.SelectMany(row => row.Cells);
-
-		private int _onCellCount;
-		public int OnCellCount
-		{
-			get => _onCellCount;
-			internal set => ChangeProperty(ref _onCellCount, value);
-		}
 	}
 
 	sealed class RowVM : ViewModelBase
@@ -92,48 +88,58 @@ public partial class EditChunkGridDialog : Window
 		public RowVM(VM vm, int rowIndex)
 		{
 			this.RowIndex = rowIndex;
+			var sw = System.Diagnostics.Stopwatch.StartNew();
 			this.Cells = Enumerable.Range(0, i64).Select(x => new CellVM(vm, new ChunkOffset(x, rowIndex))).ToList();
+			sw.Stop();
+			var asdf = sw.Elapsed.TotalSeconds;
 		}
 	}
 
 	sealed class CellVM : ViewModelBase
 	{
-		public VM VM { get; }
-		public ChunkOffset ChunkOffset { get; }
+		private readonly VM vm;
+		public readonly ChunkOffset ChunkOffset;
 
-		public CellVM(VM vm, ChunkOffset offset)
+		public record struct Members
 		{
-			this.VM = vm;
-			this.ChunkOffset = offset;
-		}
-
-		private ChunkStatus _status;
-		public ChunkStatus Status
-		{
-			get => _status;
-			set
+			public required ChunkStatus ChunkStatus { get; init; }
+			public Brush Color => ChunkStatus switch
 			{
-				if (_status != value)
-				{
-					ChangeProperty(ref _status, value, nameof(Status), nameof(Color));
-					int delta = (value == ChunkStatus.Off) ? -1 : 1;
-					VM.OnCellCount += delta;
-				}
-			}
+				ChunkStatus.Expanded => Brushes.HotPink,
+				ChunkStatus.Original => Brushes.Blue,
+				_ => Brushes.LightGray,
+			};
 		}
 
-		public Brush Color => Status switch
+		private readonly ReactiveProperty<Members> _members;
+		private Members members
 		{
-			ChunkStatus.Expanded => Brushes.HotPink,
-			ChunkStatus.Original => Brushes.Blue,
-			_ => Brushes.LightGray,
-		};
+			get => _members.Value;
+			set => _members.Value = value;
+		}
+
+		private readonly ObservableAsPropertyHelper<ChunkStatus> _status;
+		public ChunkStatus Status => _status.Value;
+
+
+		private readonly ObservableAsPropertyHelper<Brush> _color;
+		public Brush Color => _color.Value;
+
+		public CellVM(VM vm, ChunkOffset chunkOffset)
+		{
+			this.vm = vm;
+			this.ChunkOffset = chunkOffset;
+
+			_members = new ReactiveProperty<Members>(new Members { ChunkStatus = ChunkStatus.Off });
+			_status = _members.Select(x => x.ChunkStatus).ToProperty(this, nameof(Status));
+			_color = _members.Select(x => x.Color).ToProperty(this, nameof(Color));
+		}
 
 		public void Expand()
 		{
 			if (Status == ChunkStatus.Off)
 			{
-				Status = ChunkStatus.Expanded;
+				SetStatus(ChunkStatus.Expanded);
 			}
 		}
 
@@ -141,8 +147,13 @@ public partial class EditChunkGridDialog : Window
 		{
 			if (Status == ChunkStatus.Expanded)
 			{
-				Status = ChunkStatus.Off;
+				SetStatus(ChunkStatus.Off);
 			}
+		}
+
+		internal void SetStatus(ChunkStatus status)
+		{
+			members = members with { ChunkStatus = status };
 		}
 	}
 
