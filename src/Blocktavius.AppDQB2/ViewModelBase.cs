@@ -1,4 +1,5 @@
 ﻿using Blocktavius.Core;
+using ReactiveUI;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -11,9 +12,12 @@ using Xceed.Wpf.Toolkit.PropertyGrid.Attributes;
 
 namespace Blocktavius.AppDQB2;
 
-abstract class ViewModelBase : INotifyPropertyChanged
+abstract class ViewModelBase : ReactiveObject
 {
-	public event PropertyChangedEventHandler? PropertyChanged;
+	public ViewModelBase()
+	{
+		this.PropertyChanged += HandleOwnPropertyChanged;
+	}
 
 	private readonly ThreadLocal<int> changeStack = new();
 
@@ -61,31 +65,41 @@ abstract class ViewModelBase : INotifyPropertyChanged
 		public void Dispose() => Complete(raiseEvent: false);
 	}
 
-	protected virtual void AfterPropertyChanges() { }
+	protected virtual void AfterPropertyChanges() { } // TODO - replace these with Reactive style
 
+	protected bool ChangeProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+	{
+		if (object.Equals(field, value)) { return false; }
+
+		using var scope = DeferChanges();
+		field = value;
+		this.RaisePropertyChanged(propertyName);
+		scope.Complete();
+
+		return true;
+	}
+
+	[Obsolete("Migrate these to Reactive style")]
 	protected bool ChangeProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null, params string[] moreProperties)
 	{
 		if (object.Equals(field, value)) { return false; }
 
 		using var scope = DeferChanges();
 		field = value;
-		OnPropertyChanged(propertyName);
+		this.RaisePropertyChanged(propertyName);
 		foreach (var prop in moreProperties)
 		{
-			OnPropertyChanged(prop);
+			this.RaisePropertyChanged(prop);
 		}
 		scope.Complete();
 
 		return true;
 	}
 
-	protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+	protected void OnPropertyChanged(string name) => this.RaisePropertyChanged(name); // TODO rename this later...
+
+	private void HandleOwnPropertyChanged(object? myself, PropertyChangedEventArgs args)
 	{
-		using var scope = DeferChanges();
-
-		var args = new PropertyChangedEventArgs(propertyName);
-		PropertyChanged?.Invoke(this, args);
-
 		foreach (var kvp in subscribers.ToList()) // ToList() so we can mutate the dictionary if needed
 		{
 			if (kvp.Value.TryGetTarget(out var vm))
@@ -97,8 +111,6 @@ abstract class ViewModelBase : INotifyPropertyChanged
 				subscribers.Remove(kvp.Key);
 			}
 		}
-
-		scope.Complete();
 	}
 
 	private readonly Dictionary<object, WeakReference<ViewModelBase>> subscribers = new();
@@ -117,6 +129,7 @@ abstract class ViewModelBase : INotifyPropertyChanged
 	protected virtual void OnSubscribedPropertyChanged(ViewModelBase sender, PropertyChangedEventArgs e) { }
 }
 
+// TODO is this no longer used?
 class TileSizeItemsSource : IItemsSource
 {
 	public Xceed.Wpf.Toolkit.PropertyGrid.Attributes.ItemCollection GetValues()
