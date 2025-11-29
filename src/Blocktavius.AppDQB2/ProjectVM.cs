@@ -242,7 +242,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		var result = await TryLoadStage();
 		if (result != null)
 		{
-			chunkGridLayer.RebuildImage(result.Stage.ChunksInUse.Concat(ChunkExpansion));
+			chunkGridLayer.RebuildImage(result.Stage.ChunksInUse.Concat(ChunkExpansion).ToList());
 			minimapLayer?.RebuildImage(this);
 		}
 	}

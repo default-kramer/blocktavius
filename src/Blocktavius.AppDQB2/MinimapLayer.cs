@@ -28,11 +28,12 @@ sealed class MinimapLayer : ViewModelBase, ILayerVM
 
 	public async void RebuildImage(ProjectVM project)
 	{
+		MinimapImage = null;
+
 		if (project.SelectedSourceStage == null
 			|| project.SelectedSourceStage.MinimapIslandIds.Count < 1
 			|| !MinimapRenderer.IsEnabled)
 		{
-			MinimapImage = null;
 			return;
 		}
 

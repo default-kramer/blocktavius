@@ -34,13 +34,11 @@ sealed class ChunkGridLayer : ViewModelBase, ILayerVM
 
 	public IEnumerable<ExternalImageVM> ExternalImage => Enumerable.Empty<ExternalImageVM>();
 
-	public void RebuildImage(IEnumerable<ChunkOffset> chunks)
+	public async void RebuildImage(IReadOnlyList<ChunkOffset> chunks)
 	{
-		Task.Run(() =>
-		{
-			var image = BuildImage(chunks);
-			Application.Current.Dispatcher.Invoke(() => { ChunkGridImage = image; });
-		});
+		ChunkGridImage = null;
+		var image = await Task.Run(() => BuildImage(chunks));
+		ChunkGridImage = image;
 	}
 
 	private static BitmapSource BuildImage(IEnumerable<ChunkOffset> chunks)
