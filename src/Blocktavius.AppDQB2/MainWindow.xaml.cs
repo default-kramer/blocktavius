@@ -25,12 +25,16 @@ namespace Blocktavius.AppDQB2
 			base.OnClosed(e);
 		}
 
-		internal void DoPreview()
+		internal async void DoPreview()
 		{
 			var vm = (this.DataContext as MainWindowVM)?.CurrentContent as ProjectVM;
-			if (EyeOfRubissDriver != null && vm != null && vm.TryRebuildStage(out var scriptedStage))
+			if (EyeOfRubissDriver != null && vm != null)
 			{
-				EyeOfRubissDriver.WriteStageAsync(scriptedStage).GetAwaiter().GetResult();
+				var scriptedStage = await vm.TryRebuildStage();
+				if (scriptedStage != null)
+				{
+					await EyeOfRubissDriver.WriteStageAsync(scriptedStage);
+				}
 			}
 		}
 

@@ -24,8 +24,6 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 	private readonly IStageLoader stageLoader;
 	private readonly ChunkGridLayer chunkGridLayer = new();
 	private readonly MinimapLayer? minimapLayer;
-	[Obsolete("TODO replace with stageLoader")]
-	private readonly StgdatLoader stgdatLoader = new();
 	public ICommand CommandExportChunkMask { get; }
 	public ICommand CommandExportMinimap { get; }
 
@@ -239,48 +237,48 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		RebuildImages();
 	}
 
-	private void RebuildImages()
+	private async void RebuildImages()
 	{
-		if (TryLoadStage(out var result))
+		var result = await TryLoadStage();
+		if (result != null)
 		{
 			chunkGridLayer.RebuildImage(result.Stage.ChunksInUse.Concat(ChunkExpansion));
 			minimapLayer?.RebuildImage(this);
 		}
 	}
 
-	public bool TryLoadStage(out StgdatLoader.LoadResult loadResult)
+	public async Task<LoadStageResult?> TryLoadStage()
 	{
 		if (string.IsNullOrWhiteSpace(this.StgdatFilePath))
 		{
-			loadResult = default!;
-			return false;
+			return null;
 		}
 
-		return stgdatLoader.TryLoad(this.StgdatFilePath, out loadResult, out _);
+		return await stageLoader.LoadStage(new FileInfo(this.StgdatFilePath));
 	}
 
-	public bool TryLoadMutableStage(out IMutableStage stage, bool expandChunks)
+	public async Task<IMutableStage?> TryLoadMutableStage(bool expandChunks)
 	{
-		if (!TryLoadStage(out var loadResult))
+		var loadResult = await TryLoadStage();
+		if (loadResult == null)
 		{
-			stage = null!;
-			return false;
+			return null;
 		}
 
-		stage = loadResult.Stage.Clone();
+		var stage = loadResult.Stage.Clone();
 		if (expandChunks)
 		{
 			stage.ExpandChunks(ChunkExpansion);
 		}
-		return true;
+		return stage;
 	}
 
-	public bool TryRebuildStage(out IStage stage)
+	public async Task<IStage?> TryRebuildStage()
 	{
-		if (!TryLoadMutableStage(out var workingStage, expandChunks: true))
+		var workingStage = await TryLoadMutableStage(expandChunks: true);
+		if (workingStage == null)
 		{
-			stage = null!;
-			return false;
+			return null;
 		}
 
 		var context = new StageRebuildContext(workingStage);
@@ -290,8 +288,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 			workingStage.Mutate(mutation);
 		}
 
-		stage = workingStage;
-		return true;
+		return workingStage;
 	}
 
 	public void OnImagesSelected(ImageChooserDialog.VM result)

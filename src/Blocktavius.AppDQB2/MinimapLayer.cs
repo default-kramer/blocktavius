@@ -26,7 +26,7 @@ sealed class MinimapLayer : ViewModelBase, ILayerVM
 		private set => ChangeProperty(ref _minimapImage, value);
 	}
 
-	public void RebuildImage(ProjectVM project)
+	public async void RebuildImage(ProjectVM project)
 	{
 		if (project.SelectedSourceStage == null
 			|| project.SelectedSourceStage.MinimapIslandIds.Count < 1
@@ -36,26 +36,35 @@ sealed class MinimapLayer : ViewModelBase, ILayerVM
 			return;
 		}
 
+		int islandId = project.SelectedSourceStage.MinimapIslandIds.First();
+		var StgdatPath = project.SelectedSourceStage.StgdatFile.FullName;
+		var stage = await project.TryLoadMutableStage(expandChunks: true);
+		if (stage == null)
+		{
+			return;
+		}
+
 		// TODO should cache CMNDAT loading similar to STGDAT loading.
 		// ALSO - there's probably concurrency bugs in this code,
 		// because the ProjectVM could be mutated by the UI thread...
-		Task.Run(() =>
-		{
-			int islandId = project.SelectedSourceStage.MinimapIslandIds.First();
-			var StgdatPath = project.SelectedSourceStage.StgdatFile.FullName;
+		var image = await GetMinimapImage(StgdatPath, islandId, stage);
+		this.MinimapImage = image;
+	}
 
+	private static Task<BitmapSource?> GetMinimapImage(string StgdatPath, int islandId, IStage stage)
+	{
+		return Task.Run(() =>
+		{
 			var cmndatPath = Path.Combine(new FileInfo(StgdatPath).Directory?.FullName ?? "<<FAIL>>", "CMNDAT.BIN");
 			var cmndatFile = new FileInfo(cmndatPath);
 			if (cmndatFile.Exists)
 			{
 				var map = Minimap.FromCmndatFile(cmndatFile);
-				if (project.TryLoadMutableStage(out var stage, expandChunks: true))
-				{
-					var sampler = map.ReadMapCropped(islandId, stage).TranslateTo(XZ.Zero);
-					var image = MinimapRenderer.Render(sampler, new MinimapRenderOptions());
-					this.MinimapImage = image;
-				}
+				var sampler = map.ReadMapCropped(islandId, stage).TranslateTo(XZ.Zero);
+				var image = MinimapRenderer.Render(sampler, new MinimapRenderOptions());
+				return image;
 			}
+			return null;
 		});
 	}
 }
