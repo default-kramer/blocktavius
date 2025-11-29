@@ -9,27 +9,6 @@ using System.Windows;
 
 namespace Blocktavius.AppDQB2.Services;
 
-static class IDEA
-{
-	public static Task MarkSlow(this Task task)
-	{
-		if (Application.Current?.Dispatcher?.Thread == Thread.CurrentThread)
-		{
-			// notify scheduler
-		}
-		return task;
-	}
-
-	public static Task<T> MarkSlow<T>(this Task<T> task)
-	{
-		if (Application.Current?.Dispatcher?.Thread == Thread.CurrentThread)
-		{
-			// notify scheduler
-		}
-		return task;
-	}
-}
-
 interface IStageLoader
 {
 	Task<LoadStageResult> LoadStage(FileInfo stgdatFile);
@@ -108,11 +87,7 @@ sealed class StageLoader : IStageLoader
 
 			if (cachedResult == null || cachedResult.LoadTimeUtc < File.GetLastWriteTimeUtc(StgdatFile))
 			{
-				bool quickWait = loaderLock.Wait(0);
-				if (!quickWait)
-				{
-					await loaderLock.WaitAsync().MarkSlow();
-				}
+				await loaderLock.WaitAsync();
 
 				try
 				{
@@ -121,7 +96,7 @@ sealed class StageLoader : IStageLoader
 
 					if (cachedResult == null || cachedResult.LoadTimeUtc < lastWriteUtc)
 					{
-						var stage = await Task.Run(() => ImmutableStage.LoadStgdat(StgdatFile)).MarkSlow();
+						var stage = await Task.Run(() => ImmutableStage.LoadStgdat(StgdatFile));
 						cachedResult = new()
 						{
 							LoadTimeUtc = utcNow,
