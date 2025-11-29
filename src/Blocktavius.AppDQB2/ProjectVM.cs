@@ -13,24 +13,138 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using ViewmodelDeputy;
 
 namespace Blocktavius.AppDQB2;
 
-sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAreaManager, Persistence.IBlockManager
+[ViewmodelDeputy.DeputizedVM]
+sealed partial class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAreaManager, Persistence.IBlockManager
 {
-	// immutable:
+	// immutable (probably "constant" would be better?):
+	private readonly string ProjectFilePath; // for now let's just assume SaveAs() will create a new VM
 	private readonly ChunkGridLayer chunkGridLayer = new();
 	private readonly MinimapLayer? minimapLayer;
 	private readonly StgdatLoader stgdatLoader = new();
+	private readonly ExternalImageManager imageManager;
+	public IReadOnlyList<InclusionModeVM> InclusionModes { get; } = InclusionModeVM.BuildChoices().ToList();
+
+	// observable stuff... TODO what to do with this?
 	public ICommand CommandExportChunkMask { get; }
 	public ICommand CommandExportMinimap { get; }
+	public ObservableCollection<ILayerVM> Layers { get; }
+	public ObservableCollection<ScriptVM> Scripts { get; } = new();
 
+	// TODO - every settable property Depends On Nothing, correct?
 	// mutable:
-	private ExternalImageManager? imageManager = null;
-	private ProfileSettings profile;
-
-	public ProjectVM(ProfileSettings profile)
+	private bool _includeStgdatInPreview = true;
+	[AssertDependsOn(AssertDependsOnAttribute.Nothing)]
+	public bool IncludeStgdatInPreview
 	{
+		get => _includeStgdatInPreview;
+		set => ChangeProperty(ref _includeStgdatInPreview, value, MyProperties.IncludeStgdatInPreview);
+	}
+
+	private ILayerVM? _selectedLayer;
+	[AssertDependsOn(AssertDependsOnAttribute.Nothing)]
+	public ILayerVM? SelectedLayer
+	{
+		get => _selectedLayer;
+		set => ChangeProperty(ref _selectedLayer, value, MyProperties.SelectedLayer);
+	}
+
+	private string _notes = "";
+	[AssertDependsOn(AssertDependsOnAttribute.Nothing)]
+	public string Notes
+	{
+		get => _notes;
+		set => ChangeProperty(ref _notes, value, MyProperties.Notes);
+	}
+
+	private IReadOnlySet<ChunkOffset> _chunkExpansion = ImmutableHashSet<ChunkOffset>.Empty;
+	/// <summary>
+	/// Might include chunks that were already present in the STGDAT file.
+	/// </summary>
+	[AssertDependsOn(AssertDependsOnAttribute.Nothing)]
+	public IReadOnlySet<ChunkOffset> ChunkExpansion
+	{
+		get => _chunkExpansion;
+		private set => ChangeProperty(ref _chunkExpansion, value, MyProperties.ChunkExpansion);
+	}
+
+	private ProfileSettings _profile;
+	[AssertDependsOn(AssertDependsOnAttribute.Nothing)]
+	private ProfileSettings Profile
+	{
+		get => _profile;
+		set => ChangeProperty(ref _profile, value, MyProperties.Profile);
+	}
+
+	private ScriptVM? _selectedScript;
+	[AssertDependsOn(AssertDependsOnAttribute.Nothing)]
+	public ScriptVM? SelectedScript
+	{
+		get => _selectedScript;
+		set
+		{
+			var prev = _selectedScript;
+			if (ChangeProperty(ref _selectedScript, value, MyProperties.SelectedScript))
+			{
+				value?.SetActive(true);
+				prev?.SetActive(false);
+			}
+		}
+	}
+
+	private SlotVM? _selectedSourceSlot = null;
+	[AssertDependsOn(AssertDependsOnAttribute.Nothing)]
+	public SlotVM? SelectedSourceSlot
+	{
+		get => _selectedSourceSlot;
+		set
+		{
+			var prev = SelectedSourceStage;
+			if (ChangeProperty(ref _selectedSourceSlot, value, MyProperties.SelectedSourceSlot))
+			{
+				SelectedSourceStage = value?.Stages?.FirstOrDefault(s => s.Filename.Equals(prev?.Filename, StringComparison.OrdinalIgnoreCase));
+			}
+		}
+	}
+
+	private SlotStageVM? _selectedSourceStage = null;
+	[AssertDependsOn(AssertDependsOnAttribute.Nothing)]
+	public SlotStageVM? SelectedSourceStage
+	{
+		get => _selectedSourceStage;
+		set
+		{
+			if (ChangeProperty(ref _selectedSourceStage, value, MyProperties.SelectedSourceStage))
+			{
+				RebuildImages();
+			}
+		}
+	}
+
+	// TODO - InclusionModes is constant, so it doesn't feel like it should be considered
+	// a dependency here, right?
+	private InclusionModeVM? _selectedInclusionMode;
+	[AssertDependsOn(AssertDependsOnAttribute.Nothing)]
+	public InclusionModeVM SelectedInclusionMode
+	{
+		get => _selectedInclusionMode ?? InclusionModes.First();
+		set => ChangeProperty(ref _selectedInclusionMode, value);
+	}
+
+	private WritableSlotVM? _selectedDestSlot = null;
+	[AssertDependsOn(AssertDependsOnAttribute.Nothing)]
+	public WritableSlotVM? SelectedDestSlot
+	{
+		get => _selectedDestSlot;
+		set => ChangeProperty(ref _selectedDestSlot, value, nameof(SelectedDestSlot), nameof(DestFullPath));
+	}
+
+	public ProjectVM(ProfileSettings profile, FileInfo projectFile)
+	{
+		ProjectFilePath = projectFile.FullName;
 		Layers = new();
 		if (MinimapRenderer.IsEnabled)
 		{
@@ -40,12 +154,17 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		Layers.Add(chunkGridLayer);
 		SelectedLayer = Layers.FirstOrDefault();
 
-		this.profile = profile;
+		this._profile = profile;
 		ForceUpdateProfile(profile);
+
+		imageManager = new ExternalImageManager(new DirectoryInfo(projectFile.Directory?.FullName ?? "....fail"));
 
 		CommandExportChunkMask = new RelayCommand(_ => chunkGridLayer.ChunkGridImage != null, ExportChunkMask);
 		CommandExportMinimap = new RelayCommand(_ => minimapLayer?.MinimapImage != null, ExportMinimap);
 	}
+
+	[AssertDependsOn(nameof(ProjectFilePath))]
+	public string ProjectFilePathToDisplay => string.IsNullOrWhiteSpace(ProjectFilePath) ? "<< set during Save >>" : ProjectFilePath;
 
 	private void ExportChunkMask(object? arg) => ExportImage(chunkGridLayer.ChunkGridImage, "exported-chunk-mask.png", 1.0);
 
@@ -76,8 +195,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 
 	public static ProjectVM CreateNew(ProfileSettings profile, FileInfo projectFile)
 	{
-		var vm = new ProjectVM(profile);
-		vm.SetProjectFilePath(projectFile.FullName);
+		var vm = new ProjectVM(profile, projectFile);
 
 		vm.Scripts.Add(new ScriptVM().SetScriptName("Main"));
 		vm.Scripts.Add(new ScriptVM().SetScriptName("Script 2"));
@@ -88,35 +206,37 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 
 	internal bool BackupsEnabled(out DirectoryInfo backupDir)
 	{
-		backupDir = profile.BackupDir!;
+		backupDir = Profile.BackupDir!;
 		return backupDir != null;
 	}
 
 	public void SwitchProfile(ProfileSettings newProfile)
 	{
-		if (profile.VerificationHash != newProfile.VerificationHash)
+		if (Profile.VerificationHash != newProfile.VerificationHash)
 		{
 			ForceUpdateProfile(newProfile);
 		}
 	}
 
+	[AssertDependsOn(nameof(Profile))]
+	[ComputedProperty(PropertyName = "SourceSlots")]
+	private IReadOnlyList<SlotVM> ComputeSourceSlots()
+	{
+		return Profile.SaveSlots.Select(SlotVM.Create).ToList();
+	}
+
+	[AssertDependsOn(nameof(Profile))]
+	[ComputedProperty(PropertyName = "DestSlots")]
+	private IReadOnlyList<WritableSlotVM> ComputeDestSlots()
+	{
+		return Profile.WritableSaveSlots.Select(WritableSlotVM.Create).ToList();
+	}
+
 	private void ForceUpdateProfile(ProfileSettings profile)
 	{
-		this.profile = profile;
-
+		Profile = profile;
 		SelectedSourceSlot = null;
-		SourceSlots.Clear();
-		foreach (var slot in profile.SaveSlots)
-		{
-			SourceSlots.Add(SlotVM.Create(slot));
-		}
-
 		SelectedDestSlot = null;
-		DestSlots.Clear();
-		foreach (var slot in profile.WritableSaveSlots)
-		{
-			DestSlots.Add(WritableSlotVM.Create(slot));
-		}
 	}
 
 	void IDropTarget.DragOver(IDropInfo dropInfo)
@@ -144,87 +264,10 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		}
 	}
 
+	[AssertDependsOn(AssertDependsOnAttribute.Nothing)]
 	IReadOnlyList<BlockVM> IBlockList.Blocks => Blockdata.AllBlockVMs;
 
-	private string? _projectFilePath;
-	public string? ProjectFilePath
-	{
-		get => _projectFilePath;
-	}
-
-	private ExternalImageManager SetProjectFilePath(string path)
-	{
-		ExternalImageManager Rebuild() => new ExternalImageManager(new DirectoryInfo(Path.GetDirectoryName(path) ?? "....fail"));
-
-		// TODO wait... probably this path and the image manager should be immutable too?
-		// Or not, because what happens on "Save As" then?
-		if (ChangeProperty(ref _projectFilePath, path, nameof(ProjectFilePath), nameof(ProjectFilePathToDisplay)))
-		{
-			// TODO - what cleanup/reassignment do we have to do here?
-			imageManager?.Dispose();
-			imageManager = Rebuild();
-			return imageManager;
-		}
-		else
-		{
-			imageManager = imageManager ?? Rebuild();
-			return imageManager;
-		}
-	}
-
 	public ExternalImageManager? ImageManager() => imageManager;
-
-	public string ProjectFilePathToDisplay => string.IsNullOrWhiteSpace(_projectFilePath) ? "<< set during Save >>" : _projectFilePath;
-
-	private bool _includeStgdatInPreview = true;
-	public bool IncludeStgdatInPreview
-	{
-		get => _includeStgdatInPreview;
-		set => ChangeProperty(ref _includeStgdatInPreview, value);
-	}
-
-	public ObservableCollection<ILayerVM> Layers { get; }
-
-	private ILayerVM? _selectedLayer;
-	public ILayerVM? SelectedLayer
-	{
-		get => _selectedLayer;
-		set => ChangeProperty(ref _selectedLayer, value);
-	}
-
-	private string _notes = "";
-	public string Notes
-	{
-		get => _notes;
-		set => ChangeProperty(ref _notes, value);
-	}
-
-	public ObservableCollection<ScriptVM> Scripts { get; } = new();
-
-	private ScriptVM? _selectedScript;
-	public ScriptVM? SelectedScript
-	{
-		get => _selectedScript;
-		set
-		{
-			var prev = _selectedScript;
-			if (ChangeProperty(ref _selectedScript, value))
-			{
-				value?.SetActive(true);
-				prev?.SetActive(false);
-			}
-		}
-	}
-
-	/// <summary>
-	/// Might include chunks that were already present in the STGDAT file.
-	/// </summary>
-	public IReadOnlySet<ChunkOffset> ChunkExpansion
-	{
-		get => _chunkExpansion;
-		private set => ChangeProperty(ref _chunkExpansion, value);
-	}
-	private IReadOnlySet<ChunkOffset> _chunkExpansion = ImmutableHashSet<ChunkOffset>.Empty;
 
 	public void ExpandChunks(IReadOnlySet<ChunkOffset> expansion)
 	{
@@ -241,15 +284,48 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		}
 	}
 
-	public bool TryLoadStage(out StgdatLoader.LoadResult loadResult)
+	sealed record LoadedStageInput
 	{
-		if (string.IsNullOrWhiteSpace(this.StgdatFilePath))
+		public required StgdatLoader Loader { get; init; } // constant, always reference-equal to itself
+		public required string? StgdatFilePath { get; init; }
+	}
+
+	private LoadedStageInput _LoadedStageInput => new()
+	{
+		Loader = this.stgdatLoader,
+		StgdatFilePath = this.StgdatFilePath,
+	};
+
+	[AssertDependsOn(nameof(StgdatFilePath))]
+	// Maybe: If there is only one property having type LoadedStageInput it will be used as Input by default?
+	[ComputedProperty(PropertyName = "LoadedStage", AccessModifier = "private", Input = nameof(_LoadedStageInput))]
+	private static async Task _GetLoadedStageAsync(IAsyncGetterContext<LoadedStageInput, StgdatLoader.LoadResult> ctx)
+	{
+		ctx.SetValue(null);
+		if (string.IsNullOrWhiteSpace(ctx.Input.StgdatFilePath))
 		{
-			loadResult = default!;
-			return false;
+			return;
 		}
 
-		return stgdatLoader.TryLoad(this.StgdatFilePath, out loadResult, out _);
+		// TODO should check if `IsCached(out result)` and if it is cached
+		// then SetValue(result) and return without calling Unblock()
+
+		ctx.Unblock();
+
+		// TODO should actually make TryLoad async now:
+		if (ctx.Input.Loader.TryLoad(ctx.Input.StgdatFilePath, out var result, out _))
+		{
+			ctx.SetValue(result);
+		}
+
+		await Task.CompletedTask;
+	}
+
+	// TODO - just make the property public, right?
+	public bool TryLoadStage(out StgdatLoader.LoadResult loadResult)
+	{
+		loadResult = LoadedStage!;
+		return loadResult != null;
 	}
 
 	public bool TryLoadMutableStage(out IMutableStage stage, bool expandChunks)
@@ -329,67 +405,24 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		}
 	}
 
-	public ObservableCollection<SlotVM> SourceSlots { get; } = new();
-
-	private SlotVM? _selectedSourceSlot = null;
-	public SlotVM? SelectedSourceSlot
-	{
-		get => _selectedSourceSlot;
-		set
-		{
-			var prev = SelectedSourceStage;
-			if (ChangeProperty(ref _selectedSourceSlot, value, nameof(SelectedSourceSlot), nameof(SourceStages)))
-			{
-				SelectedSourceStage = value?.Stages?.FirstOrDefault(s => s.Filename.Equals(prev?.Filename, StringComparison.OrdinalIgnoreCase));
-			}
-		}
-	}
-
+	[AssertDependsOn(nameof(SelectedSourceSlot))]
 	public IReadOnlyList<SlotStageVM> SourceStages => SelectedSourceSlot?.Stages ?? Array.Empty<SlotStageVM>();
 
-	private SlotStageVM? _selectedSourceStage = null;
-	public SlotStageVM? SelectedSourceStage
-	{
-		get => _selectedSourceStage;
-		set
-		{
-			if (ChangeProperty(ref _selectedSourceStage, value, nameof(SelectedSourceStage), nameof(StgdatFilePath), nameof(DestFullPath)))
-			{
-				RebuildImages();
-			}
-		}
-	}
-
+	[AssertDependsOn(nameof(SelectedSourceStage))]
 	public string? StgdatFilePath => SelectedSourceStage?.StgdatFile?.FullName;
 
+	[AssertDependsOn(nameof(SelectedDestSlot), nameof(SelectedSourceStage))]
 	public string? DestFullPath
 	{
 		get
 		{
 			if (SelectedDestSlot != null && SelectedSourceStage != null)
 			{
+				// TODO: Warn/Error if Filename is not constant relative to SelectedSourceStage ??
 				return SelectedDestSlot.GetFullPath(SelectedSourceStage.Filename);
 			}
 			return null;
 		}
-	}
-
-	public ObservableCollection<WritableSlotVM> DestSlots { get; } = new();
-
-	private WritableSlotVM? _selectedDestSlot = null;
-	public WritableSlotVM? SelectedDestSlot
-	{
-		get => _selectedDestSlot;
-		set => ChangeProperty(ref _selectedDestSlot, value, nameof(SelectedDestSlot), nameof(DestFullPath));
-	}
-
-	public IReadOnlyList<InclusionModeVM> InclusionModes { get; } = InclusionModeVM.BuildChoices().ToList();
-
-	private InclusionModeVM? _selectedInclusionMode;
-	public InclusionModeVM SelectedInclusionMode
-	{
-		get => _selectedInclusionMode ?? InclusionModes.First();
-		set => ChangeProperty(ref _selectedInclusionMode, value);
 	}
 
 	public void SaveChanges()
@@ -411,7 +444,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 	{
 		return new ProjectV1()
 		{
-			ProfileVerificationHash = profile.VerificationHash,
+			ProfileVerificationHash = Profile.VerificationHash,
 			SourceSlot = SelectedSourceSlot?.ToPersistModel(),
 			DestSlot = SelectedDestSlot?.ToPersistModel(),
 			SourceStgdatFilename = SelectedSourceStage?.Filename,
@@ -434,17 +467,16 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 			throw new Exception($"Invalid project file: {projectFile.FullName}");
 		}
 
-		var vm = new ProjectVM(profile);
-		var imageManager = vm.SetProjectFilePath(projectFile.FullName);
-		vm.Reload(project, imageManager);
+		var vm = new ProjectVM(profile, projectFile);
+		vm.Reload(project);
 		return vm;
 	}
 
-	private void Reload(ProjectV1 project, ExternalImageManager imageManager)
+	private void Reload(ProjectV1 project) // TODO why is this unused now?
 	{
 		using var changeset = DeferChanges();
 
-		project = project.VerifyProfileHash(profile);
+		project = project.VerifyProfileHash(Profile);
 
 		SelectedSourceSlot = SourceSlots.FirstOrDefault(s => s.MatchesByNumber(project.SourceSlot))
 			?? SourceSlots.FirstOrDefault(s => s.MatchesByName(project.SourceSlot));
