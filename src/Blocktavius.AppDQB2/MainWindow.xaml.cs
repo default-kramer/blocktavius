@@ -1,4 +1,5 @@
-﻿using Blocktavius.DQB2.EyeOfRubiss;
+﻿using Blocktavius.AppDQB2.Services;
+using Blocktavius.DQB2.EyeOfRubiss;
 using System;
 using System.IO;
 using System.Text;
@@ -35,6 +36,7 @@ namespace Blocktavius.AppDQB2
 
 		internal sealed class MainWindowVM : ViewModelBase
 		{
+			private readonly IServices services = DefaultServices.Instance;
 			private readonly ProfileSettings profile;
 
 			public MainWindowVM(ProfileSettings profile)
@@ -43,7 +45,7 @@ namespace Blocktavius.AppDQB2
 				_currentContent = BuildStartupVM();
 			}
 
-			private StartupVM BuildStartupVM() => new(profile, OpenProject);
+			private StartupVM BuildStartupVM() => new(services, profile, OpenProject);
 
 			private object _currentContent;
 			public object CurrentContent
@@ -56,7 +58,7 @@ namespace Blocktavius.AppDQB2
 
 			public void OpenProject(FileInfo projectFile, ProjectVM? preloadedVM)
 			{
-				var vm = preloadedVM ?? ProjectVM.Load(profile, projectFile);
+				var vm = preloadedVM ?? ProjectVM.Load(services, profile, projectFile);
 				Global.SetCurrentProject(vm);
 				profile.RecentProjectManager.OnOpened(projectFile.FullName);
 

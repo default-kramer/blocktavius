@@ -1,4 +1,5 @@
 ﻿using Blocktavius.AppDQB2.Persistence.V1;
+using Blocktavius.AppDQB2.Services;
 using Blocktavius.Core;
 using Blocktavius.DQB2;
 using GongSolutions.Wpf.DragDrop;
@@ -19,8 +20,11 @@ namespace Blocktavius.AppDQB2;
 sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAreaManager, Persistence.IBlockManager
 {
 	// immutable:
+	private readonly IServices services;
+	private readonly IStageLoader stageLoader;
 	private readonly ChunkGridLayer chunkGridLayer = new();
 	private readonly MinimapLayer? minimapLayer;
+	[Obsolete("TODO replace with stageLoader")]
 	private readonly StgdatLoader stgdatLoader = new();
 	public ICommand CommandExportChunkMask { get; }
 	public ICommand CommandExportMinimap { get; }
@@ -29,8 +33,11 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 	private ExternalImageManager? imageManager = null;
 	private ProfileSettings profile;
 
-	public ProjectVM(ProfileSettings profile)
+	public ProjectVM(IServices services, ProfileSettings profile)
 	{
+		this.services = services;
+		this.stageLoader = services.StageLoader();
+
 		Layers = new();
 		if (MinimapRenderer.IsEnabled)
 		{
@@ -74,9 +81,9 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		}
 	}
 
-	public static ProjectVM CreateNew(ProfileSettings profile, FileInfo projectFile)
+	public static ProjectVM CreateNew(IServices services, ProfileSettings profile, FileInfo projectFile)
 	{
-		var vm = new ProjectVM(profile);
+		var vm = new ProjectVM(services, profile);
 		vm.SetProjectFilePath(projectFile.FullName);
 
 		vm.Scripts.Add(new ScriptVM().SetScriptName("Main"));
@@ -425,7 +432,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		};
 	}
 
-	public static ProjectVM Load(ProfileSettings profile, FileInfo projectFile)
+	public static ProjectVM Load(IServices services, ProfileSettings profile, FileInfo projectFile)
 	{
 		var json = File.ReadAllText(projectFile.FullName);
 		var project = ProjectV1.Load(json);
@@ -434,7 +441,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 			throw new Exception($"Invalid project file: {projectFile.FullName}");
 		}
 
-		var vm = new ProjectVM(profile);
+		var vm = new ProjectVM(services, profile);
 		var imageManager = vm.SetProjectFilePath(projectFile.FullName);
 		vm.Reload(project, imageManager);
 		return vm;

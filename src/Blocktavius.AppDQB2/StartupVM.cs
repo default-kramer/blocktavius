@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Blocktavius.AppDQB2.Services;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,6 +12,7 @@ namespace Blocktavius.AppDQB2;
 
 sealed class StartupVM : ViewModelBase
 {
+	private readonly IServices services;
 	private readonly ProfileSettings Profile;
 	private readonly Action<FileInfo> LoadRecentProjectHandler;
 
@@ -20,8 +22,9 @@ sealed class StartupVM : ViewModelBase
 	public Visibility HasRecentProjectsVisibility => RecentProjects.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
 	public Visibility NoRecentProjectsVisibility => RecentProjects.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
-	public StartupVM(ProfileSettings profile, Action<FileInfo> loadRecentProjectHandler)
+	public StartupVM(IServices services, ProfileSettings profile, Action<FileInfo> loadRecentProjectHandler)
 	{
+		this.services = services;
 		this.Profile = profile;
 		this.LoadRecentProjectHandler = loadRecentProjectHandler;
 
@@ -47,7 +50,7 @@ sealed class StartupVM : ViewModelBase
 
 	public ProjectVM CreateAndSaveProject(FileInfo projectFile)
 	{
-		var project = ProjectVM.CreateNew(Profile, projectFile);
+		var project = ProjectVM.CreateNew(services, Profile, projectFile);
 		project.SaveChanges();
 		return project;
 	}
