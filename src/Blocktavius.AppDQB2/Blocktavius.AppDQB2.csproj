@@ -12,6 +12,7 @@
   <ItemGroup>
     <PackageReference Include="Extended.Wpf.Toolkit" Version="4.7.25104.5739" />
     <PackageReference Include="gong-wpf-dragdrop" Version="4.0.0" />
+    <PackageReference Include="NLog" Version="6.0.6" />
   </ItemGroup>
 
   <ItemGroup>
