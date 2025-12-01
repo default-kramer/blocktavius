@@ -1,4 +1,5 @@
-﻿using Blocktavius.Core;
+﻿using Antipasta;
+using Blocktavius.Core;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -11,7 +12,7 @@ using Xceed.Wpf.Toolkit.PropertyGrid.Attributes;
 
 namespace Blocktavius.AppDQB2;
 
-abstract class ViewModelBase : INotifyPropertyChanged
+abstract class ViewModelBase : INotifyPropertyChanged, IViewmodel
 {
 	public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -115,6 +116,42 @@ abstract class ViewModelBase : INotifyPropertyChanged
 	protected internal bool Unsubscribe(object key) => subscribers.Remove(key);
 
 	protected virtual void OnSubscribedPropertyChanged(ViewModelBase sender, PropertyChangedEventArgs e) { }
+
+	protected sealed class TaskProxy<TResult>
+	{
+		private readonly ViewModelBase owner;
+		private readonly string? propertyName;
+		private TResult? value = default;
+
+		internal TaskProxy(ViewModelBase owner, string? propertyName)
+		{
+			this.owner = owner;
+			this.propertyName = propertyName;
+		}
+
+		public TResult? Value => value;
+
+		public void SetValue(TResult? value)
+		{
+			if (!object.Equals(value, this.value))
+			{
+				this.value = value;
+				if (propertyName != null)
+				{
+					owner.OnPropertyChanged(propertyName);
+				}
+			}
+		}
+	}
+
+	protected TaskProxy<TResult> Init<TResult>(TaskProxy<TResult>? typeHint, string? propertyName)
+	{
+		return new TaskProxy<TResult>(this, propertyName);
+	}
+
+	public virtual void OnSelfResolved(IPropagationContext context) { }
+
+	public void OnChildrenFullyResolved(IPropagationContext context) { }
 }
 
 class TileSizeItemsSource : IItemsSource

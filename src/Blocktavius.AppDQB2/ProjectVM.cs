@@ -27,9 +27,19 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 	public ICommand CommandExportChunkMask { get; }
 	public ICommand CommandExportMinimap { get; }
 
+	// ???
+	//public SourceStageVM SourceStage { get; } = new();
+
 	// mutable:
 	private ExternalImageManager? imageManager = null;
 	private ProfileSettings profile;
+
+	// NEW!
+	private readonly MyProperty.Profile xProfile;
+	private readonly I.Project.SourceSlots xSourceSlots;
+	private readonly I.Project.SelectedSourceSlot xSelectedSourceSlot;
+	private readonly I.Project.SourceStage xSourceStage;
+	private readonly I.Project.LoadedStage xLoadedStage;
 
 	public ProjectVM(IServices services, ProfileSettings profile)
 	{
@@ -50,6 +60,12 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 
 		CommandExportChunkMask = new RelayCommand(_ => chunkGridLayer.ChunkGridImage != null, ExportChunkMask);
 		CommandExportMinimap = new RelayCommand(_ => minimapLayer?.MinimapImage != null, ExportMinimap);
+
+		xProfile = new() { InitialValue = profile, Owner = this };
+		xSourceSlots = new MyProperty.SourceSlots(xProfile) { Owner = this };
+		xSelectedSourceSlot = new MyProperty.SelectedSourceSlot(xProfile, xSourceSlots) { Owner = this };
+		xSourceStage = new MyProperty.SourceStage(xSelectedSourceSlot) { Owner = this };
+		xLoadedStage = new MyProperty.LoadedStage(xSourceStage, stageLoader) { Owner = this };
 	}
 
 	private void ExportChunkMask(object? arg) => ExportImage(chunkGridLayer.ChunkGridImage, "exported-chunk-mask.png", 1.0);
@@ -519,5 +535,106 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 			return null;
 		}
 		return Blockdata.AllBlockVMs.FirstOrDefault(x => x.PersistentId == persistentId);
+	}
+
+	static class MyProperty
+	{
+		public sealed class Profile : OriginProp<Profile, ProfileSettings>, I.Project.Profile { }
+
+		public sealed class SourceSlots : DerivedProp<SourceSlots, IReadOnlyList<SlotVM>>, I.Project.SourceSlots
+		{
+			private readonly I.Project.Profile profile;
+
+			public SourceSlots(I.Project.Profile profile)
+			{
+				this.profile = ListenTo(profile);
+			}
+
+			protected override IReadOnlyList<SlotVM> Recompute()
+			{
+				return profile.Value.SaveSlots.Select(SlotVM.Create).ToList();
+			}
+		}
+
+		public sealed class SelectedSourceSlot : SettableDerivedProp<SelectedSourceSlot, SlotVM?>, I.Project.SelectedSourceSlot
+		{
+			private readonly I.Project.Profile profile;
+			private readonly I.Project.SourceSlots sourceSlots;
+			private string profileHash;
+
+			public SelectedSourceSlot(I.Project.Profile profile, I.Project.SourceSlots sourceSlots)
+			{
+				this.profile = ListenTo(profile);
+				this.sourceSlots = ListenTo(sourceSlots);
+				profileHash = profile.Value.VerificationHash;
+			}
+
+			protected override bool AcceptSetValueRequest(ref SlotVM? newValue) => true;
+
+			protected override SlotVM? Recompute()
+			{
+				if (profileHash != profile.Value.VerificationHash)
+				{
+					// Profile has changed, user must confirm the slot they want to use
+					profileHash = profile.Value.VerificationHash;
+					return null;
+				}
+				return sourceSlots.Value.FirstOrDefault(x => x.Name == CachedValue?.Name);
+			}
+		}
+
+		public sealed class SourceStage : SettableDerivedProp<SourceStage, SlotStageVM?>, I.Project.SourceStage
+		{
+			private readonly I.Project.SelectedSourceSlot sourceSlot;
+
+			public SourceStage(I.Project.SelectedSourceSlot sourceSlot)
+			{
+				this.sourceSlot = ListenTo(sourceSlot);
+			}
+
+			private SlotStageVM? FindMatch(SlotStageVM? slot)
+			{
+				// Our first choice is finding the stage we already have.
+				// But probably this is firing because the sourceSlot has changed, in which
+				// case we want to find the same-named stage from the new slot.
+				var stages = sourceSlot.Value?.Stages;
+				return stages?.FirstOrDefault(x => x == slot)
+					?? stages?.FirstOrDefault(x => x.Name == slot?.Name);
+			}
+
+			// TODO should I attempt to change the signature of AcceptSetValueRequest
+			// so that Recompute() can use it instead of requiring FindMatch here?
+			protected override SlotStageVM? Recompute() => FindMatch(CachedValue);
+
+			protected override bool AcceptSetValueRequest(ref SlotStageVM? newValue)
+			{
+				newValue = FindMatch(newValue);
+				return true;
+			}
+		}
+
+		public sealed class LoadedStage : DerivedProp<LoadedStage, LoadStageResult?>, I.Project.LoadedStage
+		{
+			private readonly I.Project.SourceStage sourceStage;
+			private readonly IStageLoader stageLoader;
+
+			public LoadedStage(I.Project.SourceStage sourceStage, IStageLoader stageLoader)
+			{
+				this.sourceStage = ListenTo(sourceStage);
+				this.stageLoader = stageLoader;
+			}
+
+			protected override LoadStageResult? Recompute()
+			{
+				var slot = sourceStage.Value;
+				if (slot == null)
+				{
+					return null;
+				}
+
+				// TODO this needs to be an AsyncDerivedProp
+				return stageLoader.LoadStage(slot.StgdatFile).ConfigureAwait(false).GetAwaiter().GetResult();
+			}
+		}
 	}
 }
