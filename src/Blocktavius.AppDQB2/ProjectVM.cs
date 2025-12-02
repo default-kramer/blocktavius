@@ -66,7 +66,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		xSourceSlots = new MyProperty.SourceSlots(xProfile) { Owner = this };
 		xSelectedSourceSlot = new MyProperty.SelectedSourceSlot(xProfile, xSourceSlots) { Owner = this };
 		xSourceStages = new MyProperty.SourceStages(xSelectedSourceSlot) { Owner = this };
-		xSelectedSourceStage = new MyProperty.SelectedSourceStage(xSelectedSourceSlot) { Owner = this };
+		xSelectedSourceStage = new MyProperty.SelectedSourceStage(xSourceStages) { Owner = this };
 		xLoadedStage = new MyProperty.LoadedStage(xSelectedSourceStage, stageLoader) { Owner = this };
 	}
 
@@ -591,11 +591,11 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 
 		public sealed class SelectedSourceStage : SettableDerivedProp<SelectedSourceStage, SlotStageVM?>, I.Project.SelectedSourceStage
 		{
-			private readonly I.Project.SelectedSourceSlot sourceSlot;
+			private readonly I.Project.SourceStages sourceStages;
 
-			public SelectedSourceStage(I.Project.SelectedSourceSlot sourceSlot)
+			public SelectedSourceStage(I.Project.SourceStages sourceStages)
 			{
-				this.sourceSlot = ListenTo(sourceSlot);
+				this.sourceStages = ListenTo(sourceStages);
 			}
 
 			private SlotStageVM? FindMatch(SlotStageVM? slot)
@@ -603,7 +603,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 				// Our first choice is finding the stage we already have.
 				// But probably this is firing because the sourceSlot has changed, in which
 				// case we want to find the same-named stage from the new slot.
-				var stages = sourceSlot.Value?.Stages;
+				var stages = sourceStages.Value;
 				var result = stages?.FirstOrDefault(x => x == slot)
 					?? stages?.FirstOrDefault(x => x.Name == slot?.Name);
 				return result;
