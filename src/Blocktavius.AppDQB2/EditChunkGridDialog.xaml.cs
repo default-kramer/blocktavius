@@ -26,9 +26,10 @@ public partial class EditChunkGridDialog : Window
 		InitializeComponent();
 	}
 
-	internal static void ShowDialog(ProjectVM project)
+	internal static async void ShowDialog(ProjectVM project)
 	{
-		if (!project.TryLoadStage(out var loadResult))
+		var loadResult = await project.TryLoadStage();
+		if (loadResult == null)
 		{
 			return;
 		}

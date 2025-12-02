@@ -27,6 +27,15 @@ public partial class ZoomToCropControl : UserControl
 	{
 		InitializeComponent();
 		this.Loaded += ZoomToCropControl_Loaded;
+		this.LayoutUpdated += ZoomToCropControl_LayoutUpdated;
+	}
+
+	private void ZoomToCropControl_LayoutUpdated(object? sender, EventArgs e)
+	{
+		if (contentWidth != measurementViewer.ExtentWidth || contentHeight != measurementViewer.ExtentHeight)
+		{
+			TrySetContentSize();
+		}
 	}
 
 	private void ZoomToCropControl_Loaded(object sender, RoutedEventArgs e)
@@ -41,10 +50,11 @@ public partial class ZoomToCropControl : UserControl
 
 	private void TrySetContentSize()
 	{
-		if (measurementViewer.ExtentWidth > 0 && measurementViewer.ExtentHeight > 0)
+		contentWidth = measurementViewer.ExtentWidth;
+		contentHeight = measurementViewer.ExtentHeight;
+
+		if (contentWidth > 0 && contentHeight > 0)
 		{
-			contentWidth = measurementViewer.ExtentWidth;
-			contentHeight = measurementViewer.ExtentHeight;
 			ResetZoom();
 		}
 	}

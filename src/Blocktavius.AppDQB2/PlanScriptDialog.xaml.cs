@@ -171,14 +171,7 @@ public partial class PlanScriptDialog : Window
 			ScriptName = project.SelectedScript.GetScriptName() ?? "<Untitled Script>";
 			Title = $"Plan and Run -- {ScriptName}";
 
-			rebuildTask = Task.Run(() =>
-			{
-				if (project.TryRebuildStage(out var stage) && stage.Saver.CanSave)
-				{
-					return stage;
-				}
-				return null;
-			});
+			rebuildTask = project.TryRebuildStage();
 
 			if (project.BackupsEnabled(out var backupDir))
 			{
