@@ -1,4 +1,5 @@
 ﻿using Antipasta;
+using Antipasta.IndexedPropagation;
 using Blocktavius.AppDQB2.Services;
 using Blocktavius.Core;
 using Blocktavius.DQB2;
@@ -16,6 +17,12 @@ namespace Blocktavius.AppDQB2;
 
 static class I
 {
+	internal static readonly StaticGraphIndexer indexer = new(typeof(I));
+	static I()
+	{
+		System.Diagnostics.Trace.WriteLine(indexer.DUMP());
+	}
+
 	public static class Project
 	{
 		public interface Profile : IProperty<ProfileSettings> { }

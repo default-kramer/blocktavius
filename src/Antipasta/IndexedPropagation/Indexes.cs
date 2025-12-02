@@ -31,6 +31,13 @@ public readonly record struct PassIndex
 	public readonly int Index;
 	public readonly NodeIndex MinNode;
 	public readonly NodeIndex MaxNode;
+
+	public PassIndex(int index, NodeIndex minNode, NodeIndex maxNode)
+	{
+		this.Index = index;
+		this.MinNode = minNode;
+		this.MaxNode = maxNode;
+	}
 }
 
 public readonly record struct NodeIndex
