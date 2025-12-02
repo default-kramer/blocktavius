@@ -75,11 +75,18 @@ public interface INode
 	INodeGroup NodeGroup { get; }
 }
 
+public interface IImmediateNotifyNode
+{
+	string PropertyName { get; }
+}
+
 public interface INodeGroup
 {
 	void OnSelfResolved(IPropagationContext context);
 
 	void OnChildrenFullyResolved(IPropagationContext context);
+
+	void OnChanged(IImmediateNotifyNode node);
 }
 
 /// <summary>

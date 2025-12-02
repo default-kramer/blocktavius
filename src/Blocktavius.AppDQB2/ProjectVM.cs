@@ -1,4 +1,5 @@
-﻿using Blocktavius.AppDQB2.Persistence.V1;
+﻿using Antipasta;
+using Blocktavius.AppDQB2.Persistence.V1;
 using Blocktavius.AppDQB2.Services;
 using Blocktavius.Core;
 using Blocktavius.DQB2;
@@ -356,18 +357,6 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		get => xSelectedSourceStage.Value;
 		set => SetElement(xSelectedSourceStage, value);
 	}
-	/*
-	{
-		get => _selectedSourceStage;
-		set
-		{
-			if (ChangeProperty(ref _selectedSourceStage, value, nameof(SelectedSourceStage), nameof(StgdatFilePath), nameof(DestFullPath)))
-			{
-				RebuildImages();
-			}
-		}
-	}
-	*/
 
 	public string? StgdatFilePath => SelectedSourceStage?.StgdatFile?.FullName;
 
@@ -532,8 +521,10 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 	{
 		public sealed class Profile : OriginProp<Profile, ProfileSettings>, I.Project.Profile { }
 
-		public sealed class SourceSlots : DerivedProp<SourceSlots, IReadOnlyList<SlotVM>>, I.Project.SourceSlots
+		public sealed class SourceSlots : DerivedProp<SourceSlots, IReadOnlyList<SlotVM>>, I.Project.SourceSlots, IImmediateNotifyNode
 		{
+			string IImmediateNotifyNode.PropertyName => nameof(ProjectVM.SourceSlots);
+
 			private readonly I.Project.Profile profile;
 
 			public SourceSlots(I.Project.Profile profile)
@@ -547,8 +538,10 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 			}
 		}
 
-		public sealed class SelectedSourceSlot : SettableDerivedProp<SelectedSourceSlot, SlotVM?>, I.Project.SelectedSourceSlot
+		public sealed class SelectedSourceSlot : SettableDerivedProp<SelectedSourceSlot, SlotVM?>, I.Project.SelectedSourceSlot, IImmediateNotifyNode
 		{
+			string IImmediateNotifyNode.PropertyName => nameof(ProjectVM.SelectedSourceSlot);
+
 			private readonly I.Project.Profile profile;
 			private readonly I.Project.SourceSlots sourceSlots;
 			private string profileHash;
@@ -574,8 +567,10 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 			}
 		}
 
-		public sealed class SourceStages : DerivedProp<SourceStages, IReadOnlyList<SlotStageVM>>, I.Project.SourceStages
+		public sealed class SourceStages : DerivedProp<SourceStages, IReadOnlyList<SlotStageVM>>, I.Project.SourceStages, IImmediateNotifyNode
 		{
+			string IImmediateNotifyNode.PropertyName => nameof(ProjectVM.SourceStages);
+
 			private readonly I.Project.SelectedSourceSlot selectedSourceSlot;
 
 			public SourceStages(I.Project.SelectedSourceSlot selectedSourceSlot)
@@ -589,8 +584,10 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 			}
 		}
 
-		public sealed class SelectedSourceStage : SettableDerivedProp<SelectedSourceStage, SlotStageVM?>, I.Project.SelectedSourceStage
+		public sealed class SelectedSourceStage : SettableDerivedProp<SelectedSourceStage, SlotStageVM?>, I.Project.SelectedSourceStage, IImmediateNotifyNode
 		{
+			string IImmediateNotifyNode.PropertyName => nameof(ProjectVM.SelectedSourceStage);
+
 			private readonly I.Project.SourceStages sourceStages;
 
 			public SelectedSourceStage(I.Project.SourceStages sourceStages)
@@ -615,6 +612,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 
 			protected override bool AcceptSetValueRequest(ref SlotStageVM? newValue)
 			{
+				if (AntipastaThreadLocal.IsPropagating) { return false; }
 				newValue = FindMatch(newValue);
 				return true;
 			}

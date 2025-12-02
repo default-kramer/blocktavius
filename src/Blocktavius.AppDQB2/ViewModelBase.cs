@@ -154,12 +154,11 @@ abstract class ViewModelBase : INotifyPropertyChanged, IViewmodel
 		Antipasta.IndexedPropagation.GroupPropagator.SetElement(element, value);
 	}
 
-	public virtual void OnSelfResolved(IPropagationContext context)
-	{
-		OnPropertyChanged(""); // TODO
-	}
+	public virtual void OnSelfResolved(IPropagationContext context) { }
 
 	public void OnChildrenFullyResolved(IPropagationContext context) { }
+
+	void INodeGroup.OnChanged(IImmediateNotifyNode node) => OnPropertyChanged(node.PropertyName);
 }
 
 class TileSizeItemsSource : IItemsSource

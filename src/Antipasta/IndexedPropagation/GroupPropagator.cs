@@ -36,9 +36,18 @@ public sealed class GroupPropagator
 		var result = element.AcceptSetValueRequest(queue, value);
 		if (result == PropagationResult.Changed)
 		{
+			MaybeNotify(element);
 			queue.StartFrom(node, NodeQueue.NodeStatus.Changed);
 			var me = new GroupPropagator(queue);
 			me.Propagate();
+		}
+	}
+
+	private static void MaybeNotify(INode node)
+	{
+		if (node is IImmediateNotifyNode n)
+		{
+			node.NodeGroup.OnChanged(n);
 		}
 	}
 
@@ -84,6 +93,7 @@ public sealed class GroupPropagator
 			throw new InvalidOperationException("Cannot call Propagate() twice");
 		}
 		didPropagate = true;
+		using var _ = AntipastaThreadLocal.UsePropagationScope();
 
 		while (nodeQueue.GetNextPass(out var passNodes))
 		{
@@ -93,6 +103,7 @@ public sealed class GroupPropagator
 				var result = passNode.OnPropagation(nodeQueue);
 				if (result == PropagationResult.Changed)
 				{
+					MaybeNotify(passNode);
 					nodeQueue.UpdateStatus(passNode, NodeQueue.NodeStatus.Changed);
 					foreach (var listener in passNode.GetListeners())
 					{
