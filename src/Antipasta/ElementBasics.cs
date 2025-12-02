@@ -93,12 +93,11 @@ public abstract class SettableDerivedElement<TOutput> : DerivedElement<TOutput>,
 
 public abstract class DerivedElement<TOutput> : BaseNode, IElement<TOutput>
 {
-	private readonly HashSet<IUntypedElement> dependsOn = new();
 	private (int changeCounter, TOutput output)? cache = null;
 
 	protected TElement ListenTo<TElement>(TElement element) where TElement : IUntypedElement
 	{
-		dependsOn.Add(element);
+		element.AddListener(this);
 		return element;
 	}
 
@@ -122,18 +121,8 @@ public abstract class DerivedElement<TOutput> : BaseNode, IElement<TOutput>
 
 	protected virtual bool RecomputeIfStale(IPropagationContext changes, out TOutput newValue)
 	{
-		bool inputHasChanged = dependsOn.Any(changes.HasChanged);
-		if (inputHasChanged)
-		{
-			newValue = Recompute();
-			return true;
-		}
-		else
-		{
-			throw new Exception("TODO - this should never happen, right?");
-			//newValue = default!;
-			//return false;
-		}
+		newValue = Recompute();
+		return true;
 	}
 
 	public sealed override PropagationResult OnPropagation(IPropagationContext context)

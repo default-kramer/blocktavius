@@ -32,14 +32,16 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 
 	// mutable:
 	private ExternalImageManager? imageManager = null;
-	private ProfileSettings profile;
 
 	// NEW!
 	private readonly MyProperty.Profile xProfile;
 	private readonly I.Project.SourceSlots xSourceSlots;
-	private readonly I.Project.SelectedSourceSlot xSelectedSourceSlot;
-	private readonly I.Project.SourceStage xSourceStage;
+	private readonly MyProperty.SelectedSourceSlot xSelectedSourceSlot;
+	private readonly I.Project.SourceStages xSourceStages;
+	private readonly MyProperty.SelectedSourceStage xSelectedSourceStage;
 	private readonly I.Project.LoadedStage xLoadedStage;
+
+	private ProfileSettings profile => xProfile.Value;
 
 	public ProjectVM(IServices services, ProfileSettings profile)
 	{
@@ -55,7 +57,6 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		Layers.Add(chunkGridLayer);
 		SelectedLayer = Layers.FirstOrDefault();
 
-		this.profile = profile;
 		ForceUpdateProfile(profile);
 
 		CommandExportChunkMask = new RelayCommand(_ => chunkGridLayer.ChunkGridImage != null, ExportChunkMask);
@@ -64,8 +65,9 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		xProfile = new() { InitialValue = profile, Owner = this };
 		xSourceSlots = new MyProperty.SourceSlots(xProfile) { Owner = this };
 		xSelectedSourceSlot = new MyProperty.SelectedSourceSlot(xProfile, xSourceSlots) { Owner = this };
-		xSourceStage = new MyProperty.SourceStage(xSelectedSourceSlot) { Owner = this };
-		xLoadedStage = new MyProperty.LoadedStage(xSourceStage, stageLoader) { Owner = this };
+		xSourceStages = new MyProperty.SourceStages(xSelectedSourceSlot) { Owner = this };
+		xSelectedSourceStage = new MyProperty.SelectedSourceStage(xSelectedSourceSlot) { Owner = this };
+		xLoadedStage = new MyProperty.LoadedStage(xSelectedSourceStage, stageLoader) { Owner = this };
 	}
 
 	private void ExportChunkMask(object? arg) => ExportImage(chunkGridLayer.ChunkGridImage, "exported-chunk-mask.png", 1.0);
@@ -113,24 +115,16 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		return backupDir != null;
 	}
 
-	public void SwitchProfile(ProfileSettings newProfile)
-	{
-		if (profile.VerificationHash != newProfile.VerificationHash)
-		{
-			ForceUpdateProfile(newProfile);
-		}
-	}
-
 	private void ForceUpdateProfile(ProfileSettings profile)
 	{
-		this.profile = profile;
-
+		/*
 		SelectedSourceSlot = null;
 		SourceSlots.Clear();
 		foreach (var slot in profile.SaveSlots)
 		{
 			SourceSlots.Add(SlotVM.Create(slot));
 		}
+		*/
 
 		SelectedDestSlot = null;
 		DestSlots.Clear();
@@ -349,26 +343,20 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		}
 	}
 
-	public ObservableCollection<SlotVM> SourceSlots { get; } = new();
-
-	private SlotVM? _selectedSourceSlot = null;
+	public IReadOnlyList<SlotVM> SourceSlots => xSourceSlots.Value;
 	public SlotVM? SelectedSourceSlot
 	{
-		get => _selectedSourceSlot;
-		set
-		{
-			var prev = SelectedSourceStage;
-			if (ChangeProperty(ref _selectedSourceSlot, value, nameof(SelectedSourceSlot), nameof(SourceStages)))
-			{
-				SelectedSourceStage = value?.Stages?.FirstOrDefault(s => s.Filename.Equals(prev?.Filename, StringComparison.OrdinalIgnoreCase));
-			}
-		}
+		get => xSelectedSourceSlot.Value;
+		set => SetElement(xSelectedSourceSlot, value);
 	}
 
-	public IReadOnlyList<SlotStageVM> SourceStages => SelectedSourceSlot?.Stages ?? Array.Empty<SlotStageVM>();
-
-	private SlotStageVM? _selectedSourceStage = null;
+	public IReadOnlyList<SlotStageVM> SourceStages => xSourceStages.Value;
 	public SlotStageVM? SelectedSourceStage
+	{
+		get => xSelectedSourceStage.Value;
+		set => SetElement(xSelectedSourceStage, value);
+	}
+	/*
 	{
 		get => _selectedSourceStage;
 		set
@@ -379,6 +367,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 			}
 		}
 	}
+	*/
 
 	public string? StgdatFilePath => SelectedSourceStage?.StgdatFile?.FullName;
 
@@ -466,6 +455,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 
 		project = project.VerifyProfileHash(profile);
 
+		/*
 		SelectedSourceSlot = SourceSlots.FirstOrDefault(s => s.MatchesByNumber(project.SourceSlot))
 			?? SourceSlots.FirstOrDefault(s => s.MatchesByName(project.SourceSlot));
 		SelectedDestSlot = DestSlots.FirstOrDefault(s => s.MatchesByNumber(project.DestSlot))
@@ -473,6 +463,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 
 		SelectedSourceStage = SelectedSourceSlot?.Stages.EmptyIfNull().FirstOrDefault(s =>
 			string.Equals(s.Filename, project.SourceStgdatFilename, StringComparison.OrdinalIgnoreCase));
+		*/
 
 		Notes = project.Notes ?? "";
 		ChunkExpansion = project.ChunkExpansion.EmptyIfNull().Select(o => o.ToCore()).ToHashSet();
@@ -583,11 +574,26 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 			}
 		}
 
-		public sealed class SourceStage : SettableDerivedProp<SourceStage, SlotStageVM?>, I.Project.SourceStage
+		public sealed class SourceStages : DerivedProp<SourceStages, IReadOnlyList<SlotStageVM>>, I.Project.SourceStages
+		{
+			private readonly I.Project.SelectedSourceSlot selectedSourceSlot;
+
+			public SourceStages(I.Project.SelectedSourceSlot selectedSourceSlot)
+			{
+				this.selectedSourceSlot = ListenTo(selectedSourceSlot);
+			}
+
+			protected override IReadOnlyList<SlotStageVM> Recompute()
+			{
+				return selectedSourceSlot.Value?.Stages ?? Array.Empty<SlotStageVM>();
+			}
+		}
+
+		public sealed class SelectedSourceStage : SettableDerivedProp<SelectedSourceStage, SlotStageVM?>, I.Project.SelectedSourceStage
 		{
 			private readonly I.Project.SelectedSourceSlot sourceSlot;
 
-			public SourceStage(I.Project.SelectedSourceSlot sourceSlot)
+			public SelectedSourceStage(I.Project.SelectedSourceSlot sourceSlot)
 			{
 				this.sourceSlot = ListenTo(sourceSlot);
 			}
@@ -598,8 +604,9 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 				// But probably this is firing because the sourceSlot has changed, in which
 				// case we want to find the same-named stage from the new slot.
 				var stages = sourceSlot.Value?.Stages;
-				return stages?.FirstOrDefault(x => x == slot)
+				var result = stages?.FirstOrDefault(x => x == slot)
 					?? stages?.FirstOrDefault(x => x.Name == slot?.Name);
+				return result;
 			}
 
 			// TODO should I attempt to change the signature of AcceptSetValueRequest
@@ -615,10 +622,10 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 
 		public sealed class LoadedStage : DerivedProp<LoadedStage, LoadStageResult?>, I.Project.LoadedStage
 		{
-			private readonly I.Project.SourceStage sourceStage;
+			private readonly I.Project.SelectedSourceStage sourceStage;
 			private readonly IStageLoader stageLoader;
 
-			public LoadedStage(I.Project.SourceStage sourceStage, IStageLoader stageLoader)
+			public LoadedStage(I.Project.SelectedSourceStage sourceStage, IStageLoader stageLoader)
 			{
 				this.sourceStage = ListenTo(sourceStage);
 				this.stageLoader = stageLoader;
@@ -633,7 +640,9 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 				}
 
 				// TODO this needs to be an AsyncDerivedProp
-				return stageLoader.LoadStage(slot.StgdatFile).ConfigureAwait(false).GetAwaiter().GetResult();
+				// It deadlocks right now
+				//return stageLoader.LoadStage(slot.StgdatFile).ConfigureAwait(false).GetAwaiter().GetResult();
+				return null;
 			}
 		}
 	}

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Antipasta.IndexedPropagation;
 
-sealed class GroupPropagator
+public sealed class GroupPropagator
 {
 	private readonly NodeQueue nodeQueue; // only for nodes in the current group
 	private readonly HashSet<INodeWithStaticPassInfo> listenersInOtherGroups = new();
@@ -17,6 +17,29 @@ sealed class GroupPropagator
 	private GroupPropagator(NodeQueue nodeQueue)
 	{
 		this.nodeQueue = nodeQueue;
+	}
+
+	public static void SetElement<T>(ISettableElement<T> element, T value)
+	{
+		var node = element as INodeWithStaticPassInfo;
+		if (node == null)
+		{
+			throw new Exception("TODO");
+		}
+
+		var queue = new NodeQueue()
+		{
+			NodeGroup = element.NodeGroup,
+			ParentContexts = ImmutableStack<IPropagationContext>.Empty
+		};
+
+		var result = element.AcceptSetValueRequest(queue, value);
+		if (result == PropagationResult.Changed)
+		{
+			queue.StartFrom(node, NodeQueue.NodeStatus.Changed);
+			var me = new GroupPropagator(queue);
+			me.Propagate();
+		}
 	}
 
 	private GroupPropagator CreateChildPropagator(IGrouping<INodeGroup, INodeWithStaticPassInfo> grp)
@@ -237,6 +260,17 @@ sealed class GroupPropagator
 				throw new Exception("Assert fail - expected that this node was already Enqueued");
 			}
 			nodes[index] = (status, node);
+		}
+
+		public void StartFrom(INodeWithStaticPassInfo node, NodeStatus status)
+		{
+			Enqueue(node);
+			UpdateStatus(node, status);
+			nextPassStart = node.NodeIndex.Index + 1;
+			foreach (var listener in node.GetListeners())
+			{
+				this.Enqueue(listener as INodeWithStaticPassInfo ?? throw new Exception("TODO"));
+			}
 		}
 	}
 }

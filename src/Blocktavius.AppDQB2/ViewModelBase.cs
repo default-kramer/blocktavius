@@ -149,7 +149,15 @@ abstract class ViewModelBase : INotifyPropertyChanged, IViewmodel
 		return new TaskProxy<TResult>(this, propertyName);
 	}
 
-	public virtual void OnSelfResolved(IPropagationContext context) { }
+	protected void SetElement<T>(ISettableElement<T> element, T value)
+	{
+		Antipasta.IndexedPropagation.GroupPropagator.SetElement(element, value);
+	}
+
+	public virtual void OnSelfResolved(IPropagationContext context)
+	{
+		OnPropertyChanged(""); // TODO
+	}
 
 	public void OnChildrenFullyResolved(IPropagationContext context) { }
 }

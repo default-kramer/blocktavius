@@ -28,7 +28,8 @@ static class I
 		public interface Profile : IProperty<ProfileSettings> { }
 		public interface SourceSlots : IProperty<IReadOnlyList<SlotVM>> { }
 		public interface SelectedSourceSlot : IProperty<SlotVM?> { }
-		public interface SourceStage : IProperty<SlotStageVM?> { }
+		public interface SourceStages : IProperty<IReadOnlyList<SlotStageVM>> { }
+		public interface SelectedSourceStage : IProperty<SlotStageVM?> { }
 		public interface ChunkExpansion : IProperty<IReadOnlySet<ChunkOffset>> { }
 		public interface LoadedStage : IProperty<LoadStageResult?> { }
 	}
