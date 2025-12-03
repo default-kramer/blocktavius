@@ -9,7 +9,7 @@ namespace Antipasta;
 
 public interface IAsyncContext<TOutput> where TOutput : class
 {
-	void Unblock();
+	ContextUnblocker UnblockAsync();
 	void UpdateValue(TOutput? output);
 }
 
@@ -123,16 +123,22 @@ public abstract class AsyncDerivedElement<TComputer, TInput, TOutput> : BaseNode
 		return PropagationResult.Changed;
 	}
 
-	private Task DoRecompute(AsyncContext context, TInput input)
+	private async Task DoRecompute(AsyncContext context, TInput input)
 	{
 		try
 		{
-			return TComputer.Compute(context, input);
+			await TComputer.Compute(context, input).ConfigureAwait(false);
 		}
 		finally
 		{
-			context.MarkComplete();
-			context.Unblock();
+			try
+			{
+				context.MarkComplete();
+			}
+			finally
+			{
+				context.UnblockNow();
+			}
 		}
 	}
 
@@ -167,12 +173,12 @@ public abstract class AsyncDerivedElement<TComputer, TInput, TOutput> : BaseNode
 
 		public void Cancel() => isCanceled = true; // UI thread
 
-		public void Unblock() // background thread
+		public ContextUnblocker UnblockAsync()
 		{
-			unblocker.Unblock();
-			// This didn't work:
-			//return Task.CompletedTask.ConfigureAwait(false);
+			return new ContextUnblocker(unblocker);
 		}
+
+		internal void UnblockNow() => unblocker.Unblock();
 
 		public void UpdateValue(TOutput? output) // background thread
 		{

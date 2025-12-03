@@ -48,8 +48,8 @@ partial class ProjectVM
 					return;
 				}
 
-				context.Unblock();
-				var stage = await input.StageLoader.LoadStage(new FileInfo(input.FullPath)).ConfigureAwait(false);
+				await context.UnblockAsync();
+				var stage = await input.StageLoader.LoadStage(new FileInfo(input.FullPath));
 				var threadB = Thread.CurrentThread.ManagedThreadId;
 				context.UpdateValue(stage);
 			}
