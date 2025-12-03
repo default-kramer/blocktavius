@@ -16,6 +16,8 @@ public interface IUntypedElement : INode
 	object? UntypedValue { get; }
 }
 
+public interface IAsyncElement : IUntypedElement { }
+
 public interface IElement<TOutput> : IUntypedElement
 {
 	TOutput Value { get; }

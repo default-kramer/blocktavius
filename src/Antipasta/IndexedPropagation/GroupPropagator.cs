@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace Antipasta.IndexedPropagation;
 
@@ -19,7 +20,7 @@ public sealed class GroupPropagator
 		this.nodeQueue = nodeQueue;
 	}
 
-	public static void SetElement<T>(ISettableElement<T> element, T value)
+	private static void Begin(INode element, IAsyncScheduler scheduler, Func<NodeQueue, PropagationResult> starterThunk)
 	{
 		var node = element as INodeWithStaticPassInfo;
 		if (node == null)
@@ -30,10 +31,11 @@ public sealed class GroupPropagator
 		var queue = new NodeQueue()
 		{
 			NodeGroup = element.NodeGroup,
-			ParentContexts = ImmutableStack<IPropagationContext>.Empty
+			ParentContexts = ImmutableStack<IPropagationContext>.Empty,
+			AsyncScheduler = scheduler,
 		};
 
-		var result = element.AcceptSetValueRequest(queue, value);
+		var result = starterThunk(queue);
 		if (result == PropagationResult.Changed)
 		{
 			MaybeNotify(element);
@@ -41,6 +43,16 @@ public sealed class GroupPropagator
 			var me = new GroupPropagator(queue);
 			me.Propagate();
 		}
+	}
+
+	public static void SetElement<T>(ISettableElement<T> element, T value, IAsyncScheduler scheduler)
+	{
+		Begin(element, scheduler, context => element.AcceptSetValueRequest(context, value));
+	}
+
+	public static void HandleAsyncProgress(IAsyncProgress progress) // UI thread
+	{
+		Begin(progress.SourceNode, progress.AsyncScheduler, _ => progress.Start());
 	}
 
 	private static void MaybeNotify(INode node)
@@ -144,6 +156,7 @@ public sealed class GroupPropagator
 			Changed = 3,
 		};
 
+		public required IAsyncScheduler AsyncScheduler { get; init; }
 		public required INodeGroup NodeGroup { get; init; }
 		public required IImmutableStack<IPropagationContext> ParentContexts { get; init; }
 
@@ -170,6 +183,7 @@ public sealed class GroupPropagator
 			{
 				NodeGroup = childGroup,
 				ParentContexts = this.ParentContexts.Push(this),
+				AsyncScheduler = this.AsyncScheduler,
 			};
 		}
 

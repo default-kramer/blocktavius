@@ -22,6 +22,11 @@ public enum PropagationResult
 	/// The value of this node changed and propagation should include all listeners.
 	/// </summary>
 	Changed,
+
+	/// <summary>
+	/// An async operation was started, but there is no change that listeners could observe yet.
+	/// </summary>
+	AsyncNone,
 }
 
 /// <summary>
@@ -102,4 +107,53 @@ public interface IPropagationContext
 	IImmutableStack<IPropagationContext> ParentContexts { get; }
 
 	bool HasChanged(INode node);
+
+	IAsyncScheduler AsyncScheduler { get; }
+}
+
+public interface IUnblocker
+{
+	void Unblock();
+}
+
+public enum SpinwaitResult
+{
+	Unknown,
+	Unblocked,
+	Timeout,
+	SpinwaitNotSupported,
+}
+
+public interface IWaitableUnblocker : IUnblocker
+{
+	SpinwaitResult Spinwait(TimeSpan? timeout);
+}
+
+public interface IAsyncScheduler
+{
+	IWaitableUnblocker CreateUnblocker(); // UI thread
+
+	ITaskWrapper RunTask(Task task); // UI thread
+
+	void DispatchProgress(IAsyncProgress progress); // background thread
+}
+
+public interface IAsyncProgress
+{
+	INode SourceNode { get; }
+
+	// TODO - this is not quite right... what we really need is something that can
+	// remembers what propagation strategy should be used, accepts the IAsyncProgress,
+	// and creates a new propagation context.
+	// (Currently "working" because my half-baked WPF scheduler just assumes Indexed Propagation should be used)
+	IAsyncScheduler AsyncScheduler { get; }
+
+	PropagationResult Start(); // UI thread
+}
+
+public interface ITaskWrapper
+{
+	void AttemptCancel();
+
+	Task Task { get; }
 }

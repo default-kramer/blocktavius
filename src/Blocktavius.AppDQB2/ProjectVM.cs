@@ -18,7 +18,7 @@ using System.Windows.Media.Imaging;
 
 namespace Blocktavius.AppDQB2;
 
-sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAreaManager, Persistence.IBlockManager
+sealed partial class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAreaManager, Persistence.IBlockManager
 {
 	// immutable:
 	private readonly IServices services;
@@ -517,7 +517,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		return Blockdata.AllBlockVMs.FirstOrDefault(x => x.PersistentId == persistentId);
 	}
 
-	static class MyProperty
+	static partial class MyProperty
 	{
 		public sealed class Profile : OriginProp<Profile, ProfileSettings>, I.Project.Profile { }
 
@@ -615,32 +615,6 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 				if (AntipastaThreadLocal.IsPropagating) { return false; }
 				newValue = FindMatch(newValue);
 				return true;
-			}
-		}
-
-		public sealed class LoadedStage : DerivedProp<LoadedStage, LoadStageResult?>, I.Project.LoadedStage
-		{
-			private readonly I.Project.SelectedSourceStage sourceStage;
-			private readonly IStageLoader stageLoader;
-
-			public LoadedStage(I.Project.SelectedSourceStage sourceStage, IStageLoader stageLoader)
-			{
-				this.sourceStage = ListenTo(sourceStage);
-				this.stageLoader = stageLoader;
-			}
-
-			protected override LoadStageResult? Recompute()
-			{
-				var slot = sourceStage.Value;
-				if (slot == null)
-				{
-					return null;
-				}
-
-				// TODO this needs to be an AsyncDerivedProp
-				// It deadlocks right now
-				//return stageLoader.LoadStage(slot.StgdatFile).ConfigureAwait(false).GetAwaiter().GetResult();
-				return null;
 			}
 		}
 	}

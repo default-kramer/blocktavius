@@ -85,3 +85,29 @@ public class OriginProp<TSelf, TOutput> : SettableDerivedProp<TSelf, TOutput>, I
 		}
 	}
 }
+
+public abstract class AsyncDerivedProp<TSelf, TInput, TOutput> : AsyncDerivedElement<TSelf, TInput, TOutput>, INodeWithStaticPassInfo
+	where TSelf : AsyncDerivedProp<TSelf, TInput, TOutput>, IAsyncComputation<TInput, TOutput>
+	where TInput : IEquatable<TInput>
+	where TOutput : class
+{
+	PassIndex INodeWithStaticPassInfo.PassIndex => passIndex;
+	NodeIndex INodeWithStaticPassInfo.NodeIndex => nodeIndex;
+	private static readonly PassIndex passIndex;
+	private static readonly NodeIndex nodeIndex;
+	static AsyncDerivedProp()
+	{
+		if (I.indexer.TryGetByImplementationType(typeof(TSelf), out var info))
+		{
+			passIndex = info.PassIndex;
+			nodeIndex = info.NodeIndex;
+		}
+		else
+		{
+			throw new Exception("TODO");
+		}
+	}
+
+	public required IViewmodel Owner { get; init; }
+	public sealed override INodeGroup NodeGroup => Owner;
+}
