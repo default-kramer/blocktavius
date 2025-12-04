@@ -15,13 +15,13 @@ class AsyncSchedulerWPF : IAsyncScheduler
 
 	public IWaitableUnblocker CreateUnblocker() => new Unblocker();
 
-	public ITaskWrapper RunTask(Task task)
+	public ITaskWrapper RunTask(Task task, CancellationTokenSource cts)
 	{
 		// Run on the UI thread until Unblock() is called, which will reach our RunUnblockedContinuation method
 		return new TaskWrapper
 		{
 			Task = task,
-			CancellationTokenSource = new CancellationTokenSource(),
+			CancellationTokenSource = cts,
 		};
 	}
 
@@ -48,7 +48,6 @@ class AsyncSchedulerWPF : IAsyncScheduler
 	{
 		public required CancellationTokenSource CancellationTokenSource { get; init; }
 		public required Task Task { get; init; }
-		public CancellationToken CancellationToken => CancellationTokenSource.Token;
 
 		public void AttemptCancel()
 		{

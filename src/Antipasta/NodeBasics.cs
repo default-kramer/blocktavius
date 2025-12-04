@@ -133,9 +133,9 @@ public interface IAsyncScheduler
 {
 	IWaitableUnblocker CreateUnblocker(); // UI thread
 
-	ITaskWrapper RunTask(Task task); // UI thread
+	ITaskWrapper RunTask(Task task, CancellationTokenSource cts); // UI thread
 
-	void RunUnblockedContinuation(Action action); // any thread
+	void RunUnblockedContinuation(Action continuation); // any thread
 
 	void DispatchProgress(IAsyncProgress progress); // background thread
 }
@@ -156,8 +156,6 @@ public interface IAsyncProgress
 public interface ITaskWrapper
 {
 	void AttemptCancel();
-
-	CancellationToken CancellationToken { get; }
 
 	Task Task { get; }
 }

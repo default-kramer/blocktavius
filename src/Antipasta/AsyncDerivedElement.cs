@@ -11,6 +11,7 @@ public interface IAsyncContext<TOutput> where TOutput : class
 {
 	ContextUnblocker UnblockAsync();
 	void UpdateValue(TOutput? output);
+	CancellationToken CancellationToken { get; }
 }
 
 public interface IAsyncComputation<TInput, TOutput>
@@ -72,8 +73,9 @@ public abstract class AsyncDerivedElement<TComputer, TInput, TOutput> : BaseNode
 			return PropagationResult.None;
 		}
 
+		var cts = new CancellationTokenSource();
 		var unblocker = context.AsyncScheduler.CreateUnblocker();
-		var asyncContext = new AsyncContext(input, context.AsyncScheduler, unblocker, this);
+		var asyncContext = new AsyncContext(input, context.AsyncScheduler, unblocker, this, cts.Token);
 
 		// Per https://learn.microsoft.com/en-us/dotnet/standard/asynchronous-programming-patterns/consuming-the-task-based-asynchronous-pattern
 		//    When an asynchronous method is called, it synchronously executes the body of the function
@@ -89,7 +91,7 @@ public abstract class AsyncDerivedElement<TComputer, TInput, TOutput> : BaseNode
 				?? PropagationResult.None;
 		}
 
-		var taskWrapper = context.AsyncScheduler.RunTask(task);
+		var taskWrapper = context.AsyncScheduler.RunTask(task, cts);
 		unblocker.Spinwait(AutoUnblockTimeout);
 
 		var capture = asyncContext.SynchronousCapture();
@@ -151,6 +153,7 @@ public abstract class AsyncDerivedElement<TComputer, TInput, TOutput> : BaseNode
 
 	public sealed class AsyncContext : IAsyncContext<TOutput>, IAsyncProgress
 	{
+		public CancellationToken CancellationToken { get; }
 		private readonly TInput input;
 		private readonly IAsyncScheduler scheduler;
 		private readonly IUnblocker unblocker;
@@ -163,12 +166,13 @@ public abstract class AsyncDerivedElement<TComputer, TInput, TOutput> : BaseNode
 		private bool isCanceled = false; // UI thread only
 
 		public AsyncContext(TInput input, IAsyncScheduler scheduler, IUnblocker unblocker,
-			AsyncDerivedElement<TComputer, TInput, TOutput> node)
+			AsyncDerivedElement<TComputer, TInput, TOutput> node, CancellationToken cancellationToken)
 		{
 			this.input = input;
 			this.scheduler = scheduler;
 			this.unblocker = unblocker;
 			this.node = node;
+			this.CancellationToken = cancellationToken;
 		}
 
 		public void Cancel() => isCanceled = true; // UI thread
@@ -207,6 +211,8 @@ public abstract class AsyncDerivedElement<TComputer, TInput, TOutput> : BaseNode
 			finalResultUpdateCounter = result.updateCounter;
 			sema.Release();
 		}
+
+
 
 		internal SyncCapture SynchronousCapture() // UI thread
 		{
