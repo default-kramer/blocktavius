@@ -9,33 +9,41 @@ namespace Antipasta;
 /// </summary>
 public readonly struct ContextUnblocker
 {
+	private readonly IAsyncScheduler scheduler;
 	private readonly IUnblocker unblocker;
 
-	internal ContextUnblocker(IUnblocker unblocker)
+	internal ContextUnblocker(IAsyncScheduler scheduler, IUnblocker unblocker)
 	{
+		this.scheduler = scheduler;
 		this.unblocker = unblocker;
 	}
 
 	public Awaiter GetAwaiter()
 	{
 		unblocker.Unblock();
-		return new Awaiter();
+		return new Awaiter(scheduler);
 	}
 
 	public readonly struct Awaiter : ICriticalNotifyCompletion
 	{
+		private readonly IAsyncScheduler scheduler;
+		internal Awaiter(IAsyncScheduler scheduler)
+		{
+			this.scheduler = scheduler;
+		}
+
 		public bool IsCompleted => false;
 
 		public void GetResult() { }
 
 		public void OnCompleted(Action continuation)
 		{
-			ThreadPool.QueueUserWorkItem(_ => continuation(), null);
+			scheduler.RunUnblockedContinuation(continuation);
 		}
 
 		public void UnsafeOnCompleted(Action continuation)
 		{
-			ThreadPool.QueueUserWorkItem(_ => continuation(), null);
+			scheduler.RunUnblockedContinuation(continuation);
 		}
 	}
 }

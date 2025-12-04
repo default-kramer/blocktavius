@@ -135,6 +135,8 @@ public interface IAsyncScheduler
 
 	ITaskWrapper RunTask(Task task); // UI thread
 
+	void RunUnblockedContinuation(Action action); // any thread
+
 	void DispatchProgress(IAsyncProgress progress); // background thread
 }
 
@@ -154,6 +156,8 @@ public interface IAsyncProgress
 public interface ITaskWrapper
 {
 	void AttemptCancel();
+
+	CancellationToken CancellationToken { get; }
 
 	Task Task { get; }
 }

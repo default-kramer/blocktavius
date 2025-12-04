@@ -175,7 +175,7 @@ public abstract class AsyncDerivedElement<TComputer, TInput, TOutput> : BaseNode
 
 		public ContextUnblocker UnblockAsync()
 		{
-			return new ContextUnblocker(unblocker);
+			return new ContextUnblocker(scheduler, unblocker);
 		}
 
 		internal void UnblockNow() => unblocker.Unblock();
