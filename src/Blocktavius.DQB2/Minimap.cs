@@ -62,7 +62,7 @@ public class Minimap
 		return new IslandTileSampler(slice);
 	}
 
-	public I2DSampler<MinimapTile> ReadMapCropped(int islandId, IStage cropper)
+	public I2DSampler<MinimapTile> ReadMapCropped(int islandId, IStage cropper, IReadOnlySet<ChunkOffset> cropperExpansion)
 	{
 		var sampler = ReadMap(islandId);
 
@@ -70,6 +70,10 @@ public class Minimap
 		// This means there are 4x4 map tiles in each chunk.
 		const int scale = 4;
 		var gridBounds = cropper.ChunkGridCropped.Bounds;
+		if (cropperExpansion.Any())
+		{
+			gridBounds = Rect.Union(gridBounds, Rect.GetBounds(cropperExpansion.Select(o => o.RawUnscaledOffset)));
+		}
 		var scaledBounds = new Rect(gridBounds.start.Scale(scale), gridBounds.end.Scale(scale));
 		return sampler.Crop(scaledBounds);
 	}

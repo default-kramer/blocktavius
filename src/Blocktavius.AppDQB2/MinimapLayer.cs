@@ -99,12 +99,7 @@ sealed class MinimapLayer : ViewModelBase, ILayerVM
 
 				await context.UnblockAsync();
 
-				// TODO: This is not efficient, we shouldn't need to copy the whole stage when all we
-				// really need is the expanded chunks!
-				var expandedStage = stage.Clone();
-				expandedStage.ExpandChunks(input.ChunkExpansion);
-
-				var sampler = map.ReadMapCropped(islandId, expandedStage).TranslateTo(XZ.Zero);
+				var sampler = map.ReadMapCropped(islandId, stage, input.ChunkExpansion).TranslateTo(XZ.Zero);
 				var image = MinimapRenderer.Render(sampler, new MinimapRenderOptions());
 
 				context.UpdateValue(image);
