@@ -43,14 +43,14 @@ sealed class MinimapLayer : ViewModelBase, ILayerVM
 				public required Minimap? Minimap { get; init; }
 				public required ICloneableStage? Stage { get; init; }
 				public required IReadOnlySet<ChunkOffset> ChunkExpansion { get; init; }
-				public required int? IslandId { get; init; }
+				public required int IslandId { get; init; }
 
 				public static readonly Input Nothing = new()
 				{
 					Minimap = null,
 					Stage = null,
 					ChunkExpansion = ImmutableHashSet<ChunkOffset>.Empty,
-					IslandId = null,
+					IslandId = -1,
 				};
 			}
 
@@ -76,7 +76,7 @@ sealed class MinimapLayer : ViewModelBase, ILayerVM
 					ChunkExpansion = chunkExpansion.Value,
 					Minimap = loadedStage.Value?.Minimap,
 					Stage = loadedStage.Value?.Stage,
-					IslandId = selectedSourceStage.Value?.MinimapIslandIds?.FirstOrDefault(),
+					IslandId = selectedSourceStage.Value?.MinimapIslandIds?.FirstOrDefault(-1) ?? -1,
 				};
 			}
 
@@ -92,7 +92,7 @@ sealed class MinimapLayer : ViewModelBase, ILayerVM
 				var stage = input.Stage;
 				var islandId = input.IslandId;
 
-				if (map == null || stage == null || !islandId.HasValue)
+				if (map == null || stage == null || islandId < 0)
 				{
 					return;
 				}
@@ -104,7 +104,7 @@ sealed class MinimapLayer : ViewModelBase, ILayerVM
 				var expandedStage = stage.Clone();
 				expandedStage.ExpandChunks(input.ChunkExpansion);
 
-				var sampler = map.ReadMapCropped(islandId.Value, expandedStage).TranslateTo(XZ.Zero);
+				var sampler = map.ReadMapCropped(islandId, expandedStage).TranslateTo(XZ.Zero);
 				var image = MinimapRenderer.Render(sampler, new MinimapRenderOptions());
 
 				context.UpdateValue(image);
