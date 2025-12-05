@@ -23,7 +23,7 @@ sealed partial class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persist
 	// immutable:
 	private readonly IServices services;
 	private readonly IStageLoader stageLoader;
-	private readonly ChunkGridLayer chunkGridLayer = new();
+	private readonly ChunkGridLayer chunkGridLayer;
 	private readonly MinimapLayer? minimapLayer;
 	public ICommand CommandExportChunkMask { get; }
 	public ICommand CommandExportMinimap { get; }
@@ -36,11 +36,13 @@ sealed partial class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persist
 
 	// NEW!
 	private readonly MyProperty.Profile xProfile;
+	private readonly MyProperty.ChunkExpansion xChunkExpansion;
 	private readonly I.Project.SourceSlots xSourceSlots;
 	private readonly MyProperty.SelectedSourceSlot xSelectedSourceSlot;
 	private readonly I.Project.SourceStages xSourceStages;
 	private readonly MyProperty.SelectedSourceStage xSelectedSourceStage;
 	private readonly I.Project.LoadedStage xLoadedStage;
+
 
 	private ProfileSettings profile => xProfile.Value;
 
@@ -48,6 +50,18 @@ sealed partial class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persist
 	{
 		this.services = services;
 		this.stageLoader = services.StageLoader();
+
+		ForceUpdateProfile(profile);
+
+		xProfile = new() { InitialValue = profile, Owner = this };
+		xChunkExpansion = new() { InitialValue = new HashSet<ChunkOffset>(), Owner = this };
+
+		xSourceSlots = new MyProperty.SourceSlots(xProfile) { Owner = this };
+		xSelectedSourceSlot = new MyProperty.SelectedSourceSlot(xProfile, xSourceSlots) { Owner = this };
+		xSourceStages = new MyProperty.SourceStages(xSelectedSourceSlot) { Owner = this };
+		xSelectedSourceStage = new MyProperty.SelectedSourceStage(xSourceStages) { Owner = this };
+		xLoadedStage = new MyProperty.LoadedStage(xSelectedSourceStage, stageLoader) { Owner = this };
+		chunkGridLayer = new(xChunkExpansion, xLoadedStage);
 
 		Layers = new();
 		if (MinimapRenderer.IsEnabled)
@@ -58,17 +72,8 @@ sealed partial class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persist
 		Layers.Add(chunkGridLayer);
 		SelectedLayer = Layers.FirstOrDefault();
 
-		ForceUpdateProfile(profile);
-
 		CommandExportChunkMask = new RelayCommand(_ => chunkGridLayer.ChunkGridImage != null, ExportChunkMask);
 		CommandExportMinimap = new RelayCommand(_ => minimapLayer?.MinimapImage != null, ExportMinimap);
-
-		xProfile = new() { InitialValue = profile, Owner = this };
-		xSourceSlots = new MyProperty.SourceSlots(xProfile) { Owner = this };
-		xSelectedSourceSlot = new MyProperty.SelectedSourceSlot(xProfile, xSourceSlots) { Owner = this };
-		xSourceStages = new MyProperty.SourceStages(xSelectedSourceSlot) { Owner = this };
-		xSelectedSourceStage = new MyProperty.SelectedSourceStage(xSourceStages) { Owner = this };
-		xLoadedStage = new MyProperty.LoadedStage(xSelectedSourceStage, stageLoader) { Owner = this };
 	}
 
 	private void ExportChunkMask(object? arg) => ExportImage(chunkGridLayer.ChunkGridImage, "exported-chunk-mask.png", 1.0);
@@ -237,10 +242,9 @@ sealed partial class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persist
 	/// </summary>
 	public IReadOnlySet<ChunkOffset> ChunkExpansion
 	{
-		get => _chunkExpansion;
-		private set => ChangeProperty(ref _chunkExpansion, value);
+		get => xChunkExpansion.Value;
+		private set => SetElement(xChunkExpansion, value);
 	}
-	private IReadOnlySet<ChunkOffset> _chunkExpansion = ImmutableHashSet<ChunkOffset>.Empty;
 
 	public void ExpandChunks(IReadOnlySet<ChunkOffset> expansion)
 	{
@@ -253,7 +257,6 @@ sealed partial class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persist
 		var result = await TryLoadStage();
 		if (result != null)
 		{
-			chunkGridLayer.RebuildImage(result.Stage.ChunksInUse.Concat(ChunkExpansion).ToList());
 			minimapLayer?.RebuildImage(this);
 		}
 	}
@@ -520,5 +523,7 @@ sealed partial class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persist
 	static partial class MyProperty
 	{
 		public sealed class Profile : OriginProp<Profile, ProfileSettings>, I.Project.Profile { }
+
+		public sealed class ChunkExpansion : OriginProp<ChunkExpansion, IReadOnlySet<ChunkOffset>>, I.Project.ChunkExpansion { }
 	}
 }

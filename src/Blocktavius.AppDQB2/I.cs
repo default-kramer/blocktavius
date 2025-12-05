@@ -32,5 +32,6 @@ static class I
 		public interface SelectedSourceStage : IProperty<SlotStageVM?> { }
 		public interface ChunkExpansion : IProperty<IReadOnlySet<ChunkOffset>> { }
 		public interface LoadedStage : IProperty<LoadStageResult?> { }
+		public interface ChunkMaskImage : IProperty<BitmapSource?> { }
 	}
 }
