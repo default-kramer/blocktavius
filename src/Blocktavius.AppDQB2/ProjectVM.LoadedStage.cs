@@ -1,5 +1,7 @@
 ﻿using Antipasta;
 using Blocktavius.AppDQB2.Services;
+using Blocktavius.Core;
+using Blocktavius.DQB2;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -49,9 +51,28 @@ partial class ProjectVM
 				}
 
 				await context.UnblockAsync();
-				var stage = await input.StageLoader.LoadStage(new FileInfo(input.FullPath));
+
+				Task<Minimap?> getMinimap;
+				var cmndatPath = Path.Combine(new FileInfo(input.FullPath).Directory?.FullName ?? "<<FAIL>>", "CMNDAT.BIN");
+				var cmndatFile = new FileInfo(cmndatPath);
+				if (cmndatFile.Exists)
+				{
+					getMinimap = Task.Run(() => Minimap.FromCmndatFile(cmndatFile).SafeCast<Minimap?>());
+				}
+				else
+				{
+					Minimap? map = null;
+					getMinimap = Task.FromResult(map);
+				}
+
+				var result = await input.StageLoader.LoadStage(new FileInfo(input.FullPath));
+				result = result with
+				{
+					Minimap = await getMinimap,
+				};
+
 				var threadB = Thread.CurrentThread.ManagedThreadId;
-				context.UpdateValue(stage);
+				context.UpdateValue(result);
 			}
 		}
 	}

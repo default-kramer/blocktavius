@@ -1,4 +1,5 @@
-﻿using Blocktavius.Core;
+﻿using Antipasta;
+using Blocktavius.Core;
 using Blocktavius.DQB2;
 using System.IO;
 using System.Windows.Media.Imaging;
@@ -10,6 +11,12 @@ sealed class MinimapLayer : ViewModelBase, ILayerVM
 	IEnumerable<ExternalImageVM> ILayerVM.ExternalImage => Enumerable.Empty<ExternalImageVM>();
 	IAreaVM? ILayerVM.SelfAsAreaVM => null;
 
+	private readonly MyProperty.MinimapImage minimapImage;
+	public MinimapLayer(I.Project.SelectedSourceStage selectedSourceStage, I.Project.LoadedStage loadedStage, I.Project.ChunkExpansion chunkExpansion)
+	{
+		minimapImage = new(selectedSourceStage, loadedStage, chunkExpansion) { Owner = this };
+	}
+
 	public string LayerName => "Minimap";
 
 	private bool _isVisible = true;
@@ -19,53 +26,50 @@ sealed class MinimapLayer : ViewModelBase, ILayerVM
 		set => ChangeProperty(ref _isVisible, value);
 	}
 
-	private BitmapSource? _minimapImage = null;
-	public BitmapSource? MinimapImage
+	public BitmapSource? MinimapImage => minimapImage.Value;
+
+	static class MyProperty
 	{
-		get => _minimapImage;
-		private set => ChangeProperty(ref _minimapImage, value);
-	}
-
-	public async void RebuildImage(ProjectVM project)
-	{
-		MinimapImage = null;
-
-		if (project.SelectedSourceStage == null
-			|| project.SelectedSourceStage.MinimapIslandIds.Count < 1
-			|| !MinimapRenderer.IsEnabled)
+		public sealed class MinimapImage : DerivedProp<MinimapImage, BitmapSource?>, I.Project.MinimapImage, IImmediateNotifyNode
 		{
-			return;
-		}
+			string IImmediateNotifyNode.PropertyName => nameof(MinimapLayer.MinimapImage);
 
-		int islandId = project.SelectedSourceStage.MinimapIslandIds.First();
-		var StgdatPath = project.SelectedSourceStage.StgdatFile.FullName;
-		var stage = await project.TryLoadMutableStage(expandChunks: true);
-		if (stage == null)
-		{
-			return;
-		}
+			private readonly I.Project.SelectedSourceStage selectedSourceStage;
+			private readonly I.Project.LoadedStage loadedStage;
+			private readonly I.Project.ChunkExpansion chunkExpansion;
 
-		// TODO should cache CMNDAT loading similar to STGDAT loading.
-		// ALSO - there's probably concurrency bugs in this code,
-		// because the ProjectVM could be mutated by the UI thread...
-		var image = await GetMinimapImage(StgdatPath, islandId, stage);
-		this.MinimapImage = image;
-	}
-
-	private static Task<BitmapSource?> GetMinimapImage(string StgdatPath, int islandId, IStage stage)
-	{
-		return Task.Run(() =>
-		{
-			var cmndatPath = Path.Combine(new FileInfo(StgdatPath).Directory?.FullName ?? "<<FAIL>>", "CMNDAT.BIN");
-			var cmndatFile = new FileInfo(cmndatPath);
-			if (cmndatFile.Exists)
+			public MinimapImage(I.Project.SelectedSourceStage selectedSourceStage, I.Project.LoadedStage loadedStage, I.Project.ChunkExpansion chunkExpansion)
 			{
-				var map = Minimap.FromCmndatFile(cmndatFile);
-				var sampler = map.ReadMapCropped(islandId, stage).TranslateTo(XZ.Zero);
+				this.selectedSourceStage = ListenTo(selectedSourceStage);
+				this.loadedStage = ListenTo(loadedStage);
+				this.chunkExpansion = ListenTo(chunkExpansion);
+			}
+
+			protected override BitmapSource? Recompute()
+			{
+				if (!MinimapRenderer.IsEnabled)
+				{
+					return null;
+				}
+
+				var map = loadedStage.Value?.Minimap;
+				var stage = loadedStage.Value?.Stage;
+				var islandId = selectedSourceStage.Value?.MinimapIslandIds?.FirstOrDefault();
+
+				if (map == null || stage == null || !islandId.HasValue)
+				{
+					return null;
+				}
+
+				// TODO: This is not efficient, we shouldn't need to copy the whole stage when all we
+				// really need is the expanded chunks!
+				var expandedStage = stage.Clone();
+				expandedStage.ExpandChunks(chunkExpansion.Value);
+
+				var sampler = map.ReadMapCropped(islandId.Value, expandedStage).TranslateTo(XZ.Zero);
 				var image = MinimapRenderer.Render(sampler, new MinimapRenderOptions());
 				return image;
 			}
-			return null;
-		});
+		}
 	}
 }

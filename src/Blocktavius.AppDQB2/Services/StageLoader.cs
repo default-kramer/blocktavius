@@ -19,6 +19,10 @@ public sealed record LoadStageResult
 	public required string StgdatPath { get; init; }
 	public required DateTime LoadTimeUtc { get; init; }
 	public required ICloneableStage Stage { get; init; }
+
+	// TODO - should move to separate object, like LoadedSourceStage
+	// (And in general: VM dataflow should not be directly coupled to IService result objects?)
+	public required Minimap? Minimap { get; init; }
 }
 
 sealed class StageLoader : IStageLoader
@@ -102,6 +106,7 @@ sealed class StageLoader : IStageLoader
 							LoadTimeUtc = utcNow,
 							Stage = stage,
 							StgdatPath = StgdatFile,
+							Minimap = null,
 						};
 						logger.Info("Reloaded stage {0}, last written at {1}", StgdatFile, lastWriteUtc);
 					}

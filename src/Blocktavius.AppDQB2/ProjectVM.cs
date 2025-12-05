@@ -66,7 +66,7 @@ sealed partial class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persist
 		Layers = new();
 		if (MinimapRenderer.IsEnabled)
 		{
-			minimapLayer = new();
+			minimapLayer = new(xSelectedSourceStage, xLoadedStage, xChunkExpansion);
 			Layers.Add(minimapLayer);
 		}
 		Layers.Add(chunkGridLayer);
@@ -249,16 +249,6 @@ sealed partial class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persist
 	public void ExpandChunks(IReadOnlySet<ChunkOffset> expansion)
 	{
 		ChunkExpansion = expansion;
-		RebuildImages();
-	}
-
-	private async void RebuildImages()
-	{
-		var result = await TryLoadStage();
-		if (result != null)
-		{
-			minimapLayer?.RebuildImage(this);
-		}
 	}
 
 	public async Task<LoadStageResult?> TryLoadStage()
