@@ -1,6 +1,7 @@
 ﻿using Antipasta;
 using Blocktavius.Core;
 using Blocktavius.DQB2;
+using System.Collections.Immutable;
 using System.IO;
 using System.Windows.Media.Imaging;
 
@@ -30,9 +31,28 @@ sealed class MinimapLayer : ViewModelBase, ILayerVM
 
 	static class MyProperty
 	{
-		public sealed class MinimapImage : DerivedProp<MinimapImage, BitmapSource?>, I.Project.MinimapImage, IImmediateNotifyNode
+		public sealed class MinimapImage : AsyncDerivedProp<MinimapImage, MinimapImage.Input, BitmapSource>,
+			I.Project.MinimapImage,
+			IImmediateNotifyNode,
+			IAsyncComputation<MinimapImage.Input, BitmapSource>
 		{
 			string IImmediateNotifyNode.PropertyName => nameof(MinimapLayer.MinimapImage);
+
+			public sealed record Input
+			{
+				public required Minimap? Minimap { get; init; }
+				public required ICloneableStage? Stage { get; init; }
+				public required IReadOnlySet<ChunkOffset> ChunkExpansion { get; init; }
+				public required int? IslandId { get; init; }
+
+				public static readonly Input Nothing = new()
+				{
+					Minimap = null,
+					Stage = null,
+					ChunkExpansion = ImmutableHashSet<ChunkOffset>.Empty,
+					IslandId = null,
+				};
+			}
 
 			private readonly I.Project.SelectedSourceStage selectedSourceStage;
 			private readonly I.Project.LoadedStage loadedStage;
@@ -45,30 +65,49 @@ sealed class MinimapLayer : ViewModelBase, ILayerVM
 				this.chunkExpansion = ListenTo(chunkExpansion);
 			}
 
-			protected override BitmapSource? Recompute()
+			protected override Input BuildInput()
 			{
 				if (!MinimapRenderer.IsEnabled)
 				{
-					return null;
+					return Input.Nothing;
+				}
+				return new Input()
+				{
+					ChunkExpansion = chunkExpansion.Value,
+					Minimap = loadedStage.Value?.Minimap,
+					Stage = loadedStage.Value?.Stage,
+					IslandId = selectedSourceStage.Value?.MinimapIslandIds?.FirstOrDefault(),
+				};
+			}
+
+			static async Task IAsyncComputation<Input, BitmapSource>.Compute(IAsyncContext<BitmapSource> context, Input input)
+			{
+				context.UpdateValue(null);
+				if (!MinimapRenderer.IsEnabled)
+				{
+					return;
 				}
 
-				var map = loadedStage.Value?.Minimap;
-				var stage = loadedStage.Value?.Stage;
-				var islandId = selectedSourceStage.Value?.MinimapIslandIds?.FirstOrDefault();
+				var map = input.Minimap;
+				var stage = input.Stage;
+				var islandId = input.IslandId;
 
 				if (map == null || stage == null || !islandId.HasValue)
 				{
-					return null;
+					return;
 				}
+
+				await context.UnblockAsync();
 
 				// TODO: This is not efficient, we shouldn't need to copy the whole stage when all we
 				// really need is the expanded chunks!
 				var expandedStage = stage.Clone();
-				expandedStage.ExpandChunks(chunkExpansion.Value);
+				expandedStage.ExpandChunks(input.ChunkExpansion);
 
 				var sampler = map.ReadMapCropped(islandId.Value, expandedStage).TranslateTo(XZ.Zero);
 				var image = MinimapRenderer.Render(sampler, new MinimapRenderOptions());
-				return image;
+
+				context.UpdateValue(image);
 			}
 		}
 	}
