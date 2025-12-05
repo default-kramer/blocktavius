@@ -35,33 +35,12 @@ public interface ISettableElement<TOutput> : IElement<TOutput>
 
 public abstract class BaseNode : INode
 {
-	private readonly List<WeakReference<INode>> listeners = new();
+	private readonly GraphManager graphManager = new();
+	GraphManager INode.GraphManager => graphManager;
+
+	public virtual GraphConnectionStatus GraphConnectionStatus => GraphConnectionStatus.Connected;
 
 	public abstract INodeGroup NodeGroup { get; }
-
-	public void AddListener(INode listener)
-	{
-		listeners.Add(new WeakReference<INode>(listener));
-	}
-
-	public IEnumerable<INode> GetListeners()
-	{
-		foreach (var listener in listeners)
-		{
-			if (listener.TryGetTarget(out var target))
-			{
-				yield return target;
-			}
-			else
-			{
-				// TODO - should remove from list!
-				// Would weak event subscription be better?
-				// But we would still need some kind of collection, right?
-				// On the other hand, the list of listeners should be small and static,
-				// mirroring the relationships between the microtypes for each property...
-			}
-		}
-	}
 
 	public abstract PropagationResult OnPropagation(IPropagationContext context);
 }
@@ -99,7 +78,7 @@ public abstract class DerivedElement<TOutput> : BaseNode, IElement<TOutput>
 
 	protected TElement ListenTo<TElement>(TElement element) where TElement : IUntypedElement
 	{
-		element.AddListener(this);
+		element.GraphManager.AddListener(this);
 		return element;
 	}
 

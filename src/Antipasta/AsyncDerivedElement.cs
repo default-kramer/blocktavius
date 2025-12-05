@@ -35,7 +35,7 @@ public abstract class AsyncDerivedElement<TComputer, TInput, TOutput> : BaseNode
 
 	protected TElement ListenTo<TElement>(TElement element) where TElement : IUntypedElement
 	{
-		element.AddListener(this);
+		element.GraphManager.AddListener(this);
 		return element;
 	}
 

@@ -117,7 +117,7 @@ public sealed class GroupPropagator
 				{
 					MaybeNotify(passNode);
 					nodeQueue.UpdateStatus(passNode, NodeQueue.NodeStatus.Changed);
-					foreach (var listener in passNode.GetListeners())
+					foreach (var listener in passNode.GraphManager.GetListeners())
 					{
 						Enqueue(listener);
 					}
@@ -292,7 +292,7 @@ public sealed class GroupPropagator
 			Enqueue(node);
 			UpdateStatus(node, status);
 			nextPassStart = node.NodeIndex.Index + 1;
-			foreach (var listener in node.GetListeners())
+			foreach (var listener in node.GraphManager.GetListeners())
 			{
 				this.Enqueue(listener as INodeWithStaticPassInfo ?? throw new Exception("TODO"));
 			}

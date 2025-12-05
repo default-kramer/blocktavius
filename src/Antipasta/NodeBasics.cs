@@ -43,13 +43,12 @@ public enum PropagationResult
 /// </remarks>
 public interface INode
 {
-	/// <summary>
-	/// Creates a listener relationship so that when the value of this node changes,
-	/// the <paramref name="listener"/> will be notified via <see cref="OnPropagation"/>.
-	/// </summary>
-	void AddListener(INode listener);
+	GraphConnectionStatus GraphConnectionStatus { get; }
 
-	IEnumerable<INode> GetListeners();
+	/// <summary>
+	/// Each node should create its own instance.
+	/// </summary>
+	GraphManager GraphManager { get; }
 
 	PropagationResult OnPropagation(IPropagationContext context);
 
@@ -94,12 +93,12 @@ public interface INodeGroup
 	void OnChanged(IImmediateNotifyNode node);
 }
 
-/// <summary>
+/// <remarks>
 /// NOTE - This interface is readonly by design.
 /// The plan is that nodes should report their <see cref="PropagationResult"/>
-/// and then the machinery will use <see cref="INode.GetListeners"/> to merge
+/// and then the machinery will use <see cref="GraphManager.GetListeners"/> to merge
 /// all those listeners into the propagation queue.
-/// </summary>
+/// </remarks>
 public interface IPropagationContext
 {
 	INodeGroup NodeGroup { get; }
