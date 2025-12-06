@@ -42,7 +42,8 @@ sealed partial class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persist
 	private readonly I.Project.SourceStages xSourceStages;
 	private readonly MyProperty.SelectedSourceStage xSelectedSourceStage;
 	private readonly I.Project.LoadedStage xLoadedStage;
-
+	// commands
+	public I.Project.CommandEditChunkGrid CommandEditChunkGrid { get; }
 
 	private ProfileSettings profile => xProfile.Value;
 
@@ -61,6 +62,12 @@ sealed partial class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persist
 		xSourceStages = new MyProperty.SourceStages(xSelectedSourceSlot) { Owner = this };
 		xSelectedSourceStage = new MyProperty.SelectedSourceStage(xSourceStages) { Owner = this };
 		xLoadedStage = new MyProperty.LoadedStage(xSelectedSourceStage, stageLoader) { Owner = this };
+		CommandEditChunkGrid = new MyProperty.CommandEditChunkGrid(xLoadedStage, xChunkExpansion)
+		{
+			Owner = this,
+			ProjectVM = this,
+			WindowManager = services.WindowManager,
+		};
 		chunkGridLayer = new(xChunkExpansion, xLoadedStage);
 
 		Layers = new();
@@ -246,7 +253,7 @@ sealed partial class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persist
 		private set => SetElement(xChunkExpansion, value);
 	}
 
-	public void ExpandChunks(IReadOnlySet<ChunkOffset> expansion)
+	private void ExpandChunks(IReadOnlySet<ChunkOffset> expansion)
 	{
 		ChunkExpansion = expansion;
 	}

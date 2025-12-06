@@ -1,4 +1,5 @@
-﻿using Blocktavius.Core;
+﻿using Blocktavius.AppDQB2.Services;
+using Blocktavius.Core;
 using Blocktavius.DQB2;
 using System;
 using System.Collections.Generic;
@@ -19,25 +20,52 @@ namespace Blocktavius.AppDQB2;
 /// <summary>
 /// Interaction logic for EditChunkGridDialog.xaml
 /// </summary>
-public partial class EditChunkGridDialog : Window
+public partial class EditChunkGridDialog : Window, IDialog<EditChunkGridDialog.Result>
 {
+	[Obsolete("for designer only")]
 	public EditChunkGridDialog()
 	{
 		InitializeComponent();
 	}
 
-	internal static async void ShowDialog(ProjectVM project)
+	private EditChunkGridDialog(object? privateOverload)
 	{
-		var loadResult = await project.TryLoadStage();
-		if (loadResult == null)
+		InitializeComponent();
+	}
+
+	public sealed class Result
+	{
+		public required IReadOnlySet<ChunkOffset> ExpandedChunks { get; init; }
+	}
+
+	public (bool?, Result) ShowDialog(IWindowManager windowManager)
+	{
+		var vm = DataContext as VM ?? throw new Exception($"Invalid viewmodel type: {DataContext}");
+		var windowResult = windowManager.ShowDialog(this);
+		return (windowResult, vm.BuildResult());
+	}
+
+	public bool? ShowDialog(out Result result)
+	{
+		var vm = DataContext as VM ?? throw new Exception($"Invalid viewmodel type: {DataContext}");
+		var dialogResult = this.ShowDialog();
+
+		if (dialogResult.GetValueOrDefault() == true)
 		{
-			return;
+			result = vm.BuildResult();
+			return true;
 		}
+		else
+		{
+			result = null!;
+			return dialogResult;
+		}
+	}
 
-		var stage = loadResult.Stage;
-
+	public static IDialog<Result> Create(IStage stage, IEnumerable<ChunkOffset> chunkExpansion)
+	{
 		var vm = new VM();
-		foreach (var chunk in stage.ChunksInUse.Concat(project.ChunkExpansion))
+		foreach (var chunk in stage.ChunksInUse.Concat(chunkExpansion))
 		{
 			vm[chunk].Status = ChunkStatus.Expanded;
 		}
@@ -47,16 +75,9 @@ public partial class EditChunkGridDialog : Window
 		}
 		vm.OnCellCount = vm.AllCells.Where(c => c.Status != ChunkStatus.Off).Count();
 
-		var dialog = new EditChunkGridDialog();
+		var dialog = new EditChunkGridDialog(null);
 		dialog.DataContext = vm;
-		if (dialog.ShowDialog() == true)
-		{
-			var expansion = vm.AllCells
-				.Where(cell => cell.Status == ChunkStatus.Expanded)
-				.Select(cell => cell.ChunkOffset)
-				.ToHashSet();
-			project.ExpandChunks(expansion);
-		}
+		return dialog;
 	}
 
 	const int i64 = 64; // chunk grid is 64x64
@@ -82,6 +103,15 @@ public partial class EditChunkGridDialog : Window
 		{
 			get => _onCellCount;
 			internal set => ChangeProperty(ref _onCellCount, value);
+		}
+
+		public Result BuildResult()
+		{
+			var expansion = AllCells
+				.Where(cell => cell.Status == ChunkStatus.Expanded)
+				.Select(cell => cell.ChunkOffset)
+				.ToHashSet();
+			return new Result { ExpandedChunks = expansion };
 		}
 	}
 

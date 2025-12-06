@@ -10,6 +10,8 @@ namespace Blocktavius.AppDQB2.Services;
 interface IServices
 {
 	IStageLoader StageLoader();
+
+	IWindowManager WindowManager { get; }
 }
 
 sealed class DefaultServices : IServices
@@ -21,4 +23,6 @@ sealed class DefaultServices : IServices
 	public static readonly DefaultServices Instance = new();
 
 	public IStageLoader StageLoader() => stageLoader;
+
+	public IWindowManager WindowManager => Services.WindowManager.Instance;
 }
