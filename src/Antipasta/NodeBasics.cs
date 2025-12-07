@@ -101,10 +101,6 @@ public interface INodeGroup
 /// </remarks>
 public interface IPropagationContext
 {
-	INodeGroup NodeGroup { get; }
-
-	IImmutableStack<IPropagationContext> ParentContexts { get; }
-
 	IAsyncScheduler AsyncScheduler { get; }
 }
 
