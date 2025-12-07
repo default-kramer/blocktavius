@@ -105,8 +105,6 @@ public interface IPropagationContext
 
 	IImmutableStack<IPropagationContext> ParentContexts { get; }
 
-	bool HasChanged(INode node);
-
 	IAsyncScheduler AsyncScheduler { get; }
 }
 

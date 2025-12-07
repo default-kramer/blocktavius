@@ -267,7 +267,7 @@ public sealed class GroupPropagator
 			return pass.Count > 0;
 		}
 
-		public bool HasChanged(INode node)
+		public bool HasChanged(INode node) // TODO this isn't needed, is it?
 		{
 			if (node is INodeWithStaticPassInfo n)
 			{
