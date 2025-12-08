@@ -194,8 +194,16 @@ public sealed class Propagator
 		return item;
 	}
 
+	private bool didPropagate = false;
 	private void Propagate()
 	{
+		if (didPropagate)
+		{
+			throw new InvalidOperationException("Cannot call this method twice");
+		}
+		didPropagate = true;
+		using var _ = AntipastaThreadLocal.UsePropagationScope();
+
 		while (queue.TryGetNextLayer(out var layerTable))
 		{
 			foreach (var item in layerTable)
@@ -216,6 +224,7 @@ public sealed class Propagator
 			}
 		}
 
+		// TODO not sure if we should close (dispose) the PropagationScope before this callback or not:
 		foreach (var group in groupsWithChangesInOrder)
 		{
 			group.OnPropagationCompleted(context);
