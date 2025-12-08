@@ -97,4 +97,6 @@ public sealed class GraphManager
 
 		return outBuffer.AsSpan().Slice(0, bufferIndex);
 	}
+
+	internal (PropagationId propagationId, int index) PropagationTempIndex { get; set; } = (PropagationId.None, -1);
 }

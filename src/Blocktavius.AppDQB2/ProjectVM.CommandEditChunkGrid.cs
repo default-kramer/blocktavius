@@ -12,7 +12,7 @@ partial class ProjectVM
 {
 	static partial class MyProperty
 	{
-		public sealed class CommandEditChunkGrid : CommandNode<CommandEditChunkGrid>, I.Project.CommandEditChunkGrid
+		public sealed class CommandEditChunkGrid : CommandNode, I.Project.CommandEditChunkGrid
 		{
 			public required ProjectVM ProjectVM { get; init; }
 			public required IWindowManager WindowManager { get; init; }

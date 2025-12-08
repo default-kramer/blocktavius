@@ -151,12 +151,10 @@ abstract class ViewModelBase : INotifyPropertyChanged, IViewmodel
 
 	protected void SetElement<T>(ISettableElement<T> element, T value)
 	{
-		Antipasta.IndexedPropagation.GroupPropagator.SetElement(element, value, AsyncSchedulerWPF.Instance);
+		Propagator.SetElement(element, value, AsyncSchedulerWPF.Instance);
 	}
 
-	public virtual void OnSelfResolved(IPropagationContext context) { }
-
-	public void OnChildrenFullyResolved(IPropagationContext context) { }
+	public virtual void OnPropagationCompleted(IPropagationContext context) { }
 
 	void INodeGroup.OnChanged(IImmediateNotifyNode node) => OnPropertyChanged(node.PropertyName);
 }

@@ -13,102 +13,36 @@ public interface IProperty<TOutput> : IElement<TOutput> { }
 
 public interface IViewmodel : INodeGroup { }
 
-public abstract class DerivedProp<TSelf, TOutput> : DerivedElement<TOutput>, INodeWithStaticPassInfo
+// TODO remove all unnecessary TSelf here?
+
+public abstract class DerivedProp<TSelf, TOutput> : DerivedElement<TOutput>
 	where TSelf : DerivedProp<TSelf, TOutput>
 {
 	public required IViewmodel Owner { get; init; }
 	public sealed override INodeGroup NodeGroup => Owner;
-
-	PassIndex INodeWithStaticPassInfo.PassIndex => passIndex;
-	NodeIndex INodeWithStaticPassInfo.NodeIndex => nodeIndex;
-	private static readonly PassIndex passIndex;
-	private static readonly NodeIndex nodeIndex;
-	static DerivedProp()
-	{
-		if (I.indexer.TryGetByImplementationType(typeof(TSelf), out var info))
-		{
-			passIndex = info.PassIndex;
-			nodeIndex = info.NodeIndex;
-		}
-		else
-		{
-			throw new Exception("TODO");
-		}
-	}
 }
 
-public abstract class SettableDerivedProp<TSelf, TOutput> : SettableDerivedElement<TOutput>, INodeWithStaticPassInfo
+public abstract class SettableDerivedProp<TSelf, TOutput> : SettableDerivedElement<TOutput>
 	where TSelf : SettableDerivedProp<TSelf, TOutput>
 {
 	public required IViewmodel Owner { get; init; }
 	public sealed override INodeGroup NodeGroup => Owner;
-
-	PassIndex INodeWithStaticPassInfo.PassIndex => passIndex;
-	NodeIndex INodeWithStaticPassInfo.NodeIndex => nodeIndex;
-	private static readonly PassIndex passIndex;
-	private static readonly NodeIndex nodeIndex;
-	static SettableDerivedProp()
-	{
-		if (I.indexer.TryGetByImplementationType(typeof(TSelf), out var info))
-		{
-			passIndex = info.PassIndex;
-			nodeIndex = info.NodeIndex;
-		}
-		else
-		{
-			throw new Exception("TODO");
-		}
-	}
 }
 
-public class OriginProp<TSelf, TOutput> : SettableDerivedProp<TSelf, TOutput>, INodeWithStaticPassInfo
+public class OriginProp<TSelf, TOutput> : SettableDerivedProp<TSelf, TOutput>
 	where TSelf : OriginProp<TSelf, TOutput>
 {
 	public required TOutput InitialValue { get; init; }
 
 	protected override bool AcceptSetValueRequest(ref TOutput newValue) => true;
 	protected override TOutput Recompute() => CachedValue ?? InitialValue;
-
-	PassIndex INodeWithStaticPassInfo.PassIndex => passIndex;
-	NodeIndex INodeWithStaticPassInfo.NodeIndex => nodeIndex;
-	private static readonly PassIndex passIndex;
-	private static readonly NodeIndex nodeIndex;
-	static OriginProp()
-	{
-		if (I.indexer.TryGetByImplementationType(typeof(TSelf), out var info))
-		{
-			passIndex = info.PassIndex;
-			nodeIndex = info.NodeIndex;
-		}
-		else
-		{
-			throw new Exception("TODO");
-		}
-	}
 }
 
-public abstract class AsyncDerivedProp<TSelf, TInput, TOutput> : AsyncDerivedElement<TSelf, TInput, TOutput>, INodeWithStaticPassInfo
+public abstract class AsyncDerivedProp<TSelf, TInput, TOutput> : AsyncDerivedElement<TSelf, TInput, TOutput>
 	where TSelf : AsyncDerivedProp<TSelf, TInput, TOutput>, IAsyncComputation<TInput, TOutput>
 	where TInput : IEquatable<TInput>
 	where TOutput : class
 {
-	PassIndex INodeWithStaticPassInfo.PassIndex => passIndex;
-	NodeIndex INodeWithStaticPassInfo.NodeIndex => nodeIndex;
-	private static readonly PassIndex passIndex;
-	private static readonly NodeIndex nodeIndex;
-	static AsyncDerivedProp()
-	{
-		if (I.indexer.TryGetByImplementationType(typeof(TSelf), out var info))
-		{
-			passIndex = info.PassIndex;
-			nodeIndex = info.NodeIndex;
-		}
-		else
-		{
-			throw new Exception("TODO");
-		}
-	}
-
 	public required IViewmodel Owner { get; init; }
 	public sealed override INodeGroup NodeGroup => Owner;
 }
@@ -118,7 +52,7 @@ public interface ICommandNode : INode, ICommand
 	public bool CanCurrentlyExecute { get; }
 }
 
-abstract class CommandNode<TSelf> : ICommandNode, INodeWithStaticPassInfo where TSelf : CommandNode<TSelf>
+abstract class CommandNode : ICommandNode
 {
 	private readonly GraphManager graphManager = new();
 	GraphConnectionStatus INode.GraphConnectionStatus => GraphConnectionStatus.Connected;
@@ -181,24 +115,4 @@ abstract class CommandNode<TSelf> : ICommandNode, INodeWithStaticPassInfo where 
 		node.GraphManager.AddListener(this);
 		return node;
 	}
-
-
-	#region "INodeWithStaticPassInfo"
-	PassIndex INodeWithStaticPassInfo.PassIndex => passIndex;
-	NodeIndex INodeWithStaticPassInfo.NodeIndex => nodeIndex;
-	private static readonly PassIndex passIndex;
-	private static readonly NodeIndex nodeIndex;
-	static CommandNode()
-	{
-		if (I.indexer.TryGetByImplementationType(typeof(TSelf), out var info))
-		{
-			passIndex = info.PassIndex;
-			nodeIndex = info.NodeIndex;
-		}
-		else
-		{
-			throw new Exception("TODO");
-		}
-	}
-	#endregion
 }

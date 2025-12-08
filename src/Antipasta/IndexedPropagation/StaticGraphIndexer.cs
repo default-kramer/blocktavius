@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 
 namespace Antipasta.IndexedPropagation;
 
+// TODO - IndexedPropagation is no longer needed, but I do like the static analysis here...
+// Figure out what to do with this. (Would runtime analysis be just as good?)
+
 // This file contains an implementation for discovering a dependency graph
 // from a static "marker" class and assigning propagation indexes.
 
@@ -23,14 +26,14 @@ public sealed class StaticGraphIndexer
 	{
 		public Type NodeType { get; }
 		public Type ImplementationType { get; }
-		public NodeIndex NodeIndex { get; }
-		public PassIndex PassIndex { get; }
+		public int NodeIndex { get; }
+		public int PassIndex { get; }
 
-		internal NodeInfo(Type nodeType, Type implementationType, int nodeIndex, PassIndex passIndex)
+		internal NodeInfo(Type nodeType, Type implementationType, int nodeIndex, int passIndex)
 		{
 			NodeType = nodeType;
 			ImplementationType = implementationType;
-			NodeIndex = new NodeIndex(nodeIndex);
+			NodeIndex = nodeIndex;
 			PassIndex = passIndex;
 		}
 	}
@@ -72,16 +75,16 @@ public sealed class StaticGraphIndexer
 	public string DUMP()
 	{
 		var sb = new StringBuilder();
-		var data = _nodeInfoByType.OrderBy(x => x.Value.PassIndex.Index).ToList();
+		var data = _nodeInfoByType.OrderBy(x => x.Value.PassIndex).ToList();
 		int passIndex = -1;
 		foreach (var item in data)
 		{
-			if (item.Value.PassIndex.Index != passIndex)
+			if (item.Value.PassIndex != passIndex)
 			{
-				passIndex = item.Value.PassIndex.Index;
+				passIndex = item.Value.PassIndex;
 				sb.AppendLine().Append($"Pass {passIndex}");
 			}
-			sb.AppendLine().Append($"  {item.Value.NodeIndex.Index}: {item.Value.NodeType.Name}");
+			sb.AppendLine().Append($"  {item.Value.NodeIndex}: {item.Value.NodeType.Name}");
 		}
 		return sb.ToString();
 	}
@@ -221,9 +224,10 @@ public sealed class StaticGraphIndexer
 			}
 		}
 
+		// we used to have a PassIndex type, but now this dictionary looks unnecessary
 		var passIndexMap = passData.ToDictionary(
 			kvp => kvp.Key,
-			kvp => new PassIndex(kvp.Key, new NodeIndex(kvp.Value.min), new NodeIndex(kvp.Value.max))
+			kvp => kvp.Key //new PassIndex(kvp.Key, kvp.Value.min, kvp.Value.max))
 		);
 
 		// Construct the final NodeInfo object for each node.

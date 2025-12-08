@@ -63,7 +63,7 @@ class AsyncSchedulerWPF : IAsyncScheduler
 	{
 		System.Windows.Application.Current?.Dispatcher?.BeginInvoke(() =>
 		{
-			GroupPropagator.HandleAsyncProgress(progress);
+			Propagator.HandleAsyncProgress(progress);
 		});
 	}
 }

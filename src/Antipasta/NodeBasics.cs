@@ -86,9 +86,7 @@ public interface IImmediateNotifyNode
 
 public interface INodeGroup
 {
-	void OnSelfResolved(IPropagationContext context);
-
-	void OnChildrenFullyResolved(IPropagationContext context);
+	void OnPropagationCompleted(IPropagationContext context);
 
 	void OnChanged(IImmediateNotifyNode node);
 }
