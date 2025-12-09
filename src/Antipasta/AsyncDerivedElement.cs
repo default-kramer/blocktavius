@@ -74,8 +74,8 @@ public abstract class AsyncDerivedElement<TComputer, TInput, TOutput> : BaseNode
 		}
 
 		var cts = new CancellationTokenSource();
-		var unblocker = context.AsyncScheduler.CreateUnblocker();
-		var asyncContext = new AsyncContext(input, context.AsyncScheduler, unblocker, this, cts.Token);
+		var unblocker = context.AsyncScheduler.Value.CreateUnblocker();
+		var asyncContext = new AsyncContext(input, context.AsyncScheduler.Value, unblocker, this, cts.Token);
 
 		// Per https://learn.microsoft.com/en-us/dotnet/standard/asynchronous-programming-patterns/consuming-the-task-based-asynchronous-pattern
 		//    When an asynchronous method is called, it synchronously executes the body of the function
@@ -91,7 +91,7 @@ public abstract class AsyncDerivedElement<TComputer, TInput, TOutput> : BaseNode
 				?? PropagationResult.None;
 		}
 
-		var taskWrapper = context.AsyncScheduler.RunTask(task, cts);
+		var taskWrapper = context.AsyncScheduler.Value.RunTask(task, cts);
 		unblocker.Spinwait(AutoUnblockTimeout);
 
 		var capture = asyncContext.SynchronousCapture();
@@ -237,7 +237,6 @@ public abstract class AsyncDerivedElement<TComputer, TInput, TOutput> : BaseNode
 		}
 
 		INode IAsyncProgress.SourceNode => node;
-		IAsyncScheduler IAsyncProgress.AsyncScheduler => scheduler;
 		PropagationResult IAsyncProgress.Start() // UI thread
 		{
 			if (isCanceled) { return PropagationResult.None; }

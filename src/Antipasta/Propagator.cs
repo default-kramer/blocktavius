@@ -1,12 +1,8 @@
-﻿using Antipasta.IndexedPropagation;
-using System;
-using System.Collections;
+﻿using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 
 namespace Antipasta;
 
@@ -128,7 +124,7 @@ sealed class Propagator
 
 	sealed class Context : IPropagationContext
 	{
-		public required IAsyncScheduler AsyncScheduler { get; init; }
+		public required Internalized<IAsyncScheduler> AsyncScheduler { get; init; }
 
 		public Progress SetupProgress { get; set; } = Progress.NotStarted;
 		public Progress PropagationProgress { get; set; } = Progress.NotStarted;
@@ -154,7 +150,7 @@ sealed class Propagator
 
 	internal static Propagator Create(IAsyncScheduler scheduler, Changeset sequelChangeset)
 	{
-		var context = new Context { AsyncScheduler = scheduler };
+		var context = new Context { AsyncScheduler = scheduler.Internalize() };
 		return new Propagator(context, sequelChangeset);
 	}
 

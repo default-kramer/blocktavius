@@ -106,7 +106,7 @@ public enum Progress
 /// </remarks>
 public interface IPropagationContext
 {
-	IAsyncScheduler AsyncScheduler { get; }
+	Internalized<IAsyncScheduler> AsyncScheduler { get; }
 
 	Progress SetupProgress { get; }
 
@@ -152,12 +152,6 @@ public interface IAsyncScheduler
 public interface IAsyncProgress
 {
 	INode SourceNode { get; }
-
-	// TODO - this is not quite right... what we really need is something that can
-	// remembers what propagation strategy should be used, accepts the IAsyncProgress,
-	// and creates a new propagation context.
-	// (Currently "working" because my half-baked WPF scheduler just assumes Indexed Propagation should be used)
-	IAsyncScheduler AsyncScheduler { get; }
 
 	PropagationResult Start(); // UI thread
 }
