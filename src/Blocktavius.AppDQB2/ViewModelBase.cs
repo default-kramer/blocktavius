@@ -149,9 +149,27 @@ abstract class ViewModelBase : INotifyPropertyChanged, IViewmodel
 		return new TaskProxy<TResult>(this, propertyName);
 	}
 
+	private IChangeset? currentChangeset = null;
+
 	protected void SetElement<T>(ISettableElement<T> element, T value)
 	{
-		Propagator.SetElement(element, value, AsyncSchedulerWPF.Instance);
+		if (currentChangeset != null)
+		{
+			currentChangeset.RequestChange(element, value);
+		}
+		else
+		{
+			try
+			{
+				currentChangeset = BlockPasta.NewChangeset();
+				currentChangeset.RequestChange(element, value);
+				currentChangeset.ApplyChanges();
+			}
+			finally
+			{
+				currentChangeset = null;
+			}
+		}
 	}
 
 	public virtual void OnPropagationCompleted(IPropagationContext context) { }

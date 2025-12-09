@@ -60,11 +60,11 @@ abstract class SourceElement<TOutput> : BaseNode, IElement<TOutput>
 
 public abstract class SettableDerivedElement<TOutput> : DerivedElement<TOutput>, ISettableElement<TOutput>
 {
-	protected abstract bool AcceptSetValueRequest(ref TOutput newValue);
+	protected abstract bool AcceptSetValueRequest(IPropagationContext context, ref TOutput newValue);
 
 	PropagationResult ISettableElement<TOutput>.AcceptSetValueRequest(IPropagationContext context, TOutput newValue)
 	{
-		if (AcceptSetValueRequest(ref newValue))
+		if (AcceptSetValueRequest(context, ref newValue))
 		{
 			return this.PROTECTED_UpdateValue(newValue);
 		}

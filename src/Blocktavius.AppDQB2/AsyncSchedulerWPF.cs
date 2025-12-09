@@ -63,7 +63,9 @@ class AsyncSchedulerWPF : IAsyncScheduler
 	{
 		System.Windows.Application.Current?.Dispatcher?.BeginInvoke(() =>
 		{
-			Propagator.HandleAsyncProgress(progress);
+			var changeset = BlockPasta.NewChangeset();
+			changeset.RequestChange(progress);
+			changeset.ApplyChanges();
 		});
 	}
 }

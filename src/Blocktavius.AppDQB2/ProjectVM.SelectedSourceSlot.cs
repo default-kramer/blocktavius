@@ -22,7 +22,7 @@ partial class ProjectVM
 				profileHash = profile.Value.VerificationHash;
 			}
 
-			protected override bool AcceptSetValueRequest(ref SlotVM? newValue) => true;
+			protected override bool AcceptSetValueRequest(IPropagationContext context, ref SlotVM? newValue) => true;
 
 			protected override SlotVM? Recompute()
 			{

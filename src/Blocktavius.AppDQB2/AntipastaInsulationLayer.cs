@@ -34,7 +34,7 @@ public class OriginProp<TSelf, TOutput> : SettableDerivedProp<TSelf, TOutput>
 {
 	public required TOutput InitialValue { get; init; }
 
-	protected override bool AcceptSetValueRequest(ref TOutput newValue) => true;
+	protected override bool AcceptSetValueRequest(IPropagationContext context, ref TOutput newValue) => true;
 	protected override TOutput Recompute() => CachedValue ?? InitialValue;
 }
 
@@ -114,5 +114,13 @@ abstract class CommandNode : ICommandNode
 	{
 		node.GraphManager.AddListener(this);
 		return node;
+	}
+}
+
+static class BlockPasta
+{
+	public static IChangeset NewChangeset()
+	{
+		return new Changeset { AsyncScheduler = AsyncSchedulerWPF.Instance };
 	}
 }
