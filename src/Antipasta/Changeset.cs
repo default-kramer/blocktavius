@@ -23,6 +23,7 @@ public sealed class Changeset : IChangeset
 	public required IAsyncScheduler AsyncScheduler { get; init; }
 	private readonly Queue<Change> changes = new();
 	private Propagator? propagator = null;
+	private bool fullyCompleted = false;
 
 	/// <summary>
 	/// A value of N allows N+1 total propagations.
@@ -34,6 +35,11 @@ public sealed class Changeset : IChangeset
 
 	private Changeset Enqueue(INode node, Func<IPropagationContext, PropagationResult> func)
 	{
+		if (fullyCompleted)
+		{
+			throw new InvalidOperationException("This changeset has already completed; no new changes may be requested");
+		}
+
 		var change = new Change(node, func);
 		if (propagator != null)
 		{
@@ -65,7 +71,11 @@ public sealed class Changeset : IChangeset
 		changes.Enqueue(change);
 	}
 
-	public void ApplyChanges() => ApplyChanges(this);
+	public void ApplyChanges()
+	{
+		try { ApplyChanges(this); }
+		finally { fullyCompleted = true; }
+	}
 
 	private Changeset CreateSequel() => new Changeset { AsyncScheduler = this.AsyncScheduler };
 
