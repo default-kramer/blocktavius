@@ -134,32 +134,46 @@ public sealed class Changeset : IChangeset
 
 	sealed class Propagator
 	{
+		/// <summary>
+		/// Order matters here! We must never transition backwards!
+		/// For example, Enqueued -> Changed is fine but Changed -> Enqueued is not.
+		/// </summary>
 		public enum NodeStatus
 		{
-			// Order matters here! We must never transition backwards!
-			// For example, Enqueued -> Changed is fine but Changed -> Enqueued is not.
-			// UPDATE: There is one exception, we do allow going from Enqueued -> ***DuringSetup,
-			// but the order does still matter for other validation checks.
 			None = 0,
-			VisitedDuringSetup,
 			ChangedDuringSetup,
-			Enqueued,
+			Enqueued = ChangedDuringSetup, // functionally the same, but for clarity
 			Visited,
 			Changed,
 		};
 
-		public sealed class IndexedNode<T>
+		public sealed class IndexedNode
 		{
+			private NodeStatus status;
+			public IndexedNode(NodeStatus status)
+			{
+				this.status = status;
+			}
+
 			public required int Layer { get; init; }
 			public required int IndexWithinLayer { get; init; }
 			public required INode Node { get; init; }
-			public required T Payload { get; set; }
+			public NodeStatus Status => status;
+
+			public void AdvanceStatus(NodeStatus newStatus)
+			{
+				if (newStatus < status)
+				{
+					throw new Exception($"Assert fail - cannot go from {status} to {newStatus}");
+				}
+				status = newStatus;
+			}
 		}
 
-		sealed class LayeredNodeQueue<T>
+		sealed class LayeredNodeQueue
 		{
 			public required PropagationId PropagationId { get; init; }
-			private readonly List<List<IndexedNode<T>>?> lookup = new();
+			private readonly List<List<IndexedNode>?> lookup = new();
 			public int CurrentLayer { get; private set; } = -1; // start at -1 so that TryGetNextLayer will attempt layer 0
 
 			public void SkipToLayer(int layer)
@@ -167,14 +181,14 @@ public sealed class Changeset : IChangeset
 				CurrentLayer = layer;
 			}
 
-			public IndexedNode<T> AddOrUpdate(INode node, T value)
+			public IndexedNode AddOrAdvance(INode node, NodeStatus value)
 			{
 				var entry = FindOrAdd(node, value);
-				entry.Payload = value;
+				entry.AdvanceStatus(value);
 				return entry;
 			}
 
-			public IndexedNode<T> FindOrAdd(INode node, T addValue)
+			public IndexedNode FindOrAdd(INode node, NodeStatus addValue)
 			{
 				var gm = node.GraphManager;
 				int layer = gm.GetLayer();
@@ -202,19 +216,18 @@ public sealed class Changeset : IChangeset
 				{
 					int index = layerTable.Count;
 					gm.PropagationTempIndex = (PropagationId, index);
-					var entry = new IndexedNode<T>()
+					var entry = new IndexedNode(addValue)
 					{
 						IndexWithinLayer = index,
 						Layer = layer,
 						Node = node,
-						Payload = addValue,
 					};
 					layerTable.Add(entry);
 					return entry;
 				}
 			}
 
-			private List<IndexedNode<T>> GetOrCreateLayerTable(int layer)
+			private List<IndexedNode> GetOrCreateLayerTable(int layer)
 			{
 				while (lookup.Count <= layer)
 				{
@@ -224,13 +237,13 @@ public sealed class Changeset : IChangeset
 				var retval = lookup[layer];
 				if (retval == null)
 				{
-					retval = new List<IndexedNode<T>>();
+					retval = new List<IndexedNode>();
 					lookup[layer] = retval;
 				}
 				return retval;
 			}
 
-			public bool TryGetNextLayer(out IReadOnlyList<IndexedNode<T>> layerTable)
+			public bool TryGetNextLayer(out IReadOnlyList<IndexedNode> layerTable)
 			{
 				for (int i = CurrentLayer + 1; i < lookup.Count; i++)
 				{
@@ -258,9 +271,9 @@ public sealed class Changeset : IChangeset
 		}
 
 		private readonly Context context;
-		private readonly LayeredNodeQueue<NodeStatus> queue;
+		private readonly LayeredNodeQueue queue;
 		private readonly PropagationId propagationId;
-		private readonly HashSet<INodeGroup> groupsWithChanges; // TODO NOMERGE need reference equality here
+		private readonly HashSet<INodeGroup> groupsWithChanges;
 		private readonly List<INodeGroup> groupsWithChangesInOrder;
 		private readonly Changeset sequelChangeset;
 
@@ -268,8 +281,8 @@ public sealed class Changeset : IChangeset
 		{
 			this.context = context;
 			propagationId = PropagationId.Create();
-			queue = new LayeredNodeQueue<NodeStatus>() { PropagationId = propagationId };
-			groupsWithChanges = new();
+			queue = new LayeredNodeQueue() { PropagationId = propagationId };
+			groupsWithChanges = new(ReferenceEqualityComparer.Instance);
 			groupsWithChangesInOrder = new();
 			this.sequelChangeset = sequelChangeset;
 		}
@@ -297,7 +310,7 @@ public sealed class Changeset : IChangeset
 			}
 		}
 
-		private IndexedNode<NodeStatus> AfterChanged(IndexedNode<NodeStatus> item)
+		private IndexedNode AfterChanged(IndexedNode item)
 		{
 			var node = item.Node;
 			if (groupsWithChanges.Add(node.NodeGroup))
@@ -310,11 +323,11 @@ public sealed class Changeset : IChangeset
 			foreach (var listener in node.GraphManager.GetListeners())
 			{
 				var found = queue.FindOrAdd(listener, NodeStatus.Enqueued);
-				if (found.Payload > NodeStatus.Enqueued)
+				if (found.Status > NodeStatus.Enqueued)
 				{
 					throw new InvalidOperationException("Circular dependency detected!");
 				}
-				found.Payload = NodeStatus.Enqueued;
+				found.AdvanceStatus(NodeStatus.Enqueued);
 			}
 
 			return item;
@@ -332,17 +345,12 @@ public sealed class Changeset : IChangeset
 			int? minLayer = null;
 			foreach (var change in changes)
 			{
-				var entry = queue.FindOrAdd(change.node, NodeStatus.VisitedDuringSetup);
 				var result = change.func(context);
 				if (result == PropagationResult.Changed)
 				{
-					entry.Payload = NodeStatus.ChangedDuringSetup;
+					var entry = queue.AddOrAdvance(change.node, NodeStatus.ChangedDuringSetup);
 					AfterChanged(entry);
 					minLayer = Math.Min(minLayer.GetValueOrDefault(entry.Layer), entry.Layer);
-				}
-				else
-				{
-					entry.Payload = NodeStatus.None;
 				}
 			}
 
@@ -357,18 +365,17 @@ public sealed class Changeset : IChangeset
 		internal void OnChangeRequestedDuringPropagation(Change change)
 		{
 			var entry = queue.FindOrAdd(change.node, NodeStatus.None);
-			if (entry.Payload >= NodeStatus.Visited)
+			if (entry.Status >= NodeStatus.Visited)
 			{
 				// We've come too far. This change must be deferred to the sequel.
 				sequelChangeset.EnqueueViaSequel(change);
 			}
 			else
 			{
-				entry.Payload = NodeStatus.VisitedDuringSetup;
 				var result = change.func(context);
 				if (result == PropagationResult.Changed)
 				{
-					entry.Payload = NodeStatus.ChangedDuringSetup;
+					entry.AdvanceStatus(NodeStatus.ChangedDuringSetup);
 					AfterChanged(entry);
 				}
 			}
@@ -391,21 +398,21 @@ public sealed class Changeset : IChangeset
 			{
 				foreach (var item in layerTable)
 				{
-					if (item.Payload == NodeStatus.None) // not enqueued, ignore it
+					if (item.Status == NodeStatus.None) // not enqueued, ignore it
 					{
 						continue;
 					}
 
-					if (item.Payload >= NodeStatus.Visited)
+					if (item.Status >= NodeStatus.Visited)
 					{
 						throw new Exception($"Assert fail - node in layer {item.Layer} is already visited? {item.Node}");
 					}
 
-					var entry = queue.AddOrUpdate(item.Node, NodeStatus.Visited);
+					var entry = queue.AddOrAdvance(item.Node, NodeStatus.Visited);
 					var result = item.Node.OnPropagation(context);
 					if (result == PropagationResult.Changed)
 					{
-						entry.Payload = NodeStatus.Changed;
+						entry.AdvanceStatus(NodeStatus.Changed);
 						AfterChanged(entry);
 					}
 				}
