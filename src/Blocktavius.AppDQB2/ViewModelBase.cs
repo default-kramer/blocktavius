@@ -176,16 +176,3 @@ abstract class ViewModelBase : INotifyPropertyChanged, IViewmodel
 
 	void INodeGroup.OnChanged(IImmediateNotifyNode node) => OnPropertyChanged(node.PropertyName);
 }
-
-class TileSizeItemsSource : IItemsSource
-{
-	public Xceed.Wpf.Toolkit.PropertyGrid.Attributes.ItemCollection GetValues()
-	{
-		var items = new Xceed.Wpf.Toolkit.PropertyGrid.Attributes.ItemCollection();
-		foreach (var i in new[] { 4, 8, 12, 16, 24, 32 })
-		{
-			items.Add(i, i.ToString());
-		}
-		return items;
-	}
-}
