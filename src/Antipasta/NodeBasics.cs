@@ -79,16 +79,11 @@ public interface INode
 	INodeGroup NodeGroup { get; }
 }
 
-public interface IImmediateNotifyNode
-{
-	string PropertyName { get; }
-}
-
 public interface INodeGroup
 {
 	void OnPropagationCompleted(IPropagationContext context);
 
-	void OnChanged(INode node);
+	void NotifyPropertyChanged(INode node);
 }
 
 public enum Progress

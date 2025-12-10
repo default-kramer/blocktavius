@@ -7,11 +7,12 @@ using System.Windows.Media.Imaging;
 
 namespace Blocktavius.AppDQB2;
 
-sealed class MinimapLayer : ViewModelBase, ILayerVM
+sealed class MinimapLayer : ViewModelBaseWithCustomTypeDescriptor, ILayerVM
 {
 	IEnumerable<ExternalImageVM> ILayerVM.ExternalImage => Enumerable.Empty<ExternalImageVM>();
 	IAreaVM? ILayerVM.SelfAsAreaVM => null;
 
+	[ElementAsProperty("MinimapImage33")]
 	private readonly MyProperty.MinimapImage minimapImage;
 	public MinimapLayer(I.Project.SelectedSourceStage selectedSourceStage, I.Project.LoadedStage loadedStage, I.Project.ChunkExpansion chunkExpansion)
 	{
@@ -33,11 +34,8 @@ sealed class MinimapLayer : ViewModelBase, ILayerVM
 	{
 		public sealed class MinimapImage : AsyncDerivedProp<MinimapImage, MinimapImage.Input, BitmapSource>,
 			I.Project.MinimapImage,
-			IImmediateNotifyNode,
 			IAsyncComputation<MinimapImage.Input, BitmapSource>
 		{
-			string IImmediateNotifyNode.PropertyName => nameof(MinimapLayer.MinimapImage);
-
 			public sealed record Input
 			{
 				public required Minimap? Minimap { get; init; }

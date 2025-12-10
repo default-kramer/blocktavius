@@ -124,15 +124,11 @@ abstract class ViewModelBase : INotifyPropertyChanged, IViewmodel
 
 	public virtual void OnPropagationCompleted(IPropagationContext context) { }
 
-	void INodeGroup.OnChanged(INode node)
+	void INodeGroup.NotifyPropertyChanged(INode node)
 	{
 		if (node.GraphManager.NotifyPropertyName != null)
 		{
 			OnPropertyChanged(node.GraphManager.NotifyPropertyName);
-		}
-		if (node is IImmediateNotifyNode n)
-		{
-			OnPropertyChanged(n.PropertyName);
 		}
 	}
 }

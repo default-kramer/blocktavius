@@ -7,10 +7,8 @@ partial class ProjectVM
 {
 	static partial class MyProperty
 	{
-		public sealed class SelectedSourceSlot : SettableDerivedProp<SelectedSourceSlot, SlotVM?>, I.Project.SelectedSourceSlot, IImmediateNotifyNode
+		public sealed class SelectedSourceSlot : SettableDerivedProp<SelectedSourceSlot, SlotVM?>, I.Project.SelectedSourceSlot
 		{
-			string IImmediateNotifyNode.PropertyName => nameof(ProjectVM.SelectedSourceSlot);
-
 			private readonly I.Project.Profile profile;
 			private readonly I.Project.SourceSlots sourceSlots;
 			private string profileHash;

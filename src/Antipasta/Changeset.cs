@@ -302,13 +302,13 @@ public sealed class Changeset : IChangeset
 
 		private static void MaybeNotify(INode node, Context context)
 		{
-			if (node.GraphManager.NotifyPropertyName != null || node is IImmediateNotifyNode)
+			if (node.GraphManager.NotifyPropertyName != null)
 			{
 				var orig = context.IsNotifying;
 				try
 				{
 					context.IsNotifying = true;
-					node.NodeGroup.OnChanged(node);
+					node.NodeGroup.NotifyPropertyChanged(node);
 				}
 				finally
 				{

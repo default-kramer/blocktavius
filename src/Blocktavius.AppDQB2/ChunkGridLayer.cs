@@ -13,10 +13,11 @@ using Rect = Blocktavius.Core.Rect;
 
 namespace Blocktavius.AppDQB2;
 
-sealed class ChunkGridLayer : ViewModelBase, ILayerVM
+sealed class ChunkGridLayer : ViewModelBaseWithCustomTypeDescriptor, ILayerVM
 {
 	IAreaVM? ILayerVM.SelfAsAreaVM => null;
 
+	[ElementAsProperty("ChunkGridImage86")]
 	private readonly MyProperty.ChunkMaskImage xChunkMaskImage;
 
 	public ChunkGridLayer(I.Project.ChunkExpansion chunkExpansion, I.Project.LoadedStage loadedStage)
@@ -59,10 +60,8 @@ sealed class ChunkGridLayer : ViewModelBase, ILayerVM
 
 	static class MyProperty
 	{
-		public sealed class ChunkMaskImage : DerivedProp<ChunkMaskImage, BitmapSource?>, I.Project.ChunkMaskImage, IImmediateNotifyNode
+		public sealed class ChunkMaskImage : DerivedProp<ChunkMaskImage, BitmapSource?>, I.Project.ChunkMaskImage
 		{
-			string IImmediateNotifyNode.PropertyName => nameof(ChunkGridLayer.ChunkGridImage);
-
 			private readonly I.Project.ChunkExpansion chunkExpansion;
 			private readonly I.Project.LoadedStage loadedStage;
 

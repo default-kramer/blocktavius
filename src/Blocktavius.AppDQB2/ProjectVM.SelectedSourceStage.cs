@@ -7,10 +7,8 @@ partial class ProjectVM
 {
 	static partial class MyProperty
 	{
-		public sealed class SelectedSourceStage : SettableDerivedProp<SelectedSourceStage, SlotStageVM?>, I.Project.SelectedSourceStage, IImmediateNotifyNode
+		public sealed class SelectedSourceStage : SettableDerivedProp<SelectedSourceStage, SlotStageVM?>, I.Project.SelectedSourceStage
 		{
-			string IImmediateNotifyNode.PropertyName => nameof(ProjectVM.SelectedSourceStage);
-
 			private readonly I.Project.SourceStages sourceStages;
 
 			public SelectedSourceStage(I.Project.SourceStages sourceStages)

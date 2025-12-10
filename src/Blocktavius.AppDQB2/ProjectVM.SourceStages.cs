@@ -8,10 +8,8 @@ partial class ProjectVM
 {
 	static partial class MyProperty
 	{
-		public sealed class SourceStages : DerivedProp<SourceStages, IReadOnlyList<SlotStageVM>>, I.Project.SourceStages, IImmediateNotifyNode
+		public sealed class SourceStages : DerivedProp<SourceStages, IReadOnlyList<SlotStageVM>>, I.Project.SourceStages
 		{
-			string IImmediateNotifyNode.PropertyName => nameof(ProjectVM.SourceStages);
-
 			private readonly I.Project.SelectedSourceSlot selectedSourceSlot;
 
 			public SourceStages(I.Project.SelectedSourceSlot selectedSourceSlot)
