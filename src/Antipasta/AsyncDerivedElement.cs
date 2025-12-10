@@ -30,7 +30,8 @@ public abstract class AsyncDerivedElement<TComputer, TInput, TOutput> : BaseNode
 	private (TInput input, ITaskWrapper taskWrapper, AsyncContext context)? mostRecentTask;
 
 	public TOutput? Value => currentValue.GetValueOrDefault().output;
-	public object? UntypedValue => Value;
+	object? IUntypedElement.UntypedValue => Value;
+	Type IUntypedElement.ElementType => typeof(TOutput);
 	protected virtual TimeSpan? AutoUnblockTimeout => null;
 
 	protected TElement ListenTo<TElement>(TElement element) where TElement : IUntypedElement
@@ -116,7 +117,7 @@ public abstract class AsyncDerivedElement<TComputer, TInput, TOutput> : BaseNode
 
 	private PropagationResult HandleAsyncResult(TInput input, TOutput? output) // UI thread
 	{
-		if (object.ReferenceEquals(output, this.UntypedValue))
+		if (object.ReferenceEquals(output, Value))
 		{
 			return PropagationResult.None;
 		}

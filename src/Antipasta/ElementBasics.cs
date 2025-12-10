@@ -14,6 +14,8 @@ namespace Antipasta;
 public interface IUntypedElement : INode
 {
 	object? UntypedValue { get; }
+
+	Type ElementType { get; }
 }
 
 public interface IAsyncElement : IUntypedElement { }
@@ -23,12 +25,17 @@ public interface IElement<TOutput> : IUntypedElement
 	TOutput Value { get; }
 }
 
+public interface IUntypedSettableElement : IUntypedElement
+{
+
+}
+
 /// <summary>
 /// TODO - I wonder if there's any value to making this generic?
 /// Because this is really only intended for WPF data binding which will be
 /// setting everything via reflection anyway.
 /// </summary>
-public interface ISettableElement<TOutput> : IElement<TOutput>
+public interface ISettableElement<TOutput> : IElement<TOutput>, IUntypedSettableElement
 {
 	PropagationResult AcceptSetValueRequest(IPropagationContext context, TOutput newValue);
 }
@@ -56,6 +63,7 @@ abstract class SourceElement<TOutput> : BaseNode, IElement<TOutput>
 	public TOutput Value => value;
 
 	object? IUntypedElement.UntypedValue => Value;
+	Type IUntypedElement.ElementType => typeof(TOutput);
 }
 
 public abstract class SettableDerivedElement<TOutput> : DerivedElement<TOutput>, ISettableElement<TOutput>
@@ -97,6 +105,7 @@ public abstract class DerivedElement<TOutput> : BaseNode, IElement<TOutput>
 	}
 
 	object? IUntypedElement.UntypedValue => Value;
+	Type IUntypedElement.ElementType => typeof(TOutput);
 
 	protected abstract TOutput Recompute();
 

@@ -117,40 +117,7 @@ abstract class ViewModelBase : INotifyPropertyChanged, IViewmodel
 
 	protected virtual void OnSubscribedPropertyChanged(ViewModelBase sender, PropertyChangedEventArgs e) { }
 
-	protected sealed class TaskProxy<TResult>
-	{
-		private readonly ViewModelBase owner;
-		private readonly string? propertyName;
-		private TResult? value = default;
-
-		internal TaskProxy(ViewModelBase owner, string? propertyName)
-		{
-			this.owner = owner;
-			this.propertyName = propertyName;
-		}
-
-		public TResult? Value => value;
-
-		public void SetValue(TResult? value)
-		{
-			if (!object.Equals(value, this.value))
-			{
-				this.value = value;
-				if (propertyName != null)
-				{
-					owner.OnPropertyChanged(propertyName);
-				}
-			}
-		}
-	}
-
-	protected TaskProxy<TResult> Init<TResult>(TaskProxy<TResult>? typeHint, string? propertyName)
-	{
-		return new TaskProxy<TResult>(this, propertyName);
-	}
-
 	private IChangeset? currentChangeset = null;
-
 	protected void SetElement<T>(ISettableElement<T> element, T value)
 	{
 		if (currentChangeset != null)
