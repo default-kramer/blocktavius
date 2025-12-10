@@ -31,9 +31,9 @@
         <Label Grid.Row="2" Grid.Column="0" HorizontalAlignment="Right" VerticalAlignment="Center" Content="Source:" FontSize="14" FontWeight="Bold"></Label>
         <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
             <Label VerticalAlignment="Center">Slot:</Label>
-            <ComboBox MinWidth="75" VerticalAlignment="Center" ItemsSource="{Binding SourceSlots}" SelectedItem="{Binding SelectedSourceSlot}" DisplayMemberPath="Name"></ComboBox>
+            <ComboBox MinWidth="75" VerticalAlignment="Center" ItemsSource="{Binding SourceSlots82}" SelectedItem="{Binding SelectedSourceSlot23}" DisplayMemberPath="Name"></ComboBox>
             <Label VerticalAlignment="Center" Margin="16,0,0,0">Stage:</Label>
-            <ComboBox MinWidth="150" VerticalAlignment="Center" ItemsSource="{Binding SourceStages}" SelectedItem="{Binding SelectedSourceStage}" DisplayMemberPath="Name"></ComboBox>
+            <ComboBox MinWidth="150" VerticalAlignment="Center" ItemsSource="{Binding SourceStages94}" SelectedItem="{Binding SelectedSourceStage46}" DisplayMemberPath="Name"></ComboBox>
         </StackPanel>
         <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Vertical" HorizontalAlignment="Left" Margin="12,6,0,0">
             <TextBlock TextWrapping="Wrap"><Run Text="Will read from:  "></Run><Run Text="{Binding StgdatFilePath, Mode=OneWay}"></Run></TextBlock>

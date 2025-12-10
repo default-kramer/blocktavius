@@ -22,10 +22,17 @@ partial class ProjectVM
 				profileHash = profile.Value.VerificationHash;
 			}
 
-			protected override bool AcceptSetValueRequest(IPropagationContext context, ref SlotVM? newValue) => true;
+			protected override bool AcceptsNull(out SlotVM? nullValue)
+			{
+				nullValue = null;
+				return true;
+			}
+
+			protected override bool AcceptSetValueRequest(IPropagationContext context, ref SlotVM? value) => true;
 
 			protected override SlotVM? Recompute()
 			{
+
 				if (profileHash != profile.Value.VerificationHash)
 				{
 					// Profile has changed, user must confirm the slot they want to use

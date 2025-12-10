@@ -30,11 +30,11 @@ public abstract class AsyncDerivedElement<TComputer, TInput, TOutput> : BaseNode
 	private (TInput input, ITaskWrapper taskWrapper, AsyncContext context)? mostRecentTask;
 
 	public TOutput? Value => currentValue.GetValueOrDefault().output;
-	object? IUntypedElement.UntypedValue => Value;
-	Type IUntypedElement.ElementType => typeof(TOutput);
+	object? IElementUntyped.UntypedValue => Value;
+	Type IElementUntyped.ElementType => typeof(TOutput);
 	protected virtual TimeSpan? AutoUnblockTimeout => null;
 
-	protected TElement ListenTo<TElement>(TElement element) where TElement : IUntypedElement
+	protected TElement ListenTo<TElement>(TElement element) where TElement : IElementUntyped
 	{
 		element.GraphManager.AddListener(this);
 		return element;

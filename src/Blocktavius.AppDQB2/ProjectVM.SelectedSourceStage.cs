@@ -33,13 +33,19 @@ partial class ProjectVM
 			// so that Recompute() can use it instead of requiring FindMatch here?
 			protected override SlotStageVM? Recompute() => FindMatch(CachedValue);
 
-			protected override bool AcceptSetValueRequest(IPropagationContext context, ref SlotStageVM? newValue)
+			protected override bool AcceptSetValueRequest(IPropagationContext context, ref SlotStageVM? value)
 			{
 				if (context.IsNotifying)
 				{
 					return false;
 				}
-				newValue = FindMatch(newValue);
+				value = FindMatch(value);
+				return true;
+			}
+
+			protected override bool AcceptsNull(out SlotStageVM? nullValue)
+			{
+				nullValue = null;
 				return true;
 			}
 		}

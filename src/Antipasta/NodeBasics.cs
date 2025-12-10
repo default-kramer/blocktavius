@@ -88,7 +88,7 @@ public interface INodeGroup
 {
 	void OnPropagationCompleted(IPropagationContext context);
 
-	void OnChanged(IImmediateNotifyNode node);
+	void OnChanged(INode node);
 }
 
 public enum Progress

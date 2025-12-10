@@ -117,29 +117,22 @@ abstract class ViewModelBase : INotifyPropertyChanged, IViewmodel
 
 	protected virtual void OnSubscribedPropertyChanged(ViewModelBase sender, PropertyChangedEventArgs e) { }
 
-	private IChangeset? currentChangeset = null;
 	protected void SetElement<T>(ISettableElement<T> element, T value)
 	{
-		if (currentChangeset != null)
-		{
-			currentChangeset.RequestChange(element, value);
-		}
-		else
-		{
-			try
-			{
-				currentChangeset = BlockPasta.NewChangeset();
-				currentChangeset.RequestChange(element, value);
-				currentChangeset.ApplyChanges();
-			}
-			finally
-			{
-				currentChangeset = null;
-			}
-		}
+		Pasta.SetElement(element, value);
 	}
 
 	public virtual void OnPropagationCompleted(IPropagationContext context) { }
 
-	void INodeGroup.OnChanged(IImmediateNotifyNode node) => OnPropertyChanged(node.PropertyName);
+	void INodeGroup.OnChanged(INode node)
+	{
+		if (node.GraphManager.NotifyPropertyName != null)
+		{
+			OnPropertyChanged(node.GraphManager.NotifyPropertyName);
+		}
+		if (node is IImmediateNotifyNode n)
+		{
+			OnPropertyChanged(n.PropertyName);
+		}
+	}
 }

@@ -99,4 +99,6 @@ public sealed class GraphManager
 	}
 
 	internal (PropagationId propagationId, int index) PropagationTempIndex { get; set; } = (PropagationId.None, -1);
+
+	public string? NotifyPropertyName { get; set; }
 }

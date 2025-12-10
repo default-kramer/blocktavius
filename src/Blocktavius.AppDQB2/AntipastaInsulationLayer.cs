@@ -1,5 +1,4 @@
 ﻿using Antipasta;
-using Antipasta.IndexedPropagation;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -31,10 +30,35 @@ public abstract class SettableDerivedProp<TSelf, TOutput> : SettableDerivedEleme
 
 public class OriginProp<TSelf, TOutput> : SettableDerivedProp<TSelf, TOutput>
 	where TSelf : OriginProp<TSelf, TOutput>
+	where TOutput : notnull
 {
 	public required TOutput InitialValue { get; init; }
 
-	protected override bool AcceptSetValueRequest(IPropagationContext context, ref TOutput newValue) => true;
+	protected override bool AcceptsNull(out TOutput nullValue)
+	{
+		nullValue = default!;
+		return false;
+	}
+
+	protected override bool AcceptSetValueRequest(IPropagationContext context, ref TOutput value) => true;
+
+	protected override TOutput Recompute() => CachedValue ?? InitialValue;
+}
+
+public class NullableOriginProp<TSelf, TOutput> : SettableDerivedProp<TSelf, TOutput?>
+	where TSelf : NullableOriginProp<TSelf, TOutput>
+	where TOutput : notnull
+{
+	public required TOutput InitialValue { get; init; }
+
+	protected override bool AcceptsNull(out TOutput? nullValue)
+	{
+		nullValue = default;
+		return true;
+	}
+
+	protected override bool AcceptSetValueRequest(IPropagationContext context, ref TOutput? value) => true;
+
 	protected override TOutput Recompute() => CachedValue ?? InitialValue;
 }
 
@@ -117,10 +141,13 @@ abstract class CommandNode : ICommandNode
 	}
 }
 
-static class BlockPasta
+[AttributeUsage(AttributeTargets.Field, AllowMultiple = false)] // Inherited??
+public sealed class ElementAsPropertyAttribute : Attribute
 {
-	public static IChangeset NewChangeset()
+	public readonly string PropertyName;
+
+	public ElementAsPropertyAttribute(string propertyName)
 	{
-		return new Changeset { AsyncScheduler = AsyncSchedulerWPF.Instance };
+		PropertyName = propertyName;
 	}
 }

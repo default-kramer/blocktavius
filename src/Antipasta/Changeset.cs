@@ -9,6 +9,8 @@ namespace Antipasta;
 
 public interface IChangeset
 {
+	IChangeset RequestChangeUntyped(ISettableElementUntyped element, object? value);
+
 	IChangeset RequestChange<T>(ISettableElement<T> element, T value);
 
 	IChangeset RequestChange(IAsyncProgress progress);
@@ -50,6 +52,11 @@ public sealed class Changeset : IChangeset
 			changes.Enqueue(change);
 		}
 		return this;
+	}
+
+	public IChangeset RequestChangeUntyped(ISettableElementUntyped element, object? value)
+	{
+		return Enqueue(element, ctx => element.AcceptSetValueRequestUntyped(ctx, value));
 	}
 
 	public IChangeset RequestChange<T>(ISettableElement<T> element, T value)
@@ -295,13 +302,13 @@ public sealed class Changeset : IChangeset
 
 		private static void MaybeNotify(INode node, Context context)
 		{
-			if (node is IImmediateNotifyNode n)
+			if (node.GraphManager.NotifyPropertyName != null || node is IImmediateNotifyNode)
 			{
 				var orig = context.IsNotifying;
 				try
 				{
 					context.IsNotifying = true;
-					node.NodeGroup.OnChanged(n);
+					node.NodeGroup.OnChanged(node);
 				}
 				finally
 				{

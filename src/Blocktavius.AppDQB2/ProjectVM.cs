@@ -18,7 +18,7 @@ using System.Windows.Media.Imaging;
 
 namespace Blocktavius.AppDQB2;
 
-sealed partial class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAreaManager, Persistence.IBlockManager
+sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockList, IDropTarget, Persistence.IAreaManager, Persistence.IBlockManager
 {
 	// immutable:
 	private readonly IServices services;
@@ -37,9 +37,13 @@ sealed partial class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persist
 	// NEW!
 	private readonly MyProperty.Profile xProfile;
 	private readonly MyProperty.ChunkExpansion xChunkExpansion;
+	[ElementAsProperty("SourceSlots82")]
 	private readonly I.Project.SourceSlots xSourceSlots;
+	[ElementAsProperty("SelectedSourceSlot23")]
 	private readonly MyProperty.SelectedSourceSlot xSelectedSourceSlot;
+	[ElementAsProperty("SourceStages94")]
 	private readonly I.Project.SourceStages xSourceStages;
+	[ElementAsProperty("SelectedSourceStage46")]
 	private readonly MyProperty.SelectedSourceStage xSelectedSourceStage;
 	private readonly I.Project.LoadedStage xLoadedStage;
 	// commands
