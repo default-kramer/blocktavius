@@ -49,7 +49,16 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 	// commands
 	public I.Project.CommandEditChunkGrid CommandEditChunkGrid { get; }
 
+	// wrapper properties
 	private ProfileSettings profile => xProfile.Value;
+	private IReadOnlyList<SlotVM> sourceSlots => xSourceSlots.Value;
+	public SlotVM? GetSelectedSourceSlot => xSelectedSourceSlot.Value;
+	public SlotStageVM? GetSelectedSourceStage => xSelectedSourceStage.Value;
+
+	/// <summary>
+	/// Might include chunks that were already present in the STGDAT file.
+	/// </summary>
+	private IReadOnlySet<ChunkOffset> chunkExpansion => xChunkExpansion.Value;
 
 	public ProjectVM(IServices services, ProfileSettings profile)
 	{
@@ -241,11 +250,6 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 		}
 	}
 
-	/// <summary>
-	/// Might include chunks that were already present in the STGDAT file.
-	/// </summary>
-	public IReadOnlySet<ChunkOffset> ChunkExpansion => xChunkExpansion.Value;
-
 	private void ExpandChunks(IReadOnlySet<ChunkOffset> expansion)
 	{
 		SetElement(xChunkExpansion, expansion);
@@ -272,7 +276,7 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 		var stage = loadResult.Stage.Clone();
 		if (expandChunks)
 		{
-			stage.ExpandChunks(ChunkExpansion);
+			stage.ExpandChunks(chunkExpansion);
 		}
 		return stage;
 	}
@@ -337,29 +341,15 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 		}
 	}
 
-	public IReadOnlyList<SlotVM> SourceSlots => xSourceSlots.Value;
-	public SlotVM? SelectedSourceSlot
-	{
-		get => xSelectedSourceSlot.Value;
-		set => SetElement(xSelectedSourceSlot, value);
-	}
-
-	public IReadOnlyList<SlotStageVM> SourceStages => xSourceStages.Value;
-	public SlotStageVM? SelectedSourceStage
-	{
-		get => xSelectedSourceStage.Value;
-		set => SetElement(xSelectedSourceStage, value);
-	}
-
-	public string? StgdatFilePath => SelectedSourceStage?.StgdatFile?.FullName;
+	public string? StgdatFilePath => GetSelectedSourceStage?.StgdatFile?.FullName;
 
 	public string? DestFullPath
 	{
 		get
 		{
-			if (SelectedDestSlot != null && SelectedSourceStage != null)
+			if (SelectedDestSlot != null && GetSelectedSourceStage != null)
 			{
-				return SelectedDestSlot.GetFullPath(SelectedSourceStage.Filename);
+				return SelectedDestSlot.GetFullPath(GetSelectedSourceStage.Filename);
 			}
 			return null;
 		}
@@ -403,10 +393,10 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 		return new ProjectV1()
 		{
 			ProfileVerificationHash = profile.VerificationHash,
-			SourceSlot = SelectedSourceSlot?.ToPersistModel(),
+			SourceSlot = GetSelectedSourceSlot?.ToPersistModel(),
 			DestSlot = SelectedDestSlot?.ToPersistModel(),
-			SourceStgdatFilename = SelectedSourceStage?.Filename,
-			ChunkExpansion = this.ChunkExpansion.Select(ChunkOffsetV1.FromCore).ToList(),
+			SourceStgdatFilename = GetSelectedSourceStage?.Filename,
+			ChunkExpansion = this.chunkExpansion.Select(ChunkOffsetV1.FromCore).ToList(),
 			Notes = this.Notes,
 			Images = Layers.OfType<ExternalImageLayerVM>().Select(vm => vm.ToPersistModel()).ToList(),
 			MinimapVisible = minimapLayer?.IsVisible,
@@ -437,8 +427,8 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 
 		project = project.VerifyProfileHash(profile);
 
-		var wantSourceSlot = SourceSlots.FirstOrDefault(s => s.MatchesByNumber(project.SourceSlot))
-			?? SourceSlots.FirstOrDefault(s => s.MatchesByName(project.SourceSlot));
+		var wantSourceSlot = sourceSlots.FirstOrDefault(s => s.MatchesByNumber(project.SourceSlot))
+			?? sourceSlots.FirstOrDefault(s => s.MatchesByName(project.SourceSlot));
 		var wantDestSlot = DestSlots.FirstOrDefault(s => s.MatchesByNumber(project.DestSlot))
 			?? DestSlots.FirstOrDefault(s => s.MatchesByNumber(project.DestSlot));
 
