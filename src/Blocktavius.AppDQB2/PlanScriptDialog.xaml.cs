@@ -91,10 +91,10 @@ public partial class PlanScriptDialog : Window
 		public static ProjectDeps Rebuild(ProjectVM project) => new ProjectDeps
 		{
 			SelectedSourceSlot = project.GetSelectedSourceSlot,
-			SelectedDestSlot = project.SelectedDestSlot,
+			SelectedDestSlot = project.GetSelectedDestSlot,
 			SelectedInclusionMode = project.SelectedInclusionMode,
 			DestIsSource = project.GetSelectedSourceSlot != null
-				&& project.GetSelectedSourceSlot.FullPath.Equals(project.SelectedDestSlot?.FullPath, StringComparison.OrdinalIgnoreCase),
+				&& project.GetSelectedSourceSlot.FullPath.Equals(project.GetSelectedDestSlot?.FullPath, StringComparison.OrdinalIgnoreCase),
 		};
 	}
 
@@ -235,7 +235,7 @@ public partial class PlanScriptDialog : Window
 
 			var mode = Project.SelectedInclusionMode.InclusionMode;
 			var sourceSlot = Project.GetSelectedSourceSlot;
-			var destSlot = Project.SelectedDestSlot;
+			var destSlot = Project.GetSelectedDestSlot;
 
 			if (sourceSlot == null)
 			{
@@ -324,7 +324,7 @@ public partial class PlanScriptDialog : Window
 			CanExecute = false;
 			IsDone = true;
 
-			if (Project.SelectedDestSlot == null)
+			if (Project.GetSelectedDestSlot == null)
 			{
 				RunScriptError = "Destination slot not set"; // should never happen
 				return;
@@ -338,7 +338,7 @@ public partial class PlanScriptDialog : Window
 			var context = new ExecutionContext()
 			{
 				FromSlot = Project.GetSelectedSourceSlot,
-				ToSlot = Project.SelectedDestSlot,
+				ToSlot = Project.GetSelectedDestSlot,
 			};
 
 			var planItems = PlanItems.ToList();

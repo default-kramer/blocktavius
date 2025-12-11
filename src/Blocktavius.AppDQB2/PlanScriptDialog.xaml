@@ -16,7 +16,7 @@
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                 <Label VerticalAlignment="Center">To:</Label>
                 <ComboBox MinWidth="75" VerticalAlignment="Center" IsEnabled="{Binding IsNotDone}"
-                          ItemsSource="{Binding Project.DestSlots}" SelectedItem="{Binding Project.SelectedDestSlot}" DisplayMemberPath="Name"></ComboBox>
+                          ItemsSource="{Binding Project.DestSlots62}" SelectedItem="{Binding Project.SelectedDestSlot53}" DisplayMemberPath="Name"></ComboBox>
             </StackPanel>
             <StackPanel Margin="0,8,0,0" Orientation="Horizontal" HorizontalAlignment="Center">
                 <Label VerticalAlignment="Center">Include:</Label>

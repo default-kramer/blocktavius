@@ -44,10 +44,10 @@
         <Label Grid.Row="5" Grid.Column="0" HorizontalAlignment="Right" Content="Destination:" FontSize="14" FontWeight="Bold"></Label>
         <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal">
             <Label VerticalAlignment="Center">Slot:</Label>
-            <ComboBox MinWidth="75" VerticalAlignment="Center" ItemsSource="{Binding DestSlots}" SelectedItem="{Binding SelectedDestSlot}" DisplayMemberPath="Name"></ComboBox>
+            <ComboBox MinWidth="75" VerticalAlignment="Center" ItemsSource="{Binding DestSlots62}" SelectedItem="{Binding SelectedDestSlot53}" DisplayMemberPath="Name"></ComboBox>
         </StackPanel>
         <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Vertical" Margin="12,6,0,0">
-            <TextBlock TextWrapping="Wrap"><Run Text="Will write to:  "></Run><Run Text="{Binding DestFullPath, Mode=OneWay}"></Run></TextBlock>
+            <TextBlock TextWrapping="Wrap"><Run Text="Will write to:  "></Run><Run Text="{Binding DestFullPath39, Mode=OneWay}"></Run></TextBlock>
         </StackPanel>
         <Label Grid.Row="8" Grid.Column="0" HorizontalAlignment="Right" Content="Notes:" FontSize="14" FontWeight="Bold"></Label>
         <TextBox Grid.Row="8" Grid.Column="1" HorizontalAlignment="Left" AcceptsReturn="True" AcceptsTab="True"

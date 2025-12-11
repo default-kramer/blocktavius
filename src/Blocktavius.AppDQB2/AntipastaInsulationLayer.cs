@@ -28,8 +28,8 @@ public abstract class SettableDerivedProp<TSelf, TOutput> : SettableDerivedEleme
 	public sealed override INodeGroup NodeGroup => Owner;
 }
 
-public class OriginProp<TSelf, TOutput> : SettableDerivedProp<TSelf, TOutput>
-	where TSelf : OriginProp<TSelf, TOutput>
+public class NotnullOriginProp<TSelf, TOutput> : SettableDerivedProp<TSelf, TOutput>
+	where TSelf : NotnullOriginProp<TSelf, TOutput>
 	where TOutput : notnull
 {
 	public required TOutput InitialValue { get; init; }
@@ -49,7 +49,7 @@ public class NullableOriginProp<TSelf, TOutput> : SettableDerivedProp<TSelf, TOu
 	where TSelf : NullableOriginProp<TSelf, TOutput>
 	where TOutput : notnull
 {
-	public required TOutput InitialValue { get; init; }
+	public required TOutput? InitialValue { get; init; }
 
 	protected override bool AcceptsNull(out TOutput? nullValue)
 	{
@@ -59,7 +59,7 @@ public class NullableOriginProp<TSelf, TOutput> : SettableDerivedProp<TSelf, TOu
 
 	protected override bool AcceptSetValueRequest(IPropagationContext context, ref TOutput? value) => true;
 
-	protected override TOutput Recompute() => CachedValue ?? InitialValue;
+	protected override TOutput? Recompute() => CachedValue ?? InitialValue;
 }
 
 public abstract class AsyncDerivedProp<TSelf, TInput, TOutput> : AsyncDerivedElement<TSelf, TInput, TOutput>
