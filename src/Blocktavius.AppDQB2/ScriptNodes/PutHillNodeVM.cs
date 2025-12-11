@@ -30,8 +30,9 @@ sealed class PutHillNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutato
 			me.Elevation = this.Elevation.GetValueOrDefault(me.Elevation);
 			if (this.HillDesigner?.TryDeserializeV1(context, out var designer) == true)
 			{
-				me.HillDesigner = designer;
+				// need to set SelectedHillType *before* HillDesigner!
 				me.SelectedHillType = HillType.FindTypeOf(designer);
+				me.HillDesigner = designer;
 			}
 			me.Area = context.AreaManager.FindArea(this.AreaPersistId);
 			me.Block = context.BlockManager.FindBlock(this.BlockPersistId);
