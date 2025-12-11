@@ -36,7 +36,7 @@
             <ComboBox MinWidth="150" VerticalAlignment="Center" ItemsSource="{Binding SourceStages94}" SelectedItem="{Binding SelectedSourceStage46}" DisplayMemberPath="Name"></ComboBox>
         </StackPanel>
         <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Vertical" HorizontalAlignment="Left" Margin="12,6,0,0">
-            <TextBlock TextWrapping="Wrap"><Run Text="Will read from:  "></Run><Run Text="{Binding StgdatFilePath, Mode=OneWay}"></Run></TextBlock>
+            <TextBlock TextWrapping="Wrap"><Run Text="Will read from:  "></Run><Run Text="{Binding SourceFullPath16, Mode=OneWay}"></Run></TextBlock>
             <CheckBox Content="Include in preview?" IsChecked="{Binding IncludeStgdatInPreview}" Margin="0,6,0,0"></CheckBox>
             <Button HorizontalAlignment="Left" Content="Edit Chunk Grid" Command="{Binding CommandEditChunkGrid}" Margin="0,8,0,0"></Button>
             <TextBlock TextWrapping="Wrap" Margin="0,2,0,0">Note: Modifications to the chunk grid are not applied until you Preview or Run a script.</TextBlock>

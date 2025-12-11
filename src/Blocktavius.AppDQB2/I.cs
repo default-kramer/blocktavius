@@ -32,6 +32,7 @@ static class I
 		public interface SelectedDestSlot : IProperty<WritableSlotVM?> { }
 		public interface SourceStages : IProperty<IReadOnlyList<SlotStageVM>> { }
 		public interface SelectedSourceStage : IProperty<SlotStageVM?> { }
+		public interface SourceFullPath : IProperty<string?> { }
 		public interface DestFullPath : IProperty<string?> { }
 		public interface ChunkExpansion : IProperty<IReadOnlySet<ChunkOffset>> { }
 		public interface LoadedStage : IProperty<LoadStageResult?> { }
