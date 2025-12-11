@@ -20,8 +20,12 @@ static class I
 	internal static readonly StaticGraphIndexer indexer = new(typeof(I));
 	static I()
 	{
-		System.Diagnostics.Trace.WriteLine(indexer.DUMP());
+		// Use GraphViz to create an image:
+		//    dot -Tpng dependency-graph.dot -o dependency-graph.png
+		File.WriteAllText("dependency-graph.dot", indexer.ToGraphViz());
 	}
+
+	internal static void CreateGraphFile() { } // this method just ensures that the static constructor runs
 
 	public static class Project
 	{

@@ -1,3 +1,4 @@
+using Antipasta;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -87,6 +88,79 @@ public sealed class StaticGraphIndexer
 			sb.AppendLine().Append($"  {item.Value.NodeIndex}: {item.Value.NodeType.Name}");
 		}
 		return sb.ToString();
+	}
+
+	public string ToGraphViz()
+	{
+		var sb = new StringBuilder();
+		sb.AppendLine("digraph G {");
+		sb.AppendLine("  rankdir=TB;");
+		sb.AppendLine("  node [shape=box, style=rounded];");
+
+		var implementationMap = _nodeInfoByType.Values.ToDictionary(ni => ni.NodeType, ni => ni.ImplementationType);
+		var dependentsGraph = BuildDependencyGraph(implementationMap);
+
+		var nodesByPass = _nodeInfoByType.Values
+			.GroupBy(ni => ni.PassIndex)
+			.OrderBy(g => g.Key);
+
+		foreach (var passGroup in nodesByPass)
+		{
+			sb.AppendLine($"  subgraph cluster_pass_{passGroup.Key} {{");
+			sb.AppendLine($"    label = \"Pass {passGroup.Key}\";");
+			sb.AppendLine("    style=filled;");
+			sb.AppendLine("    color=lightgrey;");
+
+			foreach (var nodeInfo in passGroup.OrderBy(ni => ni.NodeIndex))
+			{
+				var nodeName = GetFriendlyNodeName(nodeInfo.NodeType);
+				var isSettable = typeof(ISettableElementUntyped).IsAssignableFrom(nodeInfo.ImplementationType);
+				var isAsync = typeof(IAsyncElement).IsAssignableFrom(nodeInfo.ImplementationType);
+
+				var labelParts = new List<string> { nodeName };
+				if (isSettable || isAsync)
+				{
+					var tagParts = new List<string>();
+					if (isSettable)
+					{
+						tagParts.Add(@"<FONT COLOR=""darkgreen"">(settable)</FONT>");
+					}
+					if (isAsync)
+					{
+						tagParts.Add(@"<FONT COLOR=""purple"">(async)</FONT>");
+					}
+					labelParts.Add(string.Join(" ", tagParts));
+				}
+
+				var labelString = $"<{string.Join("<BR/>", labelParts)}>";
+
+				sb.AppendLine($"    \"{nodeName}\" [label={labelString}];");
+			}
+			sb.AppendLine("  }");
+		}
+
+		foreach (var (dependency, dependents) in dependentsGraph)
+		{
+			if (dependents.Count == 0) continue;
+			var dependencyName = GetFriendlyNodeName(dependency);
+			foreach (var dependent in dependents)
+			{
+				var dependentName = GetFriendlyNodeName(dependent);
+				sb.AppendLine($"  \"{dependencyName}\" -> \"{dependentName}\";");
+			}
+		}
+
+		sb.AppendLine("}");
+		return sb.ToString();
+	}
+
+	private static string GetFriendlyNodeName(Type type)
+	{
+		if (type.DeclaringType != null && type.IsNested)
+		{
+			return $"{GetFriendlyNodeName(type.DeclaringType)}.{type.Name}";
+		}
+		return type.Name;
 	}
 
 	private static List<Type> DiscoverNodeInterfaces(Type root)

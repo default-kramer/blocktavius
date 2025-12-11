@@ -75,6 +75,8 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 
 	public ProjectVM(IServices services, ProfileSettings profile)
 	{
+		I.CreateGraphFile();
+
 		this.services = services;
 		this.stageLoader = services.StageLoader();
 
