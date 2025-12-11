@@ -38,6 +38,7 @@ static class I
 		public interface LoadedStage : IProperty<LoadStageResult?> { }
 		public interface ChunkMaskImage : IProperty<BitmapSource?> { }
 		public interface MinimapImage : IProperty<BitmapSource?> { }
+		public interface Notes : IProperty<string?> { }
 
 		// commands:
 		public interface CommandEditChunkGrid : ICommandNode { }

@@ -51,6 +51,6 @@
         </StackPanel>
         <Label Grid.Row="8" Grid.Column="0" HorizontalAlignment="Right" Content="Notes:" FontSize="14" FontWeight="Bold"></Label>
         <TextBox Grid.Row="8" Grid.Column="1" HorizontalAlignment="Left" AcceptsReturn="True" AcceptsTab="True"
-                 TextWrapping="Wrap" Width="400" Text="{Binding Notes}"></TextBox>
+                 TextWrapping="Wrap" Width="400" Text="{Binding Notes61}"></TextBox>
     </Grid>
 </UserControl>

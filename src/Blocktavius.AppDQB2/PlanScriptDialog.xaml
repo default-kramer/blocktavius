@@ -24,7 +24,7 @@
                           ItemsSource="{Binding Project.InclusionModes}" SelectedItem="{Binding Project.SelectedInclusionMode}" DisplayMemberPath="DisplayName"></ComboBox>
             </StackPanel>
             <TextBlock Margin="0,20,0,0" TextWrapping="Wrap"><Run Text="From:  "></Run><Run Text="{Binding Project.SelectedSourceSlot23.FullPath, Mode=OneWay}"></Run></TextBlock>
-            <TextBlock Margin="0,3,0,0" TextWrapping="Wrap"><Run Text="     To:  "></Run><Run Text="{Binding Project.SelectedDestSlot.FullPath, Mode=OneWay}"></Run></TextBlock>
+            <TextBlock Margin="0,3,0,0" TextWrapping="Wrap"><Run Text="     To:  "></Run><Run Text="{Binding Project.SelectedDestSlot53.FullPath, Mode=OneWay}"></Run></TextBlock>
             <TextBlock Margin="0,3,0,0" TextWrapping="Wrap">
                 <TextBlock.Style>
                     <Style TargetType="{x:Type TextBlock}">

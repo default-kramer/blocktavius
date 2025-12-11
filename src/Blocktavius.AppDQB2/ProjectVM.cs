@@ -34,7 +34,7 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 	// mutable:
 	private ExternalImageManager? imageManager = null;
 
-	// NEW!
+	// The 2-digit suffixes are for more greppable data binding in XAML files.
 	private readonly MyProperty.Profile xProfile;
 	private readonly MyProperty.ChunkExpansion xChunkExpansion;
 	[ElementAsProperty("SourceSlots82")]
@@ -54,6 +54,8 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 	[ElementAsProperty("DestFullPath39")]
 	private readonly I.Project.DestFullPath xDestFullPath;
 	private readonly I.Project.LoadedStage xLoadedStage;
+	[ElementAsProperty("Notes61")]
+	private readonly MyProperty.Notes xNotes;
 	// commands
 	public I.Project.CommandEditChunkGrid CommandEditChunkGrid { get; }
 
@@ -87,6 +89,7 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 		xSourceFullPath = new MyProperty.SourceFullPath(xSelectedSourceStage) { Owner = this };
 		xDestFullPath = new MyProperty.DestFullPath(xSelectedSourceStage, xSelectedDestSlot) { Owner = this };
 		xLoadedStage = new MyProperty.LoadedStage(xSelectedSourceStage, stageLoader) { Owner = this };
+		xNotes = new MyProperty.Notes() { Owner = this, InitialValue = null };
 		CommandEditChunkGrid = new MyProperty.CommandEditChunkGrid(xLoadedStage, xChunkExpansion)
 		{
 			Owner = this,
@@ -233,13 +236,6 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 		set => ChangeProperty(ref _selectedLayer, value);
 	}
 
-	private string _notes = "";
-	public string Notes
-	{
-		get => _notes;
-		set => ChangeProperty(ref _notes, value);
-	}
-
 	public ObservableCollection<ScriptVM> Scripts { get; } = new();
 
 	private ScriptVM? _selectedScript;
@@ -381,7 +377,7 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 			DestSlot = GetSelectedDestSlot?.ToPersistModel(),
 			SourceStgdatFilename = GetSelectedSourceStage?.Filename,
 			ChunkExpansion = this.chunkExpansion.Select(ChunkOffsetV1.FromCore).ToList(),
-			Notes = this.Notes,
+			Notes = xNotes.Value,
 			Images = Layers.OfType<ExternalImageLayerVM>().Select(vm => vm.ToPersistModel()).ToList(),
 			MinimapVisible = minimapLayer?.IsVisible,
 			ChunkGridVisible = chunkGridLayer.IsVisible,
@@ -423,7 +419,7 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 			string.Equals(s.Filename, project.SourceStgdatFilename, StringComparison.OrdinalIgnoreCase));
 		SetElement(xSelectedSourceStage, wantSourceStage);
 
-		Notes = project.Notes ?? "";
+		SetElement(xNotes, project.Notes ?? "");
 		SetElement(xChunkExpansion, project.ChunkExpansion.EmptyIfNull().Select(o => o.ToCore()).ToHashSet());
 
 		Layers.Clear();
@@ -489,5 +485,7 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 		public sealed class Profile : NotnullOriginProp<Profile, ProfileSettings>, I.Project.Profile { }
 
 		public sealed class ChunkExpansion : NotnullOriginProp<ChunkExpansion, IReadOnlySet<ChunkOffset>>, I.Project.ChunkExpansion { }
+
+		public sealed class Notes : NullableOriginProp<Notes, string>, I.Project.Notes { }
 	}
 }
