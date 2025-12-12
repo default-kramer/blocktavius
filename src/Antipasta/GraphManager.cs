@@ -6,13 +6,10 @@ using System.Threading.Tasks;
 
 namespace Antipasta;
 
-public enum GraphConnectionStatus
-{
-	Connected,
-	TemporarilyDisconnected,
-	PermanentlyDisconnected,
-}
-
+/// <summary>
+/// Every <see cref="INode"/> should have its own GraphManager.
+/// Handles listener subscription and assists in propagation.
+/// </summary>
 public sealed class GraphManager
 {
 	private readonly List<INode> listeners = new();
