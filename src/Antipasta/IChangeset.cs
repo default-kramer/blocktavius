@@ -7,13 +7,11 @@ using System.Threading.Tasks;
 namespace Antipasta;
 
 /// <summary>
-/// Requested changes are not applied until <see cref="ApplyChanges"/> is called.
+/// Caution: Requested changes may not be applied immediately!
 /// </summary>
 public interface IChangeset
 {
 	IChangeset RequestChangeUntyped(ISettableElementUntyped element, object? value);
 
 	IChangeset RequestChange<T>(ISettableElement<T> element, T value);
-
-	void ApplyChanges();
 }

@@ -6,7 +6,7 @@ using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Antipasta;
+namespace Antipasta.Scheduling;
 
 /// <summary>
 /// This class expects to be used from the UI thread only, and throws if <see cref="ApplyChanges"/>
