@@ -11,7 +11,7 @@ namespace Blocktavius.AppDQB2;
 
 static class Pasta
 {
-	public static IChangeset NewChangeset()
+	private static IChangeset NewChangeset()
 	{
 		return new Changeset { AsyncScheduler = AsyncSchedulerWPF.Instance };
 	}
