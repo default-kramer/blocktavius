@@ -244,7 +244,7 @@ public abstract class AsyncDerivedElement<TComputer, TInput, TOutput> : BaseNode
 		}
 
 		INode IAsyncProgress.SourceNode => node;
-		PropagationResult IAsyncProgress.Start() // UI thread
+		PropagationResult IAsyncProgress.LatestProgressReport() // UI thread
 		{
 			if (isCanceled) { return PropagationResult.None; }
 

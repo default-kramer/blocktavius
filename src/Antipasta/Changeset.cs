@@ -61,7 +61,7 @@ public sealed class Changeset : IChangeset
 
 	public IChangeset RequestChange(IAsyncProgress asyncProgress)
 	{
-		return Enqueue(asyncProgress.SourceNode, _ => asyncProgress.Start());
+		return Enqueue(asyncProgress.SourceNode, _ => asyncProgress.LatestProgressReport());
 	}
 
 	private void EnqueueViaSequel(Change change)

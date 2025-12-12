@@ -16,7 +16,5 @@ public interface IChangeset
 
 	IChangeset RequestChange<T>(ISettableElement<T> element, T value);
 
-	IChangeset RequestChange(IAsyncProgress progress);
-
 	void ApplyChanges();
 }

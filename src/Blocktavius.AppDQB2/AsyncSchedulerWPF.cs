@@ -11,13 +11,13 @@ namespace Blocktavius.AppDQB2;
 
 static class Pasta
 {
-	private static IChangeset NewChangeset()
+	private static Changeset NewChangeset()
 	{
 		return new Changeset { AsyncScheduler = AsyncSchedulerWPF.Instance };
 	}
 
-	private static IChangeset? currentChangeset = null;
-	private static void WithChangeset(Action<IChangeset> action)
+	private static Changeset? currentChangeset = null;
+	private static void WithChangeset(Action<Changeset> action)
 	{
 		if (currentChangeset != null)
 		{

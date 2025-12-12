@@ -10,5 +10,10 @@ public interface IAsyncProgress
 {
 	INode SourceNode { get; }
 
-	PropagationResult Start(); // UI thread
+	/// <summary>
+	/// Called synchronously from the UI thread.
+	/// The <see cref="PropagationResult"/> returned indicates whether anything has
+	/// changed since the previous progress report.
+	/// </summary>
+	PropagationResult LatestProgressReport();
 }
