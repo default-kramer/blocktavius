@@ -29,7 +29,7 @@ public abstract class AsyncDerivedElement<TComputer, TInput, TOutput> : BaseNode
 	private (TInput input, ITaskWrapper taskWrapper, AsyncContext context)? mostRecentTask;
 
 	public TOutput? Value => currentValue.GetValueOrDefault().output;
-	object? IElementUntyped.UntypedValue => Value;
+	object? IElementUntyped.ValueUntyped => Value;
 	Type IElementUntyped.ElementType => typeof(TOutput);
 	protected virtual TimeSpan? AutoUnblockTimeout => null;
 

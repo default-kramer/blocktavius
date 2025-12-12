@@ -30,7 +30,7 @@ public abstract class DerivedElement<TOutput> : BaseNode, IElement<TOutput>
 		}
 	}
 
-	object? IElementUntyped.UntypedValue => Value;
+	object? IElementUntyped.ValueUntyped => Value;
 	Type IElementUntyped.ElementType => typeof(TOutput);
 
 	protected abstract TOutput Recompute();

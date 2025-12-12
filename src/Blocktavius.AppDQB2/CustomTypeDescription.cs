@@ -198,7 +198,7 @@ abstract class ViewModelBaseWithCustomTypeDescriptor : ViewModelBase, ICustomTyp
 
 		public override Type PropertyType => element.ElementType;
 
-		public override object? GetValue(object? component) => element.UntypedValue;
+		public override object? GetValue(object? component) => element.ValueUntyped;
 
 		public override bool CanResetValue(object component) => false;
 		public override void ResetValue(object component) { }

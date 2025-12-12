@@ -13,7 +13,7 @@ namespace Antipasta;
 /// </summary>
 public interface IElementUntyped : INode
 {
-	object? UntypedValue { get; }
+	object? ValueUntyped { get; }
 
 	Type ElementType { get; }
 }
