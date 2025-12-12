@@ -1,14 +1,23 @@
-﻿using Blocktavius.Core;
+﻿using Antipasta;
+using Blocktavius.Core;
 using Blocktavius.DQB2;
+using System.Collections.Immutable;
 using System.IO;
 using System.Windows.Media.Imaging;
 
 namespace Blocktavius.AppDQB2;
 
-sealed class MinimapLayer : ViewModelBase, ILayerVM
+sealed class MinimapLayer : ViewModelBaseWithCustomTypeDescriptor, ILayerVM
 {
 	IEnumerable<ExternalImageVM> ILayerVM.ExternalImage => Enumerable.Empty<ExternalImageVM>();
 	IAreaVM? ILayerVM.SelfAsAreaVM => null;
+
+	[ElementAsProperty("MinimapImage33")]
+	private readonly MyProperty.MinimapImage minimapImage;
+	public MinimapLayer(I.Project.SelectedSourceStage selectedSourceStage, I.Project.LoadedStage loadedStage, I.Project.ChunkExpansion chunkExpansion)
+	{
+		minimapImage = new(selectedSourceStage, loadedStage, chunkExpansion) { Owner = this };
+	}
 
 	public string LayerName => "Minimap";
 
@@ -19,43 +28,80 @@ sealed class MinimapLayer : ViewModelBase, ILayerVM
 		set => ChangeProperty(ref _isVisible, value);
 	}
 
-	private BitmapSource? _minimapImage = null;
-	public BitmapSource? MinimapImage
+	public BitmapSource? MinimapImage => minimapImage.Value;
+
+	static class MyProperty
 	{
-		get => _minimapImage;
-		private set => ChangeProperty(ref _minimapImage, value);
-	}
-
-	public void RebuildImage(ProjectVM project)
-	{
-		if (project.SelectedSourceStage == null
-			|| project.SelectedSourceStage.MinimapIslandIds.Count < 1
-			|| !MinimapRenderer.IsEnabled)
+		public sealed class MinimapImage : AsyncDerivedProp<MinimapImage, MinimapImage.Input, BitmapSource>,
+			I.Project.MinimapImage,
+			IAsyncComputation<MinimapImage.Input, BitmapSource>
 		{
-			MinimapImage = null;
-			return;
-		}
-
-		// TODO should cache CMNDAT loading similar to STGDAT loading.
-		// ALSO - there's probably concurrency bugs in this code,
-		// because the ProjectVM could be mutated by the UI thread...
-		Task.Run(() =>
-		{
-			int islandId = project.SelectedSourceStage.MinimapIslandIds.First();
-			var StgdatPath = project.SelectedSourceStage.StgdatFile.FullName;
-
-			var cmndatPath = Path.Combine(new FileInfo(StgdatPath).Directory?.FullName ?? "<<FAIL>>", "CMNDAT.BIN");
-			var cmndatFile = new FileInfo(cmndatPath);
-			if (cmndatFile.Exists)
+			public sealed record Input
 			{
-				var map = Minimap.FromCmndatFile(cmndatFile);
-				if (project.TryLoadMutableStage(out var stage, expandChunks: true))
+				public required Minimap? Minimap { get; init; }
+				public required ICloneableStage? Stage { get; init; }
+				public required IReadOnlySet<ChunkOffset> ChunkExpansion { get; init; }
+				public required int IslandId { get; init; }
+
+				public static readonly Input Nothing = new()
 				{
-					var sampler = map.ReadMapCropped(islandId, stage).TranslateTo(XZ.Zero);
-					var image = MinimapRenderer.Render(sampler, new MinimapRenderOptions());
-					this.MinimapImage = image;
-				}
+					Minimap = null,
+					Stage = null,
+					ChunkExpansion = ImmutableHashSet<ChunkOffset>.Empty,
+					IslandId = -1,
+				};
 			}
-		});
+
+			private readonly I.Project.SelectedSourceStage selectedSourceStage;
+			private readonly I.Project.LoadedStage loadedStage;
+			private readonly I.Project.ChunkExpansion chunkExpansion;
+
+			public MinimapImage(I.Project.SelectedSourceStage selectedSourceStage, I.Project.LoadedStage loadedStage, I.Project.ChunkExpansion chunkExpansion)
+			{
+				this.selectedSourceStage = ListenTo(selectedSourceStage);
+				this.loadedStage = ListenTo(loadedStage);
+				this.chunkExpansion = ListenTo(chunkExpansion);
+			}
+
+			protected override Input BuildInput()
+			{
+				if (!MinimapRenderer.IsEnabled)
+				{
+					return Input.Nothing;
+				}
+				return new Input()
+				{
+					ChunkExpansion = chunkExpansion.Value,
+					Minimap = loadedStage.Value?.Minimap,
+					Stage = loadedStage.Value?.Stage,
+					IslandId = selectedSourceStage.Value?.MinimapIslandIds?.FirstOrDefault(-1) ?? -1,
+				};
+			}
+
+			static async Task IAsyncComputation<Input, BitmapSource>.Compute(IAsyncContext<BitmapSource> context, Input input)
+			{
+				context.UpdateValue(null);
+				if (!MinimapRenderer.IsEnabled)
+				{
+					return;
+				}
+
+				var map = input.Minimap;
+				var stage = input.Stage;
+				var islandId = input.IslandId;
+
+				if (map == null || stage == null || islandId < 0)
+				{
+					return;
+				}
+
+				await context.UnblockAsync();
+
+				var sampler = map.ReadMapCropped(islandId, stage, input.ChunkExpansion).TranslateTo(XZ.Zero);
+				var image = MinimapRenderer.Render(sampler, new MinimapRenderOptions());
+
+				context.UpdateValue(image);
+			}
+		}
 	}
 }

@@ -8,6 +8,8 @@ namespace Blocktavius.Core;
 
 public static class Util
 {
+	public static T SafeCast<T>(this T item) => item;
+
 	public static T? AsNullable<T>(this T item) where T : struct
 	{
 		return item;

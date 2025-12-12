@@ -1,0 +1,49 @@
+"Antipasta" - I'm almost sure this will be the solution to spaghetti viewmodels.
+Create a dedicated class for every property!
+Verbosity is a very small problem and seems to be the correct tradeoff here.
+If you only call `ListenTo(otherNode)` in your constructor, the resulting listener graph will be a DAG.
+
+Why not ReactiveUI?
+* Horribly slow in Debug
+* A method with 78 overloads stumped me and Gemini
+* I want something more opinionated/proscriptive, with a "pit of success"
+* or maybe just because it was Not Invented Here
+
+
+== Remember ==
+Need a way to unsubscribe.
+Should maybe also use WeakReference<INode> for the listener list.
+
+NodeGroup (aka Owner) no longer matters for propagation algorithm.
+It's just a "who wants to raise the PropertyChanged event" thing now.
+And remember how the ChunkLayer and MinimapLayer own properties declared as I.Project.Whatever.
+
+Changeset dispatch model:
+* Explicit flush
+* Auto flush (Dispatcher.BeginInvoke "if not flushed, flush" logic)
+
+Should we relax the "only one changeset at a time" requirement?
+It would really be just for unit testing I think.
+
+Alternate approaches to custom type description?
+* ProjectVM : BaseVM<ProjectKernel>
+
+Possible footgun? You request a change but read the value before applying the changeset.
+
+Anything we can do about collections?
+Auto-disconnect when removed?
+Wait for a concrete use case.
+
+Logging!
+
+Could maybe detect if the async code's first `await` was not UnblockAsync() and throw.
+Would be a project-level decision of course.
+
+
+
+== Wins ==
+Being able to diagram the DAG is great.
+
+Changing a Derived Element to an Async Derived Element without any other code being aware.
+
+Race conditions pretty much eliminated. (Auto discard results from stale input)

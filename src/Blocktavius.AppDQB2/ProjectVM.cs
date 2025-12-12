@@ -1,4 +1,6 @@
-﻿using Blocktavius.AppDQB2.Persistence.V1;
+﻿using Antipasta;
+using Blocktavius.AppDQB2.Persistence.V1;
+using Blocktavius.AppDQB2.Services;
 using Blocktavius.Core;
 using Blocktavius.DQB2;
 using GongSolutions.Wpf.DragDrop;
@@ -16,35 +18,101 @@ using System.Windows.Media.Imaging;
 
 namespace Blocktavius.AppDQB2;
 
-sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAreaManager, Persistence.IBlockManager
+sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockList, IDropTarget, Persistence.IAreaManager, Persistence.IBlockManager
 {
 	// immutable:
-	private readonly ChunkGridLayer chunkGridLayer = new();
+	private readonly IServices services;
+	private readonly IStageLoader stageLoader;
+	private readonly ChunkGridLayer chunkGridLayer;
 	private readonly MinimapLayer? minimapLayer;
-	private readonly StgdatLoader stgdatLoader = new();
 	public ICommand CommandExportChunkMask { get; }
 	public ICommand CommandExportMinimap { get; }
 
+	// ???
+	//public SourceStageVM SourceStage { get; } = new();
+
 	// mutable:
 	private ExternalImageManager? imageManager = null;
-	private ProfileSettings profile;
 
-	public ProjectVM(ProfileSettings profile)
+	// The 2-digit suffixes are for more greppable data binding in XAML files.
+	private readonly MyProperty.Profile xProfile;
+	private readonly MyProperty.ChunkExpansion xChunkExpansion;
+	[ElementAsProperty("SourceSlots82")]
+	private readonly I.Project.SourceSlots xSourceSlots;
+	[ElementAsProperty("SelectedSourceSlot23")]
+	private readonly MyProperty.SelectedSourceSlot xSelectedSourceSlot;
+	[ElementAsProperty("DestSlots62")]
+	private readonly I.Project.DestSlots xDestSlots;
+	[ElementAsProperty("SelectedDestSlot53")]
+	private readonly MyProperty.SelectedDestSlot xSelectedDestSlot;
+	[ElementAsProperty("SourceStages94")]
+	private readonly I.Project.SourceStages xSourceStages;
+	[ElementAsProperty("SelectedSourceStage46")]
+	private readonly MyProperty.SelectedSourceStage xSelectedSourceStage;
+	[ElementAsProperty("SourceFullPath16")]
+	private readonly I.Project.SourceFullPath xSourceFullPath;
+	[ElementAsProperty("DestFullPath39")]
+	private readonly I.Project.DestFullPath xDestFullPath;
+	private readonly I.Project.LoadedStage xLoadedStage;
+	[ElementAsProperty("Notes61")]
+	private readonly MyProperty.Notes xNotes;
+	// commands
+	public I.Project.CommandEditChunkGrid CommandEditChunkGrid { get; }
+
+	// wrapper properties
+	private ProfileSettings getProfile => xProfile.Value;
+	private IReadOnlyList<SlotVM> getSourceSlots => xSourceSlots.Value;
+	private IReadOnlyList<WritableSlotVM> getDestSlots => xDestSlots.Value;
+	public SlotVM? GetSelectedSourceSlot => xSelectedSourceSlot.Value;
+	public SlotStageVM? GetSelectedSourceStage => xSelectedSourceStage.Value;
+	public WritableSlotVM? GetSelectedDestSlot => xSelectedDestSlot.Value;
+	private string? getSourceFullPath => xSourceFullPath.Value;
+
+	/// <summary>
+	/// Might include chunks that were already present in the STGDAT file.
+	/// </summary>
+	private IReadOnlySet<ChunkOffset> chunkExpansion => xChunkExpansion.Value;
+
+	public ProjectVM(IServices services, ProfileSettings profile)
 	{
+		I.CreateGraphFile();
+
+		this.services = services;
+		this.stageLoader = services.StageLoader();
+
+		xProfile = new() { InitialValue = profile, Owner = this };
+		xChunkExpansion = new() { InitialValue = new HashSet<ChunkOffset>(), Owner = this };
+		xSourceSlots = new MyProperty.SourceSlots(xProfile) { Owner = this };
+		xDestSlots = new MyProperty.DestSlots(xProfile) { Owner = this };
+		xSelectedSourceSlot = new MyProperty.SelectedSourceSlot(xProfile, xSourceSlots) { Owner = this };
+		xSelectedDestSlot = new(xProfile, xDestSlots) { Owner = this };
+		xSourceStages = new MyProperty.SourceStages(xSelectedSourceSlot) { Owner = this };
+		xSelectedSourceStage = new MyProperty.SelectedSourceStage(xSourceStages) { Owner = this };
+		xSourceFullPath = new MyProperty.SourceFullPath(xSelectedSourceStage) { Owner = this };
+		xDestFullPath = new MyProperty.DestFullPath(xSelectedSourceStage, xSelectedDestSlot) { Owner = this };
+		xLoadedStage = new MyProperty.LoadedStage(xSelectedSourceStage, stageLoader) { Owner = this };
+		xNotes = new MyProperty.Notes() { Owner = this, InitialValue = null };
+		CommandEditChunkGrid = new MyProperty.CommandEditChunkGrid(xLoadedStage, xChunkExpansion)
+		{
+			Owner = this,
+			ProjectVM = this,
+			WindowManager = services.WindowManager,
+		};
+		chunkGridLayer = new(xChunkExpansion, xLoadedStage);
+
 		Layers = new();
 		if (MinimapRenderer.IsEnabled)
 		{
-			minimapLayer = new();
+			minimapLayer = new(xSelectedSourceStage, xLoadedStage, xChunkExpansion);
 			Layers.Add(minimapLayer);
 		}
 		Layers.Add(chunkGridLayer);
 		SelectedLayer = Layers.FirstOrDefault();
 
-		this.profile = profile;
-		ForceUpdateProfile(profile);
-
 		CommandExportChunkMask = new RelayCommand(_ => chunkGridLayer.ChunkGridImage != null, ExportChunkMask);
 		CommandExportMinimap = new RelayCommand(_ => minimapLayer?.MinimapImage != null, ExportMinimap);
+
+		ForceUpdateProfile(profile);
 	}
 
 	private void ExportChunkMask(object? arg) => ExportImage(chunkGridLayer.ChunkGridImage, "exported-chunk-mask.png", 1.0);
@@ -74,9 +142,9 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		}
 	}
 
-	public static ProjectVM CreateNew(ProfileSettings profile, FileInfo projectFile)
+	public static ProjectVM CreateNew(IServices services, ProfileSettings profile, FileInfo projectFile)
 	{
-		var vm = new ProjectVM(profile);
+		var vm = new ProjectVM(services, profile);
 		vm.SetProjectFilePath(projectFile.FullName);
 
 		vm.Scripts.Add(new ScriptVM().SetScriptName("Main"));
@@ -88,35 +156,13 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 
 	internal bool BackupsEnabled(out DirectoryInfo backupDir)
 	{
-		backupDir = profile.BackupDir!;
+		backupDir = getProfile.BackupDir!;
 		return backupDir != null;
-	}
-
-	public void SwitchProfile(ProfileSettings newProfile)
-	{
-		if (profile.VerificationHash != newProfile.VerificationHash)
-		{
-			ForceUpdateProfile(newProfile);
-		}
 	}
 
 	private void ForceUpdateProfile(ProfileSettings profile)
 	{
-		this.profile = profile;
-
-		SelectedSourceSlot = null;
-		SourceSlots.Clear();
-		foreach (var slot in profile.SaveSlots)
-		{
-			SourceSlots.Add(SlotVM.Create(slot));
-		}
-
-		SelectedDestSlot = null;
-		DestSlots.Clear();
-		foreach (var slot in profile.WritableSaveSlots)
-		{
-			DestSlots.Add(WritableSlotVM.Create(slot));
-		}
+		SetElement(xProfile, profile);
 	}
 
 	void IDropTarget.DragOver(IDropInfo dropInfo)
@@ -192,13 +238,6 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		set => ChangeProperty(ref _selectedLayer, value);
 	}
 
-	private string _notes = "";
-	public string Notes
-	{
-		get => _notes;
-		set => ChangeProperty(ref _notes, value);
-	}
-
 	public ObservableCollection<ScriptVM> Scripts { get; } = new();
 
 	private ScriptVM? _selectedScript;
@@ -216,64 +255,43 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		}
 	}
 
-	/// <summary>
-	/// Might include chunks that were already present in the STGDAT file.
-	/// </summary>
-	public IReadOnlySet<ChunkOffset> ChunkExpansion
+	private void ExpandChunks(IReadOnlySet<ChunkOffset> expansion)
 	{
-		get => _chunkExpansion;
-		private set => ChangeProperty(ref _chunkExpansion, value);
-	}
-	private IReadOnlySet<ChunkOffset> _chunkExpansion = ImmutableHashSet<ChunkOffset>.Empty;
-
-	public void ExpandChunks(IReadOnlySet<ChunkOffset> expansion)
-	{
-		ChunkExpansion = expansion;
-		RebuildImages();
+		SetElement(xChunkExpansion, expansion);
 	}
 
-	private void RebuildImages()
+	public async Task<LoadStageResult?> TryLoadStage()
 	{
-		if (TryLoadStage(out var result))
+		if (string.IsNullOrWhiteSpace(this.getSourceFullPath))
 		{
-			chunkGridLayer.RebuildImage(result.Stage.ChunksInUse.Concat(ChunkExpansion));
-			minimapLayer?.RebuildImage(this);
-		}
-	}
-
-	public bool TryLoadStage(out StgdatLoader.LoadResult loadResult)
-	{
-		if (string.IsNullOrWhiteSpace(this.StgdatFilePath))
-		{
-			loadResult = default!;
-			return false;
+			return null;
 		}
 
-		return stgdatLoader.TryLoad(this.StgdatFilePath, out loadResult, out _);
+		return await stageLoader.LoadStage(new FileInfo(this.getSourceFullPath));
 	}
 
-	public bool TryLoadMutableStage(out IMutableStage stage, bool expandChunks)
+	public async Task<IMutableStage?> TryLoadMutableStage(bool expandChunks)
 	{
-		if (!TryLoadStage(out var loadResult))
+		var loadResult = await TryLoadStage();
+		if (loadResult == null)
 		{
-			stage = null!;
-			return false;
+			return null;
 		}
 
-		stage = loadResult.Stage.Clone();
+		var stage = loadResult.Stage.Clone();
 		if (expandChunks)
 		{
-			stage.ExpandChunks(ChunkExpansion);
+			stage.ExpandChunks(chunkExpansion);
 		}
-		return true;
+		return stage;
 	}
 
-	public bool TryRebuildStage(out IStage stage)
+	public async Task<IStage?> TryRebuildStage()
 	{
-		if (!TryLoadMutableStage(out var workingStage, expandChunks: true))
+		var workingStage = await TryLoadMutableStage(expandChunks: true);
+		if (workingStage == null)
 		{
-			stage = null!;
-			return false;
+			return null;
 		}
 
 		var context = new StageRebuildContext(workingStage);
@@ -283,8 +301,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 			workingStage.Mutate(mutation);
 		}
 
-		stage = workingStage;
-		return true;
+		return workingStage;
 	}
 
 	public void OnImagesSelected(ImageChooserDialog.VM result)
@@ -329,60 +346,6 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		}
 	}
 
-	public ObservableCollection<SlotVM> SourceSlots { get; } = new();
-
-	private SlotVM? _selectedSourceSlot = null;
-	public SlotVM? SelectedSourceSlot
-	{
-		get => _selectedSourceSlot;
-		set
-		{
-			var prev = SelectedSourceStage;
-			if (ChangeProperty(ref _selectedSourceSlot, value, nameof(SelectedSourceSlot), nameof(SourceStages)))
-			{
-				SelectedSourceStage = value?.Stages?.FirstOrDefault(s => s.Filename.Equals(prev?.Filename, StringComparison.OrdinalIgnoreCase));
-			}
-		}
-	}
-
-	public IReadOnlyList<SlotStageVM> SourceStages => SelectedSourceSlot?.Stages ?? Array.Empty<SlotStageVM>();
-
-	private SlotStageVM? _selectedSourceStage = null;
-	public SlotStageVM? SelectedSourceStage
-	{
-		get => _selectedSourceStage;
-		set
-		{
-			if (ChangeProperty(ref _selectedSourceStage, value, nameof(SelectedSourceStage), nameof(StgdatFilePath), nameof(DestFullPath)))
-			{
-				RebuildImages();
-			}
-		}
-	}
-
-	public string? StgdatFilePath => SelectedSourceStage?.StgdatFile?.FullName;
-
-	public string? DestFullPath
-	{
-		get
-		{
-			if (SelectedDestSlot != null && SelectedSourceStage != null)
-			{
-				return SelectedDestSlot.GetFullPath(SelectedSourceStage.Filename);
-			}
-			return null;
-		}
-	}
-
-	public ObservableCollection<WritableSlotVM> DestSlots { get; } = new();
-
-	private WritableSlotVM? _selectedDestSlot = null;
-	public WritableSlotVM? SelectedDestSlot
-	{
-		get => _selectedDestSlot;
-		set => ChangeProperty(ref _selectedDestSlot, value, nameof(SelectedDestSlot), nameof(DestFullPath));
-	}
-
 	public IReadOnlyList<InclusionModeVM> InclusionModes { get; } = InclusionModeVM.BuildChoices().ToList();
 
 	private InclusionModeVM? _selectedInclusionMode;
@@ -411,12 +374,12 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 	{
 		return new ProjectV1()
 		{
-			ProfileVerificationHash = profile.VerificationHash,
-			SourceSlot = SelectedSourceSlot?.ToPersistModel(),
-			DestSlot = SelectedDestSlot?.ToPersistModel(),
-			SourceStgdatFilename = SelectedSourceStage?.Filename,
-			ChunkExpansion = this.ChunkExpansion.Select(ChunkOffsetV1.FromCore).ToList(),
-			Notes = this.Notes,
+			ProfileVerificationHash = getProfile.VerificationHash,
+			SourceSlot = GetSelectedSourceSlot?.ToPersistModel(),
+			DestSlot = GetSelectedDestSlot?.ToPersistModel(),
+			SourceStgdatFilename = GetSelectedSourceStage?.Filename,
+			ChunkExpansion = this.chunkExpansion.Select(ChunkOffsetV1.FromCore).ToList(),
+			Notes = xNotes.Value,
 			Images = Layers.OfType<ExternalImageLayerVM>().Select(vm => vm.ToPersistModel()).ToList(),
 			MinimapVisible = minimapLayer?.IsVisible,
 			ChunkGridVisible = chunkGridLayer.IsVisible,
@@ -425,7 +388,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		};
 	}
 
-	public static ProjectVM Load(ProfileSettings profile, FileInfo projectFile)
+	public static ProjectVM Load(IServices services, ProfileSettings profile, FileInfo projectFile)
 	{
 		var json = File.ReadAllText(projectFile.FullName);
 		var project = ProjectV1.Load(json);
@@ -434,7 +397,7 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 			throw new Exception($"Invalid project file: {projectFile.FullName}");
 		}
 
-		var vm = new ProjectVM(profile);
+		var vm = new ProjectVM(services, profile);
 		var imageManager = vm.SetProjectFilePath(projectFile.FullName);
 		vm.Reload(project, imageManager);
 		return vm;
@@ -444,18 +407,22 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 	{
 		using var changeset = DeferChanges();
 
-		project = project.VerifyProfileHash(profile);
+		project = project.VerifyProfileHash(getProfile);
 
-		SelectedSourceSlot = SourceSlots.FirstOrDefault(s => s.MatchesByNumber(project.SourceSlot))
-			?? SourceSlots.FirstOrDefault(s => s.MatchesByName(project.SourceSlot));
-		SelectedDestSlot = DestSlots.FirstOrDefault(s => s.MatchesByNumber(project.DestSlot))
-			?? DestSlots.FirstOrDefault(s => s.MatchesByNumber(project.DestSlot));
+		var wantSourceSlot = getSourceSlots.FirstOrDefault(s => s.MatchesByNumber(project.SourceSlot))
+			?? getSourceSlots.FirstOrDefault(s => s.MatchesByName(project.SourceSlot));
+		var wantDestSlot = getDestSlots.FirstOrDefault(s => s.MatchesByNumber(project.DestSlot))
+			?? getDestSlots.FirstOrDefault(s => s.MatchesByNumber(project.DestSlot));
 
-		SelectedSourceStage = SelectedSourceSlot?.Stages.EmptyIfNull().FirstOrDefault(s =>
+		SetElement(xSelectedSourceSlot, wantSourceSlot);
+		SetElement(xSelectedDestSlot, wantDestSlot);
+
+		var wantSourceStage = wantSourceSlot?.Stages.EmptyIfNull().FirstOrDefault(s =>
 			string.Equals(s.Filename, project.SourceStgdatFilename, StringComparison.OrdinalIgnoreCase));
+		SetElement(xSelectedSourceStage, wantSourceStage);
 
-		Notes = project.Notes ?? "";
-		ChunkExpansion = project.ChunkExpansion.EmptyIfNull().Select(o => o.ToCore()).ToHashSet();
+		SetElement(xNotes, project.Notes ?? "");
+		SetElement(xChunkExpansion, project.ChunkExpansion.EmptyIfNull().Select(o => o.ToCore()).ToHashSet());
 
 		Layers.Clear();
 		if (minimapLayer != null)
@@ -495,8 +462,6 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 		SelectedScript = Scripts.ElementAtOrDefault(project.SelectedScriptIndex.GetValueOrDefault(-1));
 
 		changeset.Complete();
-
-		ExpandChunks(ChunkExpansion);
 	}
 
 	IAreaVM? Persistence.IAreaManager.FindArea(string? persistentId)
@@ -515,5 +480,14 @@ sealed class ProjectVM : ViewModelBase, IBlockList, IDropTarget, Persistence.IAr
 			return null;
 		}
 		return Blockdata.AllBlockVMs.FirstOrDefault(x => x.PersistentId == persistentId);
+	}
+
+	static partial class MyProperty
+	{
+		public sealed class Profile : NotnullOriginProp<Profile, ProfileSettings>, I.Project.Profile { }
+
+		public sealed class ChunkExpansion : NotnullOriginProp<ChunkExpansion, IReadOnlySet<ChunkOffset>>, I.Project.ChunkExpansion { }
+
+		public sealed class Notes : NullableOriginProp<Notes, string>, I.Project.Notes { }
 	}
 }

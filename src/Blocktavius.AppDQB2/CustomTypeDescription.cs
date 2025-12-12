@@ -1,7 +1,9 @@
+using Antipasta;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Reflection;
 
 namespace Blocktavius.AppDQB2;
 
@@ -91,7 +93,42 @@ abstract class ViewModelBaseWithCustomTypeDescriptor : ViewModelBase, ICustomTyp
 			}
 		}
 
+		foreach (var item in DiscoverMyElements())
+		{
+			var propName = item.attr.PropertyName;
+			item.element.GraphManager.NotifyPropertyName = propName;
+
+			var match = allProps.SingleOrDefault(p => p.Name == propName);
+			if (match != null)
+			{
+				allProps.Remove(match);
+			}
+
+			var pd = new AntipastaElementPropertyDescriptor(item.attr.PropertyName, Array.Empty<Attribute>(), item.element);
+			allProps.Add(pd);
+		}
+
 		return new PropertyDescriptorCollection(allProps.ToArray());
+	}
+
+	private IEnumerable<(FieldInfo field, IElementUntyped element, ElementAsPropertyAttribute attr)> DiscoverMyElements()
+	{
+		foreach (var field in this.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+		{
+			var attr = field.GetCustomAttribute<ElementAsPropertyAttribute>();
+			if (attr != null)
+			{
+				object? obj = field.GetValue(this);
+				if (obj is IElementUntyped element)
+				{
+					yield return (field, element, attr);
+				}
+				else
+				{
+					throw new InvalidOperationException($"Field {field.Name} with ElementAsPropertyAttribute did not contain an element: {obj}");
+				}
+			}
+		}
 	}
 
 	protected override void OnSubscribedPropertyChanged(ViewModelBase sender, PropertyChangedEventArgs e)
@@ -142,5 +179,42 @@ abstract class ViewModelBaseWithCustomTypeDescriptor : ViewModelBase, ICustomTyp
 		public override void ResetValue(object component) => childDescriptor.ResetValue(childComponent);
 		public override bool ShouldSerializeValue(object component) => false; // hmm, this is probably what we want
 		public override void SetValue(object? component, object? value) => childDescriptor.SetValue(childComponent, value);
+	}
+
+	sealed class AntipastaElementPropertyDescriptor : PropertyDescriptor
+	{
+		private readonly IElementUntyped element;
+		private readonly ISettableElementUntyped? settableElement;
+
+		public AntipastaElementPropertyDescriptor(string name, Attribute[]? attrs, IElementUntyped element) : base(name, attrs)
+		{
+			this.element = element;
+			this.settableElement = element as ISettableElementUntyped;
+		}
+
+		public override Type ComponentType => element.NodeGroup.GetType();
+
+		public override bool IsReadOnly => settableElement == null;
+
+		public override Type PropertyType => element.ElementType;
+
+		public override object? GetValue(object? component) => element.ValueUntyped;
+
+		public override bool CanResetValue(object component) => false;
+		public override void ResetValue(object component) { }
+
+		public override void SetValue(object? component, object? value)
+		{
+			if (settableElement != null)
+			{
+				Pasta.SetUntypedElement(settableElement, value);
+			}
+			else
+			{
+				throw new InvalidOperationException("Cannot set value of readonly element");
+			}
+		}
+
+		public override bool ShouldSerializeValue(object component) => false;
 	}
 }

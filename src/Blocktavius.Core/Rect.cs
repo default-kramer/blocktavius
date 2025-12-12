@@ -46,6 +46,7 @@ public record Rect(XZ start, XZ end)
 	public static Rect Union(IEnumerable<Rect> boxes) => DoUnion(boxes);
 
 	public static Rect Union(params IEnumerable<Rect>[] dater) => DoUnion(dater);
+	public static Rect Union(params Rect[] rects) => DoUnion(rects);
 
 	private static Rect DoUnion(params IEnumerable<Rect>[] seqs)
 	{

@@ -1,4 +1,5 @@
-﻿using Blocktavius.Core;
+﻿using Antipasta;
+using Blocktavius.Core;
 using Blocktavius.DQB2;
 using System;
 using System.Collections.Generic;
@@ -12,9 +13,17 @@ using Rect = Blocktavius.Core.Rect;
 
 namespace Blocktavius.AppDQB2;
 
-sealed class ChunkGridLayer : ViewModelBase, ILayerVM
+sealed class ChunkGridLayer : ViewModelBaseWithCustomTypeDescriptor, ILayerVM
 {
 	IAreaVM? ILayerVM.SelfAsAreaVM => null;
+
+	[ElementAsProperty("ChunkGridImage86")]
+	private readonly MyProperty.ChunkMaskImage xChunkMaskImage;
+
+	public ChunkGridLayer(I.Project.ChunkExpansion chunkExpansion, I.Project.LoadedStage loadedStage)
+	{
+		xChunkMaskImage = new(chunkExpansion, loadedStage) { Owner = this };
+	}
 
 	public string LayerName => "Chunk Grid";
 
@@ -25,23 +34,9 @@ sealed class ChunkGridLayer : ViewModelBase, ILayerVM
 		set => ChangeProperty(ref _isVisible, value);
 	}
 
-	private BitmapSource? _chunkGridImage = null;
-	public BitmapSource? ChunkGridImage
-	{
-		get => _chunkGridImage;
-		private set => ChangeProperty(ref _chunkGridImage, value);
-	}
+	public BitmapSource? ChunkGridImage => xChunkMaskImage.Value;
 
 	public IEnumerable<ExternalImageVM> ExternalImage => Enumerable.Empty<ExternalImageVM>();
-
-	public void RebuildImage(IEnumerable<ChunkOffset> chunks)
-	{
-		Task.Run(() =>
-		{
-			var image = BuildImage(chunks);
-			Application.Current.Dispatcher.Invoke(() => { ChunkGridImage = image; });
-		});
-	}
 
 	private static BitmapSource BuildImage(IEnumerable<ChunkOffset> chunks)
 	{
@@ -61,5 +56,31 @@ sealed class ChunkGridLayer : ViewModelBase, ILayerVM
 			array.Put(new XZ(chunk.OffsetX, chunk.OffsetZ), true);
 		}
 		return array;
+	}
+
+	static class MyProperty
+	{
+		public sealed class ChunkMaskImage : DerivedProp<ChunkMaskImage, BitmapSource?>, I.Project.ChunkMaskImage
+		{
+			private readonly I.Project.ChunkExpansion chunkExpansion;
+			private readonly I.Project.LoadedStage loadedStage;
+
+			public ChunkMaskImage(I.Project.ChunkExpansion chunkExpansion, I.Project.LoadedStage loadedStage)
+			{
+				this.chunkExpansion = ListenTo(chunkExpansion);
+				this.loadedStage = ListenTo(loadedStage);
+			}
+
+			protected override BitmapSource? Recompute()
+			{
+				var stage = loadedStage.Value?.Stage;
+				if (stage == null)
+				{
+					return null;
+				}
+
+				return ChunkGridLayer.BuildImage(stage.ChunksInUse.Concat(chunkExpansion.Value));
+			}
+		}
 	}
 }

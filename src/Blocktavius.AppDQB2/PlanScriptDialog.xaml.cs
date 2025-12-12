@@ -90,11 +90,11 @@ public partial class PlanScriptDialog : Window
 
 		public static ProjectDeps Rebuild(ProjectVM project) => new ProjectDeps
 		{
-			SelectedSourceSlot = project.SelectedSourceSlot,
-			SelectedDestSlot = project.SelectedDestSlot,
+			SelectedSourceSlot = project.GetSelectedSourceSlot,
+			SelectedDestSlot = project.GetSelectedDestSlot,
 			SelectedInclusionMode = project.SelectedInclusionMode,
-			DestIsSource = project.SelectedSourceSlot != null
-				&& project.SelectedSourceSlot.FullPath.Equals(project.SelectedDestSlot?.FullPath, StringComparison.OrdinalIgnoreCase),
+			DestIsSource = project.GetSelectedSourceSlot != null
+				&& project.GetSelectedSourceSlot.FullPath.Equals(project.GetSelectedDestSlot?.FullPath, StringComparison.OrdinalIgnoreCase),
 		};
 	}
 
@@ -171,14 +171,7 @@ public partial class PlanScriptDialog : Window
 			ScriptName = project.SelectedScript.GetScriptName() ?? "<Untitled Script>";
 			Title = $"Plan and Run -- {ScriptName}";
 
-			rebuildTask = Task.Run(() =>
-			{
-				if (project.TryRebuildStage(out var stage) && stage.Saver.CanSave)
-				{
-					return stage;
-				}
-				return null;
-			});
+			rebuildTask = project.TryRebuildStage();
 
 			if (project.BackupsEnabled(out var backupDir))
 			{
@@ -231,7 +224,7 @@ public partial class PlanScriptDialog : Window
 			CanExecute = Deps.SelectedDestSlot != null
 				&& Deps.SelectedSourceSlot != null;
 
-			if (Project.SelectedSourceStage == null)
+			if (Project.GetSelectedSourceStage == null)
 			{
 				CanExecute = false;
 				IsDone = true; // not really "done", but setting this makes it readonly which is what we want
@@ -241,8 +234,8 @@ public partial class PlanScriptDialog : Window
 			PlanItems.Clear();
 
 			var mode = Project.SelectedInclusionMode.InclusionMode;
-			var sourceSlot = Project.SelectedSourceSlot;
-			var destSlot = Project.SelectedDestSlot;
+			var sourceSlot = Project.GetSelectedSourceSlot;
+			var destSlot = Project.GetSelectedDestSlot;
 
 			if (sourceSlot == null)
 			{
@@ -254,7 +247,7 @@ public partial class PlanScriptDialog : Window
 			TryPlanSimpleCopy(sourceSlot, "CMNDAT.BIN", mode == InclusionMode.Automatic || mode == InclusionMode.JustCmndat, forceBackup: true);
 
 			var sortedStages = sourceSlot.Stages
-				.OrderBy(stage => stage == Project.SelectedSourceStage ? 0 : 1)
+				.OrderBy(stage => stage == Project.GetSelectedSourceStage ? 0 : 1)
 				.ThenBy(stage => stage.KnownStageSortOrder ?? int.MaxValue)
 				.ThenBy(stage => stage.Name)
 				.ToList();
@@ -263,7 +256,7 @@ public partial class PlanScriptDialog : Window
 			{
 				IPlanItemVM planItem;
 
-				if (stage == Project.SelectedSourceStage)
+				if (stage == Project.GetSelectedSourceStage)
 				{
 					planItem = new CopyWithModificationsPlanItemVM()
 					{
@@ -331,12 +324,12 @@ public partial class PlanScriptDialog : Window
 			CanExecute = false;
 			IsDone = true;
 
-			if (Project.SelectedDestSlot == null)
+			if (Project.GetSelectedDestSlot == null)
 			{
 				RunScriptError = "Destination slot not set"; // should never happen
 				return;
 			}
-			if (Project.SelectedSourceSlot == null)
+			if (Project.GetSelectedSourceSlot == null)
 			{
 				RunScriptError = "Source slot not set"; // should never happen
 				return;
@@ -344,8 +337,8 @@ public partial class PlanScriptDialog : Window
 
 			var context = new ExecutionContext()
 			{
-				FromSlot = Project.SelectedSourceSlot,
-				ToSlot = Project.SelectedDestSlot,
+				FromSlot = Project.GetSelectedSourceSlot,
+				ToSlot = Project.GetSelectedDestSlot,
 			};
 
 			var planItems = PlanItems.ToList();

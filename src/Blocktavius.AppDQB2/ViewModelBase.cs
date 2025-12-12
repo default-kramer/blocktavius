@@ -1,4 +1,5 @@
-﻿using Blocktavius.Core;
+﻿using Antipasta;
+using Blocktavius.Core;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -11,7 +12,7 @@ using Xceed.Wpf.Toolkit.PropertyGrid.Attributes;
 
 namespace Blocktavius.AppDQB2;
 
-abstract class ViewModelBase : INotifyPropertyChanged
+abstract class ViewModelBase : INotifyPropertyChanged, IViewmodel
 {
 	public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -115,17 +116,19 @@ abstract class ViewModelBase : INotifyPropertyChanged
 	protected internal bool Unsubscribe(object key) => subscribers.Remove(key);
 
 	protected virtual void OnSubscribedPropertyChanged(ViewModelBase sender, PropertyChangedEventArgs e) { }
-}
 
-class TileSizeItemsSource : IItemsSource
-{
-	public Xceed.Wpf.Toolkit.PropertyGrid.Attributes.ItemCollection GetValues()
+	protected void SetElement<T>(ISettableElement<T> element, T value)
 	{
-		var items = new Xceed.Wpf.Toolkit.PropertyGrid.Attributes.ItemCollection();
-		foreach (var i in new[] { 4, 8, 12, 16, 24, 32 })
+		Pasta.SetElement(element, value);
+	}
+
+	public virtual void OnPropagationCompleted(IPropagationContext context) { }
+
+	void INodeGroup.NotifyPropertyChanged(INode node)
+	{
+		if (node.GraphManager.NotifyPropertyName != null)
 		{
-			items.Add(i, i.ToString());
+			OnPropertyChanged(node.GraphManager.NotifyPropertyName);
 		}
-		return items;
 	}
 }

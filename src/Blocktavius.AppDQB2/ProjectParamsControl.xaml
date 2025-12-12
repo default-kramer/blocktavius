@@ -31,26 +31,26 @@
         <Label Grid.Row="2" Grid.Column="0" HorizontalAlignment="Right" VerticalAlignment="Center" Content="Source:" FontSize="14" FontWeight="Bold"></Label>
         <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
             <Label VerticalAlignment="Center">Slot:</Label>
-            <ComboBox MinWidth="75" VerticalAlignment="Center" ItemsSource="{Binding SourceSlots}" SelectedItem="{Binding SelectedSourceSlot}" DisplayMemberPath="Name"></ComboBox>
+            <ComboBox MinWidth="75" VerticalAlignment="Center" ItemsSource="{Binding SourceSlots82}" SelectedItem="{Binding SelectedSourceSlot23}" DisplayMemberPath="Name"></ComboBox>
             <Label VerticalAlignment="Center" Margin="16,0,0,0">Stage:</Label>
-            <ComboBox MinWidth="150" VerticalAlignment="Center" ItemsSource="{Binding SourceStages}" SelectedItem="{Binding SelectedSourceStage}" DisplayMemberPath="Name"></ComboBox>
+            <ComboBox MinWidth="150" VerticalAlignment="Center" ItemsSource="{Binding SourceStages94}" SelectedItem="{Binding SelectedSourceStage46}" DisplayMemberPath="Name"></ComboBox>
         </StackPanel>
         <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Vertical" HorizontalAlignment="Left" Margin="12,6,0,0">
-            <TextBlock TextWrapping="Wrap"><Run Text="Will read from:  "></Run><Run Text="{Binding StgdatFilePath, Mode=OneWay}"></Run></TextBlock>
+            <TextBlock TextWrapping="Wrap"><Run Text="Will read from:  "></Run><Run Text="{Binding SourceFullPath16, Mode=OneWay}"></Run></TextBlock>
             <CheckBox Content="Include in preview?" IsChecked="{Binding IncludeStgdatInPreview}" Margin="0,6,0,0"></CheckBox>
-            <Button HorizontalAlignment="Left" Content="Edit Chunk Grid" Click="EditChunkGrid_Click" Margin="0,8,0,0"></Button>
+            <Button HorizontalAlignment="Left" Content="Edit Chunk Grid" Command="{Binding CommandEditChunkGrid}" Margin="0,8,0,0"></Button>
             <TextBlock TextWrapping="Wrap" Margin="0,2,0,0">Note: Modifications to the chunk grid are not applied until you Preview or Run a script.</TextBlock>
         </StackPanel>
         <Label Grid.Row="5" Grid.Column="0" HorizontalAlignment="Right" Content="Destination:" FontSize="14" FontWeight="Bold"></Label>
         <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal">
             <Label VerticalAlignment="Center">Slot:</Label>
-            <ComboBox MinWidth="75" VerticalAlignment="Center" ItemsSource="{Binding DestSlots}" SelectedItem="{Binding SelectedDestSlot}" DisplayMemberPath="Name"></ComboBox>
+            <ComboBox MinWidth="75" VerticalAlignment="Center" ItemsSource="{Binding DestSlots62}" SelectedItem="{Binding SelectedDestSlot53}" DisplayMemberPath="Name"></ComboBox>
         </StackPanel>
         <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Vertical" Margin="12,6,0,0">
-            <TextBlock TextWrapping="Wrap"><Run Text="Will write to:  "></Run><Run Text="{Binding DestFullPath, Mode=OneWay}"></Run></TextBlock>
+            <TextBlock TextWrapping="Wrap"><Run Text="Will write to:  "></Run><Run Text="{Binding DestFullPath39, Mode=OneWay}"></Run></TextBlock>
         </StackPanel>
         <Label Grid.Row="8" Grid.Column="0" HorizontalAlignment="Right" Content="Notes:" FontSize="14" FontWeight="Bold"></Label>
         <TextBox Grid.Row="8" Grid.Column="1" HorizontalAlignment="Left" AcceptsReturn="True" AcceptsTab="True"
-                 TextWrapping="Wrap" Width="400" Text="{Binding Notes}"></TextBox>
+                 TextWrapping="Wrap" Width="400" Text="{Binding Notes61}"></TextBox>
     </Grid>
 </UserControl>
