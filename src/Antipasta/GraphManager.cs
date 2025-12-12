@@ -74,16 +74,16 @@ public sealed class GraphManager
 		Stack<int> removeIndexes = new();
 
 		int bufferIndex = 0;
-		foreach (var li in listeners.Index())
+		for (int i = 0; i < listeners.Count; i++)
 		{
-			var listener = li.Item;
+			var listener = listeners[i];
 			if (listener.GraphConnectionStatus == GraphConnectionStatus.Connected)
 			{
 				outBuffer[bufferIndex++] = listener;
 			}
 			else if (listener.GraphConnectionStatus == GraphConnectionStatus.PermanentlyDisconnected)
 			{
-				removeIndexes.Push(li.Index);
+				removeIndexes.Push(i);
 			}
 		}
 
