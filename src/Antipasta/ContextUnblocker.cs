@@ -5,7 +5,9 @@ using System.Threading;
 namespace Antipasta;
 
 /// <summary>
-/// An awaitable struct that signals an <see cref="IUnblocker"/> and then switches execution to a ThreadPool thread.
+/// When this struct is awaited (from an async computation), it indicates that the UI thread
+/// should be allowed to do other work. The remainder of the async computation will be fed
+/// to the scheduler via <see cref="IAsyncScheduler.RunUnblockedContinuation"/>.
 /// </summary>
 public readonly struct ContextUnblocker
 {

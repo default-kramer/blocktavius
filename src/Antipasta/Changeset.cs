@@ -7,17 +7,11 @@ using System.Threading.Tasks;
 
 namespace Antipasta;
 
-public interface IChangeset
-{
-	IChangeset RequestChangeUntyped(ISettableElementUntyped element, object? value);
-
-	IChangeset RequestChange<T>(ISettableElement<T> element, T value);
-
-	IChangeset RequestChange(IAsyncProgress progress);
-
-	void ApplyChanges();
-}
-
+/// <summary>
+/// This class expects to be used from the UI thread only, and throws if <see cref="ApplyChanges"/>
+/// is called before any previous call has finished.
+/// It is the responsibility of the scheduler to make sure this is used correctly.
+/// </summary>
 public sealed class Changeset : IChangeset
 {
 	readonly record struct Change(INode node, Func<IPropagationContext, PropagationResult> func);
@@ -80,6 +74,11 @@ public sealed class Changeset : IChangeset
 
 	public void ApplyChanges()
 	{
+		if (fullyCompleted)
+		{
+			throw new InvalidOperationException("Cannot ApplyChanges twice");
+		}
+
 		try { ApplyChanges(this); }
 		finally { fullyCompleted = true; }
 	}
