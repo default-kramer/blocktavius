@@ -7,24 +7,23 @@ using System.Threading.Tasks;
 
 namespace Antipasta;
 
-public interface IAsyncContext<TOutput> where TOutput : class
-{
-	ContextUnblocker UnblockAsync();
-	void UpdateValue(TOutput? output);
-	CancellationToken CancellationToken { get; }
-}
-
-public interface IAsyncComputation<TInput, TOutput>
-	where TInput : IEquatable<TInput>
-	where TOutput : class
-{
-	static abstract Task Compute(IAsyncContext<TOutput> context, TInput input);
-}
-
+/// <summary>
+/// An element that is allowed to run async code.
+/// The <see cref="BuildInput"/> method constructs the input to the async operation.
+/// When this input changes from its previous value,
+/// the <see cref="IAsyncComputation{TInput, TOutput}.Compute"/> method will be invoked.
+/// </summary>
+/// <remarks>
+/// TODO - Perhaps we should not require that <see cref="Value"/> is nullable?
+/// Would something like `public required TOutput InitialValue { get; init; }` be sufficient?
+/// </remarks>
+/// <typeparam name="TComputer">Defines the static method that performs the async operation</typeparam>
+/// <typeparam name="TInput">The input to the async operation (probably a record class)</typeparam>
+/// <typeparam name="TOutput">The output of the async operation</typeparam>
 public abstract class AsyncDerivedElement<TComputer, TInput, TOutput> : BaseNode, IElement<TOutput?>, IAsyncElement
 	where TComputer : IAsyncComputation<TInput, TOutput>
 	where TInput : IEquatable<TInput>
-	where TOutput : class // value must be nullable... or we have to accept an InitialValue parameter
+	where TOutput : class
 {
 	private (TInput input, TOutput? output)? currentValue;
 	private (TInput input, ITaskWrapper taskWrapper, AsyncContext context)? mostRecentTask;
@@ -40,6 +39,12 @@ public abstract class AsyncDerivedElement<TComputer, TInput, TOutput> : BaseNode
 		return element;
 	}
 
+	/// <summary>
+	/// Runs synchronously on the UI thread.
+	/// Constructs the input to the async operation.
+	/// Pay attention to the equality semantics of the returned value -- the async computation
+	/// will only run when the input changes.
+	/// </summary>
 	protected abstract TInput BuildInput();
 
 	protected virtual bool IsStale(TInput oldInput, TInput freshInput) => !oldInput.Equals(freshInput);
