@@ -67,8 +67,9 @@ public abstract class DerivedElement<TOutput> : BaseNode, IElement<TOutput>
 		}
 	}
 
+	private static readonly EqualityComparer<TOutput> defaultComparer = EqualityComparer<TOutput>.Default;
 	protected virtual bool ShouldBeConsideredUnchanged(TOutput? oldVal, TOutput newVal)
 	{
-		return object.ReferenceEquals(oldVal, newVal);
+		return defaultComparer.Equals(oldVal, newVal);
 	}
 }
