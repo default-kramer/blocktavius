@@ -8,5 +8,9 @@ namespace Antipasta.Scheduling;
 
 public interface IUnblocker
 {
+	/// <summary>
+	/// When user code calls <see cref="IAsyncContext{TOutput}.UnblockAsync"/> this
+	/// method is how the scheduler gets notified.
+	/// </summary>
 	void Unblock();
 }
