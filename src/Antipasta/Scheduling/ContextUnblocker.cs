@@ -2,7 +2,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
-namespace Antipasta;
+namespace Antipasta.Scheduling;
 
 /// <summary>
 /// When this struct is awaited (from an async computation), it indicates that the UI thread

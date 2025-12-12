@@ -14,7 +14,7 @@ namespace Antipasta;
 /// </remarks>
 public interface IPropagationContext
 {
-	Internalized<IAsyncScheduler> AsyncScheduler { get; }
+	Internalized<Scheduling.IAsyncScheduler> AsyncScheduler { get; }
 
 	Progress SetupProgress { get; }
 

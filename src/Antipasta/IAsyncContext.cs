@@ -16,7 +16,7 @@ public interface IAsyncContext<TOutput> where TOutput : class
 	///  the UI thread immediately and unconditionally.
 	///  This would typically be a project-level decision.)
 	/// </summary>
-	ContextUnblocker UnblockAsync();
+	Scheduling.ContextUnblocker UnblockAsync();
 
 	/// <summary>
 	/// Updates the value of the <see cref="IElement{TOutput}"/>.
