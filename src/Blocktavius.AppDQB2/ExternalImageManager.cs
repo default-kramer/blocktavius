@@ -17,13 +17,17 @@ sealed class ExternalImageManager : IDisposable
 	public ObservableCollection<ExternalImageVM> ExternalImages { get; } = new();
 	private readonly ConcurrentDictionary<string, ExternalImageVM> externalImageDict = new();
 	private readonly object locker = new();
-	const string filter = "*.bmp";
-	const string extension = ".bmp";
+	private static readonly IReadOnlyList<string> extensions = [".bmp", ".png"];
+	private static IEnumerable<string> filters => extensions.Select(ext => "*" + ext);
 
 	public ExternalImageManager(DirectoryInfo projectDir)
 	{
 		this.projectDir = projectDir;
-		this.watcher = new FileSystemWatcher(projectDir.FullName, filter);
+		this.watcher = new FileSystemWatcher(projectDir.FullName);
+		foreach (var filter in filters)
+		{
+			watcher.Filters.Add(filter);
+		}
 
 		watcher.IncludeSubdirectories = true;
 		watcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.DirectoryName;
@@ -40,9 +44,12 @@ sealed class ExternalImageManager : IDisposable
 	{
 		Task.Run(() =>
 		{
-			foreach (var file in projectDir.EnumerateFiles(filter, SearchOption.AllDirectories))
+			foreach (var filter in filters)
 			{
-				ProcessImageFile(file.FullName);
+				foreach (var file in projectDir.EnumerateFiles(filter, SearchOption.AllDirectories))
+				{
+					ProcessImageFile(file.FullName);
+				}
 			}
 		});
 	}
@@ -60,7 +67,8 @@ sealed class ExternalImageManager : IDisposable
 	private void ProcessImageFile(string fullPath)
 	{
 		// Ignore files like "foo.bmp~Fj34.TMP" created by Paint.NET and probably other programs
-		if (!string.Equals(Path.GetExtension(fullPath), extension, StringComparison.OrdinalIgnoreCase))
+		var actualExt = Path.GetExtension(fullPath);
+		if (!extensions.Any(ext => string.Equals(ext, actualExt, StringComparison.OrdinalIgnoreCase)))
 		{
 			return;
 		}
