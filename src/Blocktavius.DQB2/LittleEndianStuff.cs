@@ -72,11 +72,24 @@ static class LittleEndianStuff
 
 		public ushort GetBlock(Point point) => BitConverter.ToUInt16(array, ChunkMath.GetByteIndex(point));
 
+		private const ushort blockMask = 0x7FF; // masks off the chisel and the alleged "placed by player" bit
+
+		private static bool IsSimple(ushort block) => (block & blockMask) < 1158; // equivalent to HH `simple?` proc
+
+		/// <remarks>
+		/// Blocktavius should never write to the Y=0 layer except during column cleanup,
+		/// read <see cref="ColumnCleanupMode"/> for more info.
+		/// </remarks>
 		public void SetBlock(Point point, ushort block)
 		{
+			if (point.Y == 0)
+			{
+				return;
+			}
+
 			var index = ChunkMath.GetUshortIndex(point);
 			var shortArray = MemoryMarshal.Cast<byte, ushort>(array);
-			if ((shortArray[index] & 0x7FF) < 1158) // mask off chisel and test (equivalent to HH `simple?` proc)
+			if (IsSimple(shortArray[index]))
 			{
 				shortArray[index] = block;
 			}
@@ -98,6 +111,102 @@ static class LittleEndianStuff
 				return me;
 			}
 			throw new Exception($"Assert fail -- cannot cast {this.GetType().FullName} to {typeof(TSelf).FullName}");
+		}
+
+		public bool IsEmpty() => array.All(x => x == 0);
+
+		public void PerformColumnCleanup(ColumnCleanupMode __mode)
+		{
+			// First validate that the requested mode requires any action
+			ColumnCleanupMode mode;
+			if (__mode == ColumnCleanupMode.ExpandBedrock || __mode == ColumnCleanupMode.ConstrainToBedrock)
+			{
+				mode = __mode;
+			}
+			else
+			{
+				return;
+			}
+
+			var shortArray = MemoryMarshal.Cast<byte, ushort>(array);
+			for (int z = 0; z < ChunkMath.i32; z++)
+			{
+				for (int x = 0; x < ChunkMath.i32; x++)
+				{
+					var xz = new XZ(x, z);
+					if (mode == ColumnCleanupMode.ExpandBedrock)
+					{
+						ExpandBedrock(shortArray, xz);
+					}
+					else if (mode == ColumnCleanupMode.ConstrainToBedrock)
+					{
+						ConstrainToBedrock(shortArray, xz);
+					}
+				}
+			}
+		}
+
+		// If the column is non-empty, ensure Y=0 has bedrock
+		private static void ExpandBedrock(Span<ushort> shortArray, XZ xz)
+		{
+			int index0 = ChunkMath.GetUshortIndex(new Point(xz, 0));
+			ushort block0 = shortArray[index0];
+			if (block0 == DQB2Constants.BlockId.Bedrock)
+			{
+				return; // already has bedrock at Y=0
+			}
+			if (!IsSimple(block0))
+			{
+				// They must have used some other tool to put an item at Y=0.
+				// Let's ignore the entire column.
+				return;
+			}
+
+			for (int y = 1; y < DQB2Constants.MaxElevation; y++)
+			{
+				int index = ChunkMath.GetUshortIndex(new Point(xz, y));
+				if (shortArray[index] != DQB2Constants.BlockId.Empty)
+				{
+					shortArray[index0] = DQB2Constants.BlockId.Bedrock;
+					return;
+				}
+			}
+		}
+
+		// If column does not have bedrock at Y=0, clear it (if possible)
+		private static void ConstrainToBedrock(Span<ushort> shortArray, XZ xz)
+		{
+			int index0 = ChunkMath.GetUshortIndex(new Point(xz, 0));
+			ushort block0 = shortArray[index0];
+			if (block0 == DQB2Constants.BlockId.Bedrock)
+			{
+				return; // column has bedrock, nothing to do
+			}
+			else if (block0 != DQB2Constants.BlockId.Empty)
+			{
+				// This column must have been edited using some other tool.
+				// Leaving it the way it is seems safest.
+				return;
+			}
+
+			for (int y = 1; y < DQB2Constants.MaxElevation; y++)
+			{
+				int index = ChunkMath.GetUshortIndex(new Point(xz, y));
+				if (IsSimple(shortArray[index]))
+				{
+					shortArray[index] = DQB2Constants.BlockId.Empty;
+				}
+				else
+				{
+					// There's really nothing reasonable we can do in this situation.
+					// They must have used another tool (or there is a bug in Blocktavius)
+					// which created a column with nothing at Y=0 and an item at Y>0...
+					// Just leave the item where it is.
+					// (Maybe we should leave the whole column as-is... but I think not.
+					//  Making the troublesome item stand out seems preferable to leaving
+					//  it buried by blocks, whether or not Blocktavius placed those blocks.)
+				}
+			}
 		}
 	}
 }

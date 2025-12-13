@@ -46,6 +46,35 @@ public interface IMutableStage : IStage
 	void Mutate(StageMutation mutation);
 
 	void ExpandChunks(IReadOnlySet<ChunkOffset> includeChunks);
+
+	void PerformColumnCleanup(ColumnCleanupMode mode);
+}
+
+/// <summary>
+/// Blocktavius denies "Mutations" (eg "put hill") from writing to the Y=0 layer.
+/// This means that Mutations can unconditionally write outside the bounds
+/// of the existing bedrock, and we can decide later whether to
+/// * use <see cref="ExpandBedrock"/> to accept the out-of-bounds blocks by placing
+///   new bedrock below them, or to
+/// * use <see cref="ConstrainToBedrock"/> to undo the out-of-bounds placements.
+///
+/// For performance reasons, Mutations might want to attempt avoiding to write columns
+/// that will be cleared later, but this column cleanup mechanism is a good way to allow the user
+/// to defer the decision and to guarantee predictable bedrock behavior no matter what the Mutation does.
+/// </summary>
+public enum ColumnCleanupMode
+{
+	Unset,
+
+	/// <summary>
+	/// Puts bedrock at Y=0 into any column that is not empty.
+	/// </summary>
+	ExpandBedrock,
+
+	/// <summary>
+	/// Clears out any column which doesn't have bedrock at Y=0.
+	/// </summary>
+	ConstrainToBedrock,
 }
 
 /// <summary>
@@ -142,5 +171,13 @@ sealed class MutableStage : IMutableStage
 	public void ExpandChunks(IReadOnlySet<ChunkOffset> includeChunks)
 	{
 		this.chunkGrid = chunkGrid.Expand(includeChunks, offset => new MutableEmptyChunk(offset));
+	}
+
+	public void PerformColumnCleanup(ColumnCleanupMode mode)
+	{
+		foreach (var chunk in chunkGrid.IterateChunks())
+		{
+			chunk.PerformColumnCleanup(mode);
+		}
 	}
 }

@@ -10,4 +10,10 @@ public static class DQB2Constants
 {
 	public const int MaxElevation = 96;
 	public const int ChunkSizeXZ = 32;
+
+	public static class BlockId
+	{
+		public const ushort Empty = 0;
+		public const ushort Bedrock = 1;
+	}
 }

@@ -47,6 +47,11 @@ class ChunkGrid<TChunk> where TChunk : class
 		}
 	}
 
+	public IEnumerable<TChunk> IterateChunks()
+	{
+		return chunksInUse.Select(offset => GetChunkOrNull(offset) ?? throw new Exception("Assert fail"));
+	}
+
 	public TChunk? GetChunkOrNull(XZ xz) => chunkSampler.Sample(ChunkOffset.FromXZ(xz).RawUnscaledOffset);
 
 	public TChunk? GetChunkOrNull(ChunkOffset offset) => chunkSampler.Sample(offset.RawUnscaledOffset);

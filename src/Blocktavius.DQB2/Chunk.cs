@@ -31,6 +31,8 @@ interface ICloneableChunk : IChunk
 public interface IMutableChunk : IChunk
 {
 	void SetBlock(Point point, ushort block);
+
+	internal void PerformColumnCleanup(ColumnCleanupMode mode);
 }
 
 static class ChunkMath
@@ -73,6 +75,8 @@ static class ChunkMath
 public abstract class ChunkInternals
 {
 	internal abstract ValueTask WriteBlockdataAsync(Stream stream);
+
+	internal abstract bool IsEmpty();
 }
 
 sealed class ImmutableChunk<TBlockdata> : ChunkInternals, ICloneableChunk where TBlockdata : struct, IBlockdata
@@ -98,6 +102,8 @@ sealed class ImmutableChunk<TBlockdata> : ChunkInternals, ICloneableChunk where 
 	}
 
 	internal override ValueTask WriteBlockdataAsync(Stream stream) => blockdata.WriteAsync(stream);
+
+	internal override bool IsEmpty() => blockdata.IsEmpty();
 }
 
 sealed class MutableChunk<TReadBlockdata> : ChunkInternals, IMutableChunk where TReadBlockdata : struct, IBlockdata
@@ -158,6 +164,17 @@ sealed class MutableChunk<TReadBlockdata> : ChunkInternals, IMutableChunk where 
 	}
 
 	internal override ValueTask WriteBlockdataAsync(Stream stream) => readSource.WriteAsync(stream);
+
+	internal override bool IsEmpty() => readSource.IsEmpty();
+
+	void IMutableChunk.PerformColumnCleanup(ColumnCleanupMode mode)
+	{
+		if (writeSource.IsNothing)
+		{
+			return;
+		}
+		writeSource.PerformColumnCleanup(mode);
+	}
 }
 
 /// <summary>
@@ -197,6 +214,16 @@ sealed class MutableEmptyChunk : ChunkInternals, IMutableChunk
 		else
 		{
 			return stream.WriteAsync(ChunkMath.EmptyChunkdata);
+		}
+	}
+
+	internal override bool IsEmpty() => bytes?.IsEmpty() ?? true;
+
+	void IMutableChunk.PerformColumnCleanup(ColumnCleanupMode mode)
+	{
+		if (bytes.HasValue)
+		{
+			bytes.Value.PerformColumnCleanup(mode);
 		}
 	}
 }

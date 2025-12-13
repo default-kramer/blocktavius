@@ -237,7 +237,8 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 		}
 		if (mutations.Count > 0)
 		{
-			return StageMutation.Combine(mutations);
+			var mode = this.Settings.ExpandBedrock ? ColumnCleanupMode.ExpandBedrock : ColumnCleanupMode.ConstrainToBedrock;
+			return StageMutation.Combine(mutations, mode);
 		}
 		return null;
 	}

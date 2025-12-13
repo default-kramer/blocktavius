@@ -230,7 +230,7 @@ static class StageLoader
 
 		public bool CanSave => true;
 
-		public void Save(IWritableSaveSlot slot, IStage stage, FileInfo? assertDestFilename)
+		public void Save(IWritableSaveSlot slot, IStage stage, FileInfo? assertDestFilename, bool includeEmptyChunks)
 		{
 			var actualPath = Path.Combine(slot.Directory.FullName, OriginalFilename);
 			if (assertDestFilename != null && !actualPath.Equals(assertDestFilename.FullName, StringComparison.OrdinalIgnoreCase))
@@ -239,7 +239,7 @@ static class StageLoader
 			}
 
 			using var uncompressedBody = new MemoryStream();
-			WriteBodyUncompressed(uncompressedBody, stage);
+			WriteBodyUncompressed(uncompressedBody, stage, includeEmptyChunks);
 			uncompressedBody.Flush();
 
 			using var compressedBody = new MemoryStream();
@@ -273,12 +273,12 @@ static class StageLoader
 			stream.Close();
 		}
 
-		private void WriteBodyUncompressed(Stream stream, IStage stage)
+		private void WriteBodyUncompressed(Stream stream, IStage stage, bool includeEmptyChunks)
 		{
 			// Sapphire: https://github.com/Sapphire645/DQB2IslandEditor/wiki/Info-on-all-memory-allocations-on-the-STGDATs
 
 			int blockdataStart = GetChunkStartAddress(0);
-			var chunkGridData = CreateChunkGrid(stage, out var chunks).AsSpan();
+			var chunkGridData = CreateChunkGrid(stage, includeEmptyChunks, out var chunks).AsSpan();
 			ushort chunkCount = (ushort)chunks.Count;
 			var origBody = OrigUncompressedBody.AsSpan;
 
@@ -316,7 +316,7 @@ static class StageLoader
 			}
 		}
 
-		private static byte[] CreateChunkGrid(IStage stage, out IReadOnlyList<IChunk> chunks)
+		private static byte[] CreateChunkGrid(IStage stage, bool includeEmptyChunks, out IReadOnlyList<IChunk> chunks)
 		{
 			const int i64 = chunkGridDimension;
 			var bytes = new byte[chunkGridLengthBytes];
@@ -327,17 +327,15 @@ static class StageLoader
 			{
 				for (int x = 0; x < i64; x++)
 				{
-					ushort val;
-
+					ushort val = 0xFFFF;
 					if (stage.TryReadChunk(new ChunkOffset(x, z), out var chunk))
 					{
-						int chunkId = chunklist.Count;
-						val = (ushort)chunkId;
-						chunklist.Add(chunk);
-					}
-					else
-					{
-						val = 0xFFFF;
+						if (includeEmptyChunks || !chunk.Internals.IsEmpty())
+						{
+							int chunkId = chunklist.Count;
+							val = (ushort)chunkId;
+							chunklist.Add(chunk);
+						}
 					}
 
 					stream.WriteUInt16(val);

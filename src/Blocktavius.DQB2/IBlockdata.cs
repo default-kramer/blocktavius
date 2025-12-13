@@ -9,6 +9,7 @@ namespace Blocktavius.DQB2;
 
 /// <summary>
 /// Low-level wrapper around a byte array.
+/// Holds one chunk worth of blockdata.
 /// </summary>
 interface IBlockdata
 {
@@ -19,9 +20,13 @@ interface IBlockdata
 	ValueTask WriteAsync(Stream stream);
 
 	TSelf HackySelfCast<TSelf>() where TSelf : struct, IBlockdata;
+
+	bool IsEmpty();
 }
 
 interface IMutableBlockdata : IBlockdata
 {
 	void SetBlock(Point point, ushort block);
+
+	void PerformColumnCleanup(ColumnCleanupMode bedrockMode);
 }

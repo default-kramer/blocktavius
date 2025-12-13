@@ -31,25 +31,30 @@ public abstract class StageMutation
 		};
 	}
 
-	public static StageMutation Combine(IReadOnlyList<StageMutation> mutations)
+	public static StageMutation Combine(IReadOnlyList<StageMutation> mutations, ColumnCleanupMode? columnCleanupMode = null)
 	{
-		return new CompositeMutation { Mutations = mutations };
-	}
-
-	public static StageMutation Combine(params StageMutation[] mutations)
-	{
-		return new CompositeMutation { Mutations = mutations };
+		return new CompositeMutation
+		{
+			Mutations = mutations,
+			ColumnCleanupMode = columnCleanupMode,
+		};
 	}
 
 	sealed class CompositeMutation : StageMutation
 	{
 		public required IReadOnlyList<StageMutation> Mutations { get; init; }
+		public required ColumnCleanupMode? ColumnCleanupMode { get; init; }
 
 		internal override void Apply(IMutableStage stage)
 		{
 			foreach (var m in Mutations)
 			{
 				m.Apply(stage);
+			}
+
+			if (ColumnCleanupMode.HasValue)
+			{
+				stage.PerformColumnCleanup(ColumnCleanupMode.Value);
 			}
 		}
 	}

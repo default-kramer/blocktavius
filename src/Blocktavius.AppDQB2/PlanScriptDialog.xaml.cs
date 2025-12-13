@@ -689,7 +689,7 @@ public partial class PlanScriptDialog : Window
 			{
 				try
 				{
-					stage.Saver.Save(targetSlot.WritableSlot, stage, targetFile);
+					stage.Saver.Save(targetSlot.WritableSlot, stage, targetFile, includeEmptyChunks: false);
 					fullLog.AppendLine("Scripted stage constructed successfully!");
 				}
 				catch (Exception ex)
