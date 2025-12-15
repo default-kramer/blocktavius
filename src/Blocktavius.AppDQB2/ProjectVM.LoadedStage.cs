@@ -71,6 +71,8 @@ partial class ProjectVM
 					Minimap = await getMinimap,
 				};
 
+				var blah = DQB2.FOO.CreateAnalysis(result.Stage); // NOMERGE clean this up!
+
 				var threadB = Thread.CurrentThread.ManagedThreadId;
 				context.UpdateValue(result);
 			}
