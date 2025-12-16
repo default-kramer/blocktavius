@@ -86,6 +86,11 @@ public readonly struct Block : IEquatable<Block>, IComparable<Block>
 	internal const int Mask_CanonicalBlockId = 0x7FF;
 	internal const int CanonicalBlockCount = 0x800;
 
+	private const int FirstPropId = 1158;
+	private const int ImmersionsPerLiquid = 11;
+	private const int LiquidsPerShell = 8;
+	private const int PropShellSize = LiquidsPerShell * ImmersionsPerLiquid + 1; // last one is for the "not submerged" case
+
 
 	private readonly int val;
 
@@ -112,6 +117,45 @@ public readonly struct Block : IEquatable<Block>, IComparable<Block>
 	public ImmersionIndex ImmersionIndex => (ImmersionIndex)((val & Mask_Immersion) >> Shift_Immersion);
 	public bool IsProp => (val & Mask_IsProp) != 0;
 
+	public bool TryChangeLiquidFamily(LiquidFamilyIndex requestedFamily, out Block changedBlock)
+	{
+		if (this.LiquidFamilyIndex == LiquidFamilyIndex.None)
+		{
+			if (requestedFamily == LiquidFamilyIndex.None)
+			{
+				changedBlock = this;
+				return true;
+			}
+			// Cannot change, don't know what depth/immersion to use
+			changedBlock = default;
+			return false;
+		}
+
+		if (!IsProp)
+		{
+			throw new Exception("TODO - need to handle simple blocks...");
+		}
+
+		int newId;
+		if (requestedFamily == LiquidFamilyIndex.None)
+		{
+			// jump to last value of current prop shell
+			int startOfNextShell = FirstPropId + (int)this.PropShellIndex * PropShellSize;
+			newId = startOfNextShell - 1;
+		}
+		else
+		{
+			// add or subtract some multiple of ImmersionsPerLiquid
+			int deltaLiquid = requestedFamily - this.LiquidFamilyIndex;
+			newId = this.CanonicalBlockId + deltaLiquid * ImmersionsPerLiquid;
+		}
+
+		// preserve the higher bits (chisel)
+		newId |= this.val & (Mask_BlockId & ~Mask_CanonicalBlockId);
+
+		changedBlock = Lookup((ushort)newId);
+		return true;
+	}
 
 
 	private static readonly MaskedBlockLookup<PackedBlockInfo> lookup;

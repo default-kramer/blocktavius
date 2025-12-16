@@ -1,4 +1,4 @@
-﻿using Blocktavius.DQB2;
+using Blocktavius.DQB2;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -112,6 +112,50 @@ public class BlockIdValidation
 			Assert.IsTrue(block.PropShellIndex == canonicalBlock.PropShellIndex);
 			Assert.IsTrue(block.LiquidFamilyIndex == canonicalBlock.LiquidFamilyIndex);
 			Assert.IsTrue(block.ImmersionIndex == canonicalBlock.ImmersionIndex);
+		}
+	}
+
+	[TestMethod]
+	public void PropLiquidChangeTests()
+	{
+		var liquids = Enum.GetValues(typeof(LiquidFamilyIndex))
+			.Cast<LiquidFamilyIndex>()
+			.Where(x => x != LiquidFamilyIndex.END)
+			.ToList();
+
+		Assert.AreEqual(9, liquids.Count);
+		Assert.IsTrue(liquids[0] == LiquidFamilyIndex.None);
+
+		for (ushort blockId = firstPropId; blockId < 0x800; blockId++)
+		{
+			var orig = Block.Lookup(blockId);
+
+			foreach (var liquid in liquids)
+			{
+				bool result = orig.TryChangeLiquidFamily(liquid, out var changed);
+				if (orig.LiquidFamilyIndex == LiquidFamilyIndex.None && liquid != LiquidFamilyIndex.None)
+				{
+					// Cannot change from None to some other value (don't know what Immersion to use)
+					Assert.IsFalse(result);
+					continue;
+				}
+				Assert.IsTrue(result);
+				Assert.IsTrue(changed.IsProp == orig.IsProp);
+				Assert.IsTrue(changed.PropShellIndex == orig.PropShellIndex);
+
+				if (liquid == LiquidFamilyIndex.None)
+				{
+					Assert.IsTrue(changed.LiquidFamilyIndex == LiquidFamilyIndex.None);
+					Assert.IsTrue(changed.ImmersionIndex == ImmersionIndex.None);
+				}
+				else
+				{
+					Assert.IsTrue(changed.LiquidFamilyIndex == liquid);
+					Assert.IsTrue(changed.ImmersionIndex == orig.ImmersionIndex);
+				}
+
+				Assert.IsTrue(changed == Block.Lookup(changed.CanonicalBlockId));
+			}
 		}
 	}
 }
