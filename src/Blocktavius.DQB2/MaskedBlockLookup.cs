@@ -9,8 +9,8 @@ namespace Blocktavius.DQB2;
 
 sealed class MaskedBlockLookup<T> : IReadOnlyDictionary<ushort, T?>
 {
-	private const int count = DQB2Constants.numDistinctMaskedBlocks;
-	const ushort mask = DQB2Constants.blockMask;
+	private const int count = Block.CanonicalBlockCount;
+	const ushort mask = Block.Mask_CanonicalBlockId;
 
 	private readonly T?[] lookup = new T[count];
 

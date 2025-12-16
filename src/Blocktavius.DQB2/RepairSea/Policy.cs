@@ -29,14 +29,14 @@ sealed class Policy : IPolicy
 		var lookup = new MaskedBlockLookup<Flags>();
 		foreach (ushort blockId in lookup.Keys)
 		{
-			if (blockId.IsItem())
+			if (blockId.IsProp())
 			{
 				// All item IDs can be included in the sea, but they cannot be overwritten.
 				// (More advanced analysis might consider whether the item is porous,
 				//  but that doesn't seem necessary yet.)
 				lookup[blockId] = Flags.CanBePartOfSea;
 			}
-			else if (blockId == DQB2Constants.BlockId.Empty || LiquidFamily.GetFamilyId(blockId) != LiquidFamilyId.None)
+			else if (blockId == DQB2Constants.BlockId.Empty || blockId.GetLiquidFamilyIndex() != LiquidFamilyIndex.None)
 			{
 				lookup[blockId] = Flags.CanBePartOfSea | Flags.ShouldOverwrite;
 			}
