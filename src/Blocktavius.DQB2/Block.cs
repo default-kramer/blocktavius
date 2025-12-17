@@ -70,7 +70,7 @@ public enum ImmersionIndex
 	END = 12,
 }
 
-public readonly struct Block : IEquatable<Block>, IComparable<Block>
+public readonly partial struct Block : IEquatable<Block>, IComparable<Block>
 {
 	/// <summary>
 	/// This enum will be used to represent a packed integer having the following bit layout:
@@ -98,10 +98,6 @@ public readonly struct Block : IEquatable<Block>, IComparable<Block>
 	private const int ImmersionsPerLiquid = 11;
 	private const int LiquidsPerShell = 8;
 	private const int PropShellSize = LiquidsPerShell * ImmersionsPerLiquid + 1; // last one is for the "not submerged" case
-
-	private const PropShellIndex PropShellOffset = PropShellIndex.Fence;
-	private const LiquidFamilyIndex LiquidOffset = LiquidFamilyIndex.ClearWater;
-	private const ImmersionIndex ImmersionOffset = ImmersionIndex.Full1;
 
 
 	private readonly int val;
@@ -135,9 +131,9 @@ public readonly struct Block : IEquatable<Block>, IComparable<Block>
 	/// </summary>
 	private static int RecomputeProp(PropShellIndex propShell, LiquidFamilyIndex requestedFamily, ImmersionIndex immersion)
 	{
-		int iProp = propShell - PropShellOffset;
-		int iLiquid = requestedFamily - LiquidOffset;
-		int iImmersion = immersion - ImmersionOffset;
+		int iProp = propShell - (PropShellIndex.None + 1);
+		int iLiquid = requestedFamily - (LiquidFamilyIndex.None + 1);
+		int iImmersion = immersion - (ImmersionIndex.None + 1);
 
 		int shellStart = FirstPropId + iProp * PropShellSize;
 		if (requestedFamily == LiquidFamilyIndex.None)
@@ -209,24 +205,55 @@ public readonly struct Block : IEquatable<Block>, IComparable<Block>
 	static Block()
 	{
 		lookup = new();
-		for (ushort blockId = 0; blockId < CanonicalBlockCount; blockId++)
+
+		// Add simple blocks
+		ushort blockId;
+		for (blockId = 0; blockId < FirstPropId; blockId++)
 		{
-			var propShellIndex = blockId.GetPropShellIndex();
-			var liquidIndex = blockId.GetLiquidFamilyIndex();
-			var immersionIndex = blockId.GetImmersionIndex();
-
-			int flags = 0;
-			flags |= ((int)propShellIndex) << Shift_PropShell;
-			flags |= ((int)liquidIndex) << Shift_LiquidFamily;
-			flags |= ((int)immersionIndex) << Shift_Immersion;
-
-			if (blockId.IsProp())
-			{
-				flags = flags | Mask_IsProp;
-			}
-
-			lookup[blockId] = (PackedBlockInfo)flags;
+			var liquid = GetLiquidFamily_ForSimpleBlocksOnly(blockId);
+			lookup[blockId] = Pack(PropShellIndex.None, liquid, ImmersionIndex.None, isProp: false);
 		}
+		blockId--; // undo the final ++ that exited the loop
+
+		void AddProp(PropShellIndex propShell, LiquidFamilyIndex liquid, ImmersionIndex immersion)
+		{
+			int id = RecomputeProp(propShell, liquid, immersion);
+			// validate that the loop covers all the block IDs in the order we expect:
+			if (id == blockId + 1) { blockId++; }
+			else { throw new Exception("Assert fail - out of order"); }
+			lookup[blockId] = Pack(propShell, liquid, immersion, isProp: true);
+		}
+
+		// Add props
+		for (var propShell = PropShellIndex.None + 1; propShell < PropShellIndex.END; propShell++)
+		{
+			for (var liquid = LiquidFamilyIndex.None + 1; liquid < LiquidFamilyIndex.END; liquid++)
+			{
+				for (var immersion = ImmersionIndex.None + 1; immersion < ImmersionIndex.END; immersion++)
+				{
+					AddProp(propShell, liquid, immersion);
+				}
+			}
+			AddProp(propShell, LiquidFamilyIndex.None, ImmersionIndex.None);
+		}
+
+		if (blockId != 0x7FF)
+		{
+			throw new Exception("Assert fail - didn't cover all block IDs");
+		}
+	}
+
+	private static PackedBlockInfo Pack(PropShellIndex propShell, LiquidFamilyIndex liquid, ImmersionIndex immersion, bool isProp)
+	{
+		int flags = 0;
+		flags |= (int)propShell << Shift_PropShell;
+		flags |= (int)liquid << Shift_LiquidFamily;
+		flags |= (int)immersion << Shift_Immersion;
+		if (isProp)
+		{
+			flags |= Mask_IsProp;
+		}
+		return (PackedBlockInfo)flags;
 	}
 
 	public bool Equals(Block other) => this.val == other.val;
