@@ -178,7 +178,7 @@ public sealed class LiquidFamily
 	{
 		LiquidFamilyId = LiquidFamilyIndex.Plasma,
 		BlockIdFull = 397,
-		BlockIdSurfaceShallow = 390,
+		BlockIdSurfaceShallow = 390, // TODO definitely wrong, must be 399 then yeah?
 		BlockIdSurfaceDeep = 400,
 		SimpleBlockIds = [
 			397, 398, // Plasma-full-block

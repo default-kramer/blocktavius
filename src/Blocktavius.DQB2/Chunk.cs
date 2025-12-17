@@ -1,5 +1,4 @@
 ﻿using Blocktavius.Core;
-using System.Runtime.InteropServices;
 
 namespace Blocktavius.DQB2;
 
@@ -31,6 +30,8 @@ interface ICloneableChunk : IChunk
 public interface IMutableChunk : IChunk
 {
 	void SetBlock(Point point, ushort block);
+
+	void ReplaceProp(Point point, Block prop);
 
 	internal void PerformColumnCleanup(ColumnCleanupMode mode);
 }
@@ -159,8 +160,27 @@ sealed class MutableChunk<TReadBlockdata> : ChunkInternals, IMutableChunk where 
 			writeSource = clone;
 			readSource = clone.HackySelfCast<TReadBlockdata>();
 		}
-
 		writeSource.SetBlock(point, block);
+	}
+
+	public void ReplaceProp(Point point, Block prop)
+	{
+		ushort block = prop.BlockIdComplete;
+
+		if (writeSource.IsNothing)
+		{
+			var prevVal = readSource.GetBlock(point);
+			if (block == prevVal)
+			{
+				return; // no change
+			}
+
+			// copy on write:
+			var clone = readSource.Clone();
+			writeSource = clone;
+			readSource = clone.HackySelfCast<TReadBlockdata>();
+		}
+		writeSource.ReplaceProp(point, block);
 	}
 
 	internal override ValueTask WriteBlockdataAsync(Stream stream) => readSource.WriteAsync(stream);
@@ -203,6 +223,12 @@ sealed class MutableEmptyChunk : ChunkInternals, IMutableChunk
 	{
 		bytes = bytes ?? new LittleEndianStuff.ByteArrayBlockdata(new byte[ChunkMath.BytesPerChunk]);
 		bytes.Value.SetBlock(point, block);
+	}
+
+	public void ReplaceProp(Point point, Block block)
+	{
+		bytes = bytes ?? new LittleEndianStuff.ByteArrayBlockdata(new byte[ChunkMath.BytesPerChunk]);
+		bytes.Value.ReplaceProp(point, block.BlockIdComplete);
 	}
 
 	internal override ValueTask WriteBlockdataAsync(Stream stream)

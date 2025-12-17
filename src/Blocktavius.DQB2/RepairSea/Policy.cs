@@ -22,7 +22,7 @@ sealed class Policy : IPolicy
 	}
 
 	public bool CanBePartOfSea(ushort blockId) => lookup[blockId].HasFlag(Flags.CanBePartOfSea);
-	public bool ShouldOverwriteWhenPartOfSea(ushort blockId) => lookup[blockId].HasFlag(Flags.ShouldOverwrite);
+	public bool ShouldOverwriteWhenPartOfSea(Block block) => lookup[block.BlockIdCanonical].HasFlag(Flags.ShouldOverwrite);
 
 	public static Policy TODO_DefaultPolicy() // NOMERGE
 	{
@@ -34,7 +34,7 @@ sealed class Policy : IPolicy
 				// All item IDs can be included in the sea, but they cannot be overwritten.
 				// (More advanced analysis might consider whether the item is porous,
 				//  but that doesn't seem necessary yet.)
-				lookup[blockId] = Flags.CanBePartOfSea;
+				lookup[blockId] = Flags.CanBePartOfSea | Flags.ShouldOverwrite;
 			}
 			else if (blockId == DQB2Constants.BlockId.Empty || blockId.GetLiquidFamilyIndex() != LiquidFamilyIndex.None)
 			{

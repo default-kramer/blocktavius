@@ -16,5 +16,5 @@ interface IPolicy
 	/// <summary>
 	/// During sea replacement, should this block ID be replaced by the sea's liquid ID?
 	/// </summary>
-	bool ShouldOverwriteWhenPartOfSea(ushort blockId);
+	bool ShouldOverwriteWhenPartOfSea(Block block);
 }

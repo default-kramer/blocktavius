@@ -91,6 +91,21 @@ static class LittleEndianStuff
 			}
 		}
 
+		public void ReplaceProp(Point point, ushort block)
+		{
+			if (point.Y == 0)
+			{
+				return;
+			}
+
+			var index = ChunkMath.GetUshortIndex(point);
+			var shortArray = MemoryMarshal.Cast<byte, ushort>(array);
+			if (shortArray[index].IsProp())
+			{
+				shortArray[index] = block;
+			}
+		}
+
 		public ByteArrayBlockdata Clone()
 		{
 			var copy = GC.AllocateUninitializedArray<byte>(ChunkMath.BytesPerChunk);

@@ -7,6 +7,14 @@ using System.Threading.Tasks;
 
 namespace Blocktavius.DQB2;
 
+public enum LiquidDepthIndex
+{
+	None = 0,
+	Full = 1,
+	SurfaceShallow = 2,
+	SurfaceDeep = 3,
+}
+
 public enum PropShellIndex
 {
 	None = 0,
@@ -91,6 +99,10 @@ public readonly struct Block : IEquatable<Block>, IComparable<Block>
 	private const int LiquidsPerShell = 8;
 	private const int PropShellSize = LiquidsPerShell * ImmersionsPerLiquid + 1; // last one is for the "not submerged" case
 
+	private const PropShellIndex PropShellOffset = PropShellIndex.Fence;
+	private const LiquidFamilyIndex LiquidOffset = LiquidFamilyIndex.ClearWater;
+	private const ImmersionIndex ImmersionOffset = ImmersionIndex.Full1;
+
 
 	private readonly int val;
 
@@ -117,6 +129,35 @@ public readonly struct Block : IEquatable<Block>, IComparable<Block>
 	public ImmersionIndex ImmersionIndex => (ImmersionIndex)((val & Mask_Immersion) >> Shift_Immersion);
 	public bool IsProp => (val & Mask_IsProp) != 0;
 
+	/// <summary>
+	/// DOES NOT VALIDATE THE ARGS.
+	/// Returns the canonical block ID for the given shell+liquid+immersion.
+	/// </summary>
+	private static int RecomputeProp(PropShellIndex propShell, LiquidFamilyIndex requestedFamily, ImmersionIndex immersion)
+	{
+		int iProp = propShell - PropShellOffset;
+		int iLiquid = requestedFamily - LiquidOffset;
+		int iImmersion = immersion - ImmersionOffset;
+
+		int shellStart = FirstPropId + iProp * PropShellSize;
+		if (requestedFamily == LiquidFamilyIndex.None)
+		{
+			// "not submerged" case is the last value of the shell
+			return shellStart + PropShellSize - 1;
+		}
+		else
+		{
+			return shellStart + iLiquid * ImmersionsPerLiquid + iImmersion;
+		}
+	}
+
+	private Block PreserveChisel(int newId)
+	{
+		newId &= Mask_CanonicalBlockId;
+		newId |= this.val & (Mask_BlockId & ~Mask_CanonicalBlockId);
+		return Lookup((ushort)newId);
+	}
+
 	public bool TryChangeLiquidFamily(LiquidFamilyIndex requestedFamily, out Block changedBlock)
 	{
 		if (this.LiquidFamilyIndex == LiquidFamilyIndex.None)
@@ -136,25 +177,30 @@ public readonly struct Block : IEquatable<Block>, IComparable<Block>
 			throw new Exception("TODO - need to handle simple blocks...");
 		}
 
-		int newId;
-		if (requestedFamily == LiquidFamilyIndex.None)
+		int newId = RecomputeProp(this.PropShellIndex, requestedFamily, this.ImmersionIndex);
+		changedBlock = PreserveChisel(newId);
+		return true;
+	}
+
+	public Block SetLiquid(LiquidFamilyIndex liquid, LiquidDepthIndex depth)
+	{
+		if (liquid == LiquidFamilyIndex.None || depth == LiquidDepthIndex.None)
 		{
-			// jump to last value of current prop shell
-			int startOfNextShell = FirstPropId + (int)this.PropShellIndex * PropShellSize;
-			newId = startOfNextShell - 1;
+			throw new ArgumentException("Must specify liquid and depth");
+		}
+
+		if (IsProp)
+		{
+			// This Depth -> Immersion case looks correct for Full and SurfaceShallow,
+			// but still untested for SurfaceDeep.
+			var immersion = (ImmersionIndex)depth;
+			int newId = RecomputeProp(this.PropShellIndex, liquid, immersion);
+			return PreserveChisel(newId);
 		}
 		else
 		{
-			// add or subtract some multiple of ImmersionsPerLiquid
-			int deltaLiquid = requestedFamily - this.LiquidFamilyIndex;
-			newId = this.BlockIdCanonical + deltaLiquid * ImmersionsPerLiquid;
+			throw new NotImplementedException("TODO??");
 		}
-
-		// preserve the higher bits (chisel)
-		newId |= this.val & (Mask_BlockId & ~Mask_CanonicalBlockId);
-
-		changedBlock = Lookup((ushort)newId);
-		return true;
 	}
 
 
