@@ -220,12 +220,13 @@ public sealed class LiquidFamily
 	public static readonly LiquidFamily Lava = new()
 	{
 		LiquidFamilyId = LiquidFamilyIndex.Lava,
-		BlockIdFull = 386, // TODO is there really no full lava?
+		BlockIdFull = 267,
 		BlockIdSurfaceShallow = 346,
 		BlockIdSurfaceDeep = 386,
 		SimpleBlockIds = [
+			266, 267, // confirmed 267 is full+stable, and 266 is full+unstable
 			259, 346, // Lava-shallow-block
-			260, 261, 262, 263, 264, 265, 266, 267, 386 // Lava-surface-block
+			260, 261, 262, 263, 264, 265, 386 // Lava-surface-block
 			],
 	};
 
