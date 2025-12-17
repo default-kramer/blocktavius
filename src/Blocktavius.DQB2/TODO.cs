@@ -148,18 +148,112 @@ public sealed class LiquidFamily
 		var fam = blockId.GetLiquidFamilyIndex();
 		switch (fam)
 		{
+			case LiquidFamilyIndex.ClearWater:
+				liquidFamily = ClearWater;
+				return true;
+			case LiquidFamilyIndex.HotWater:
+				liquidFamily = HotWater;
+				return true;
+			case LiquidFamilyIndex.Poison:
+				liquidFamily = Poison;
+				return true;
+			case LiquidFamilyIndex.Lava:
+				liquidFamily = Lava;
+				return true;
+			case LiquidFamilyIndex.BottomlessSwamp:
+				liquidFamily = BottomlessSwamp;
+				return true;
+			case LiquidFamilyIndex.MuddyWater:
+				liquidFamily = MuddyWater;
+				return true;
 			case LiquidFamilyIndex.Seawater:
 				liquidFamily = Seawater;
 				return true;
 			case LiquidFamilyIndex.Plasma:
 				liquidFamily = Plasma;
 				return true;
-			// TODO NOMERGE need to define the other families here!
 			default:
 				liquidFamily = null!;
 				return false;
 		}
 	}
+
+	public static readonly LiquidFamily ClearWater = new()
+	{
+		LiquidFamilyId = LiquidFamilyIndex.ClearWater,
+		BlockIdFull = 128,
+		BlockIdSurfaceShallow = 343,
+		BlockIdSurfaceDeep = 383,
+		SimpleBlockIds = [
+			120, 128, // Clear-water-full-block
+			145, 343, // Clear-water-shallow-block
+			121, 122, 123, 142, 143, 144, 383 // Clear-water-surface-block
+			],
+	};
+
+	public static readonly LiquidFamily HotWater = new()
+	{
+		LiquidFamilyId = LiquidFamilyIndex.HotWater,
+		BlockIdFull = 231,
+		BlockIdSurfaceShallow = 344,
+		BlockIdSurfaceDeep = 384,
+		SimpleBlockIds = [
+			230, 231, // Hot-Water-full-block
+			223, 344, // Hot-Water-shallow-block
+			224, 225, 226, 227, 228, 229, 384 // Hot-Water-surface-block
+			],
+	};
+
+	public static readonly LiquidFamily Poison = new()
+	{
+		LiquidFamilyId = LiquidFamilyIndex.Poison,
+		BlockIdFull = 190,
+		BlockIdSurfaceShallow = 345,
+		BlockIdSurfaceDeep = 385,
+		SimpleBlockIds = [
+			189, 190, // Poison-full-block
+			182, 345, // Poison-shallow-block
+			183, 184, 185, 186, 187, 188, 385 // Poison-surface-block
+			],
+	};
+
+	public static readonly LiquidFamily Lava = new()
+	{
+		LiquidFamilyId = LiquidFamilyIndex.Lava,
+		BlockIdFull = 386, // TODO is there really no full lava?
+		BlockIdSurfaceShallow = 346,
+		BlockIdSurfaceDeep = 386,
+		SimpleBlockIds = [
+			259, 346, // Lava-shallow-block
+			260, 261, 262, 263, 264, 265, 266, 267, 386 // Lava-surface-block
+			],
+	};
+
+	public static readonly LiquidFamily BottomlessSwamp = new()
+	{
+		LiquidFamilyId = LiquidFamilyIndex.BottomlessSwamp,
+		BlockIdFull = 199,
+		BlockIdSurfaceShallow = 347,
+		BlockIdSurfaceDeep = 387,
+		SimpleBlockIds = [
+			198, 199, // Bottomless-Swamp-full-block
+			191, 347, // Bottomless-Swamp-shallow-block
+			192, 193, 194, 195, 196, 197, 387 // Bottomless-Swamp-surface-block
+			],
+	};
+
+	public static readonly LiquidFamily MuddyWater = new()
+	{
+		LiquidFamilyId = LiquidFamilyIndex.MuddyWater,
+		BlockIdFull = 208,
+		BlockIdSurfaceShallow = 348,
+		BlockIdSurfaceDeep = 388,
+		SimpleBlockIds = [
+			207, 208, // Muddy-Water-full-block
+			200, 348, // Muddy-Water-shallow-block
+			201, 202, 203, 204, 205, 206, 388 // Muddy-Water-surface-block
+			],
+	};
 
 	public static readonly LiquidFamily Seawater = new()
 	{
@@ -167,7 +261,7 @@ public sealed class LiquidFamily
 		BlockIdFull = 341,
 		// fresh IoA/Moonbrooke also use 420 in places, but 349 is most common:
 		BlockIdSurfaceShallow = 349,
-		BlockIdSurfaceDeep = 389, // TODO unconfirmed...
+		BlockIdSurfaceDeep = 389,
 		SimpleBlockIds = [
 			340, 341, // Sea-water-full-block
 			333, 349, 420, // Sea-water-shallow-block
@@ -179,7 +273,7 @@ public sealed class LiquidFamily
 		LiquidFamilyId = LiquidFamilyIndex.Plasma,
 		BlockIdFull = 397,
 		BlockIdSurfaceShallow = 399,
-		BlockIdSurfaceDeep = 400, // TODO unconfirmed
+		BlockIdSurfaceDeep = 400,
 		SimpleBlockIds = [
 			397, 398, // Plasma-full-block
 			390, 399, // Plasma-shallow-block
