@@ -85,8 +85,8 @@ public class BlockIdValidation
 	{
 		void validate(Block block)
 		{
-			Assert.IsTrue(block.CanonicalBlockId == 0);
-			Assert.IsTrue(block.CompleteBlockId == 0);
+			Assert.IsTrue(block.BlockIdCanonical == 0);
+			Assert.IsTrue(block.BlockIdComplete == 0);
 			Assert.IsTrue(block.PropShellIndex == PropShellIndex.None);
 			Assert.IsTrue(block.LiquidFamilyIndex == LiquidFamilyIndex.None);
 			Assert.IsTrue(block.ImmersionIndex == ImmersionIndex.None);
@@ -104,11 +104,11 @@ public class BlockIdValidation
 			var block = Block.Lookup(blockId);
 			var canonicalBlock = Block.Lookup((ushort)(blockId % 0x800));
 			Assert.IsFalse(block == canonicalBlock);
-			Assert.IsFalse(block.CompleteBlockId == canonicalBlock.CompleteBlockId);
+			Assert.IsFalse(block.BlockIdComplete == canonicalBlock.BlockIdComplete);
 
 			// Everything else should be the same:
 			Assert.IsTrue(block.IsProp == canonicalBlock.IsProp);
-			Assert.IsTrue(block.CanonicalBlockId == canonicalBlock.CanonicalBlockId);
+			Assert.IsTrue(block.BlockIdCanonical == canonicalBlock.BlockIdCanonical);
 			Assert.IsTrue(block.PropShellIndex == canonicalBlock.PropShellIndex);
 			Assert.IsTrue(block.LiquidFamilyIndex == canonicalBlock.LiquidFamilyIndex);
 			Assert.IsTrue(block.ImmersionIndex == canonicalBlock.ImmersionIndex);
@@ -154,7 +154,7 @@ public class BlockIdValidation
 					Assert.IsTrue(changed.ImmersionIndex == orig.ImmersionIndex);
 				}
 
-				Assert.IsTrue(changed == Block.Lookup(changed.CanonicalBlockId));
+				Assert.IsTrue(changed == Block.Lookup(changed.BlockIdCanonical));
 			}
 		}
 	}

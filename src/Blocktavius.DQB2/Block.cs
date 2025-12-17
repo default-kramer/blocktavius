@@ -105,12 +105,12 @@ public readonly struct Block : IEquatable<Block>, IComparable<Block>
 		return new Block(blockId, flags);
 	}
 
-	public ushort CompleteBlockId => (ushort)(val & Mask_BlockId);
+	public ushort BlockIdComplete => (ushort)(val & Mask_BlockId);
 
 	/// <summary>
 	/// Removes the chisel status and the alleged "placed by player" bit.
 	/// </summary>
-	public ushort CanonicalBlockId => (ushort)(val & Mask_CanonicalBlockId);
+	public ushort BlockIdCanonical => (ushort)(val & Mask_CanonicalBlockId);
 
 	public PropShellIndex PropShellIndex => (PropShellIndex)((val & Mask_PropShell) >> Shift_PropShell);
 	public LiquidFamilyIndex LiquidFamilyIndex => (LiquidFamilyIndex)((val & Mask_LiquidFamily) >> Shift_LiquidFamily);
@@ -147,7 +147,7 @@ public readonly struct Block : IEquatable<Block>, IComparable<Block>
 		{
 			// add or subtract some multiple of ImmersionsPerLiquid
 			int deltaLiquid = requestedFamily - this.LiquidFamilyIndex;
-			newId = this.CanonicalBlockId + deltaLiquid * ImmersionsPerLiquid;
+			newId = this.BlockIdCanonical + deltaLiquid * ImmersionsPerLiquid;
 		}
 
 		// preserve the higher bits (chisel)
