@@ -24,9 +24,9 @@ partial struct Block
 			case 197: return LiquidFamilyIndex.BottomlessSwamp;
 			case 387: return LiquidFamilyIndex.BottomlessSwamp;
 
-			case 128: // stable, full
-			case 343: // stable, shallow
-			case 383: // stable, deep
+			case 128: // stable, subsurface
+			case 343: // stable, surface low
+			case 383: // stable, surface high
 			case 145: // runoff, shallow (also zero)
 			case 121: // runoff, deep (unconfirmed) ...
 			case 122:
@@ -43,9 +43,9 @@ partial struct Block
 			// I think 223 is expected to always be adjacent to at least one 344 (or 224, maybe)
 			// in which case it looks normal. If you use modding to violate this,
 			// you can see 233 render strangely as having zero height.
-			case 231: // stable, full
-			case 344: // stable, shallow
-			case 384: // stable, deep
+			case 231: // stable, subsurface
+			case 344: // stable, surface low
+			case 384: // stable, surface high
 			case 223: // runoff, shallow (can be "zero height", see comment above)
 			case 224: // runoff, deep...
 			case 225:
@@ -56,9 +56,9 @@ partial struct Block
 			case 230: // runoff, full
 				return LiquidFamilyIndex.HotWater;
 
-			case 267: // stable, full
-			case 346: // stable, shallow
-			case 386: // stable, deep
+			case 267: // stable, subsurface
+			case 346: // stable, surface low
+			case 386: // stable, surface high
 			case 259: // runoff, shallow (mostly invisible when zero, still burns the builder)
 			case 260: // runoff, deep...
 			case 261:
@@ -92,9 +92,9 @@ partial struct Block
 			case 396: return LiquidFamilyIndex.Plasma;
 			case 400: return LiquidFamilyIndex.Plasma;
 
-			case 190: // stable, full
-			case 345: // stable, shallow
-			case 385: // stable, deep
+			case 190: // stable, subsurface
+			case 345: // stable, surface low
+			case 385: // stable, surface high
 			case 182: // runoff, shallow (also zero)
 			case 183: // runoff, deep...
 			case 184:

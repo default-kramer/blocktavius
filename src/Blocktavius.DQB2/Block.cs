@@ -7,12 +7,29 @@ using System.Threading.Tasks;
 
 namespace Blocktavius.DQB2;
 
-public enum LiquidDepthIndex
+public enum LiquidAmountIndex
 {
 	None = 0,
-	Full = 1,
-	SurfaceShallow = 2,
-	SurfaceDeep = 3,
+
+	/// <summary>
+	/// Liquid fills 100% of the voxel height.
+	/// Appropriate for all non-surface layers.
+	/// </summary>
+	Subsurface = 1,
+
+	/// <summary>
+	/// Liquid fills about 15% of the voxel height, the same height you get
+	/// when you pour from the pot in shallow mode.
+	/// Appropriate for the top layer of a body of water.
+	/// </summary>
+	SurfaceLow = 2,
+
+	/// <summary>
+	/// Liquid fills about 85% of the voxel height, the same height you get
+	/// when you pour from the pot in normal mode.
+	/// Appropriate for the top layer of a body of water.
+	/// </summary>
+	SurfaceHigh = 3,
 }
 
 public enum PropShellIndex
@@ -178,18 +195,18 @@ public readonly partial struct Block : IEquatable<Block>, IComparable<Block>
 		return true;
 	}
 
-	public Block SetLiquid(LiquidFamilyIndex liquid, LiquidDepthIndex depth)
+	public Block SetLiquid(LiquidFamilyIndex liquid, LiquidAmountIndex amount)
 	{
-		if (liquid == LiquidFamilyIndex.None || depth == LiquidDepthIndex.None)
+		if (liquid == LiquidFamilyIndex.None || amount == LiquidAmountIndex.None)
 		{
 			throw new ArgumentException("Must specify liquid and depth");
 		}
 
 		if (IsProp)
 		{
-			// This Depth -> Immersion case looks correct for Full and SurfaceShallow,
+			// This Amount -> Immersion cast looks correct for Full and SurfaceShallow,
 			// but still untested for SurfaceDeep.
-			var immersion = (ImmersionIndex)depth;
+			var immersion = (ImmersionIndex)amount;
 			int newId = RecomputeProp(this.PropShellIndex, liquid, immersion);
 			return PreserveChisel(newId);
 		}

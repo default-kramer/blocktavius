@@ -13,7 +13,7 @@ sealed class RepairSeaOperation
 	{
 		public required LiquidFamily LiquidFamily { get; init; }
 		public required int SeaLevel { get; init; }
-		public required LiquidDepthIndex SeaSurfaceType { get; init; }
+		public required LiquidAmountIndex SeaSurfaceType { get; init; }
 		public required IPolicy Policy { get; init; }
 		public required IMutableStage Stage { get; init; }
 		public required ColumnCleanupMode ColumnCleanupMode { get; init; }
@@ -25,7 +25,7 @@ sealed class RepairSeaOperation
 	private readonly IMutableStage stage;
 	private readonly int seaLevel;
 	private readonly LiquidFamily liquidFamily;
-	private readonly LiquidDepthIndex topLayerDepth;
+	private readonly LiquidAmountIndex topLayerAmount;
 	private readonly IPolicy policy;
 
 	private RepairSeaOperation(Params p, IReadOnlyList<XZ> edgeLocs, IArea filterArea)
@@ -34,15 +34,15 @@ sealed class RepairSeaOperation
 		this.filterArea = filterArea;
 		this.topLayerBlockId = p.SeaSurfaceType switch
 		{
-			LiquidDepthIndex.SurfaceShallow => p.LiquidFamily.BlockIdSurfaceShallow,
-			LiquidDepthIndex.SurfaceDeep => p.LiquidFamily.BlockIdSurfaceDeep,
-			LiquidDepthIndex.Full => p.LiquidFamily.BlockIdFull,
+			LiquidAmountIndex.SurfaceLow => p.LiquidFamily.BlockIdSurfaceLow,
+			LiquidAmountIndex.SurfaceHigh => p.LiquidFamily.BlockIdSurfaceHigh,
+			LiquidAmountIndex.Subsurface => p.LiquidFamily.BlockIdSubsurface,
 			_ => throw new ArgumentException($"Unsupported SeaSurfaceType: {p.SeaSurfaceType}"),
 		};
 		this.stage = p.Stage;
 		this.seaLevel = p.SeaLevel;
 		this.liquidFamily = p.LiquidFamily;
-		this.topLayerDepth = p.SeaSurfaceType;
+		this.topLayerAmount = p.SeaSurfaceType;
 		this.policy = p.Policy;
 		this.filterArea = filterArea;
 	}
@@ -77,15 +77,15 @@ sealed class RepairSeaOperation
 	{
 		for (int y = 1; y < seaLevel; y++)
 		{
-			RepairLayer(y, liquidFamily.BlockIdFull, LiquidDepthIndex.Full);
+			RepairLayer(y, liquidFamily.BlockIdSubsurface, LiquidAmountIndex.Subsurface);
 		}
-		RepairLayer(seaLevel, topLayerBlockId, topLayerDepth);
+		RepairLayer(seaLevel, topLayerBlockId, topLayerAmount);
 	}
 
-	private void RepairLayer(int y, ushort simpleBlockId, LiquidDepthIndex depth)
+	private void RepairLayer(int y, ushort simpleBlockId, LiquidAmountIndex amount)
 	{
 		var sea = FindSea(y);
-		ReplaceBlocks(sea, y, depth, simpleBlockId);
+		ReplaceBlocks(sea, y, amount, simpleBlockId);
 	}
 
 	private IReadOnlySet<XZ> FindSea(int y)
@@ -112,7 +112,7 @@ sealed class RepairSeaOperation
 		return sea;
 	}
 
-	private void ReplaceBlocks(IReadOnlySet<XZ> sea, int y, LiquidDepthIndex depth, ushort simpleBlockId)
+	private void ReplaceBlocks(IReadOnlySet<XZ> sea, int y, LiquidAmountIndex amount, ushort simpleBlockId)
 	{
 		foreach (var xz in sea)
 		{
@@ -126,7 +126,7 @@ sealed class RepairSeaOperation
 			{
 				if (existingBlock.IsProp)
 				{
-					var newBlock = existingBlock.SetLiquid(liquidFamily.LiquidFamilyId, depth);
+					var newBlock = existingBlock.SetLiquid(liquidFamily.LiquidFamilyId, amount);
 					chunk.ReplaceProp(point, newBlock);
 				}
 				else

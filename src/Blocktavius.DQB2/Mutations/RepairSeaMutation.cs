@@ -19,7 +19,7 @@ public sealed class RepairSeaMutation : StageMutation
 			ColumnCleanupMode = this.ColumnCleanupMode,
 			SeaLevel = this.SeaLevel,
 			LiquidFamily = LiquidFamily.Seawater,
-			SeaSurfaceType = LiquidDepthIndex.SurfaceShallow,
+			SeaSurfaceType = LiquidAmountIndex.SurfaceLow,
 			Stage = stage,
 			Policy = Policy.TODO_DefaultPolicy(),
 		};

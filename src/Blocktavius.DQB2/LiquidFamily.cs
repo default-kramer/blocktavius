@@ -137,9 +137,9 @@ public sealed class LiquidFamily
 	private LiquidFamily() { }
 
 	public required LiquidFamilyIndex LiquidFamilyId { get; init; }
-	public required ushort BlockIdFull { get; init; }
-	public required ushort BlockIdSurfaceDeep { get; init; }
-	public required ushort BlockIdSurfaceShallow { get; init; }
+	public required ushort BlockIdSubsurface { get; init; }
+	public required ushort BlockIdSurfaceHigh { get; init; }
+	public required ushort BlockIdSurfaceLow { get; init; }
 
 	public required IReadOnlyList<ushort> SimpleBlockIds { get; init; }
 
@@ -178,14 +178,14 @@ public sealed class LiquidFamily
 		}
 	}
 
-	private static LiquidFamily Create(LiquidFamilyIndex fam, ushort full, ushort shallow, ushort deep)
+	private static LiquidFamily Create(LiquidFamilyIndex fam, ushort subsurface, ushort low, ushort high)
 	{
 		var simpleIds = Block.IterateSimpleBlocks()
 			.Where(x => x.LiquidFamilyIndex == fam)
 			.Select(b => b.BlockIdCanonical)
 			.ToList();
 
-		bool ok = simpleIds.Contains(full) && simpleIds.Contains(shallow) && simpleIds.Contains(deep);
+		bool ok = simpleIds.Contains(subsurface) && simpleIds.Contains(low) && simpleIds.Contains(high);
 		if (!ok) { throw new Exception("Assert fail (contains)"); }
 
 		// seawater has an extra one for some reason
@@ -195,9 +195,9 @@ public sealed class LiquidFamily
 		return new LiquidFamily
 		{
 			LiquidFamilyId = fam,
-			BlockIdFull = full,
-			BlockIdSurfaceShallow = shallow,
-			BlockIdSurfaceDeep = deep,
+			BlockIdSubsurface = subsurface,
+			BlockIdSurfaceLow = low,
+			BlockIdSurfaceHigh = high,
 			SimpleBlockIds = simpleIds,
 		};
 	}
@@ -213,9 +213,9 @@ public sealed class LiquidFamily
 	public static readonly LiquidFamily BottomlessSwamp = new()
 	{
 		LiquidFamilyId = LiquidFamilyIndex.BottomlessSwamp,
-		BlockIdFull = 199,
-		BlockIdSurfaceShallow = 347,
-		BlockIdSurfaceDeep = 387,
+		BlockIdSubsurface = 199,
+		BlockIdSurfaceLow = 347,
+		BlockIdSurfaceHigh = 387,
 		SimpleBlockIds = [
 			198, 199, // Bottomless-Swamp-full-block
 			191, 347, // Bottomless-Swamp-shallow-block
@@ -226,9 +226,9 @@ public sealed class LiquidFamily
 	public static readonly LiquidFamily MuddyWater = new()
 	{
 		LiquidFamilyId = LiquidFamilyIndex.MuddyWater,
-		BlockIdFull = 208,
-		BlockIdSurfaceShallow = 348,
-		BlockIdSurfaceDeep = 388,
+		BlockIdSubsurface = 208,
+		BlockIdSurfaceLow = 348,
+		BlockIdSurfaceHigh = 388,
 		SimpleBlockIds = [
 			207, 208, // Muddy-Water-full-block
 			200, 348, // Muddy-Water-shallow-block
@@ -239,10 +239,10 @@ public sealed class LiquidFamily
 	public static readonly LiquidFamily Seawater = new()
 	{
 		LiquidFamilyId = LiquidFamilyIndex.Seawater,
-		BlockIdFull = 341,
+		BlockIdSubsurface = 341,
 		// fresh IoA/Moonbrooke also use 420 in places, but 349 is most common:
-		BlockIdSurfaceShallow = 349,
-		BlockIdSurfaceDeep = 389,
+		BlockIdSurfaceLow = 349,
+		BlockIdSurfaceHigh = 389,
 		SimpleBlockIds = [
 			340, 341, // Sea-water-full-block
 			333, 349, 420, // Sea-water-shallow-block
@@ -252,9 +252,9 @@ public sealed class LiquidFamily
 	public static readonly LiquidFamily Plasma = new()
 	{
 		LiquidFamilyId = LiquidFamilyIndex.Plasma,
-		BlockIdFull = 397,
-		BlockIdSurfaceShallow = 399,
-		BlockIdSurfaceDeep = 400,
+		BlockIdSubsurface = 397,
+		BlockIdSurfaceLow = 399,
+		BlockIdSurfaceHigh = 400,
 		SimpleBlockIds = [
 			397, 398, // Plasma-full-block
 			390, 399, // Plasma-shallow-block
