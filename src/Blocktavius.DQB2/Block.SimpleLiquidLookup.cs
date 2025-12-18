@@ -95,14 +95,14 @@ partial struct Block
 			case 190: // stable, full
 			case 345: // stable, shallow
 			case 385: // stable, deep
-			case 189: // unstable, full
-			case 182: // unstable, shallow (also zero)
+			case 182: // runoff, shallow (also zero)
 			case 183: // runoff, deep...
 			case 184:
 			case 185:
 			case 186:
 			case 187:
 			case 188:
+			case 189: // runoff, full
 				return LiquidFamilyIndex.Poison;
 
 			case 340: return LiquidFamilyIndex.Seawater;
