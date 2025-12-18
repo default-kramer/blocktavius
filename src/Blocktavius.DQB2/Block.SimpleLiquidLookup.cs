@@ -23,17 +23,20 @@ partial struct Block
 			case 196: return LiquidFamilyIndex.BottomlessSwamp;
 			case 197: return LiquidFamilyIndex.BottomlessSwamp;
 			case 387: return LiquidFamilyIndex.BottomlessSwamp;
-			case 120: return LiquidFamilyIndex.ClearWater;
-			case 128: return LiquidFamilyIndex.ClearWater;
-			case 145: return LiquidFamilyIndex.ClearWater;
-			case 343: return LiquidFamilyIndex.ClearWater;
-			case 121: return LiquidFamilyIndex.ClearWater;
-			case 122: return LiquidFamilyIndex.ClearWater;
-			case 123: return LiquidFamilyIndex.ClearWater;
-			case 142: return LiquidFamilyIndex.ClearWater;
-			case 143: return LiquidFamilyIndex.ClearWater;
-			case 144: return LiquidFamilyIndex.ClearWater;
-			case 383: return LiquidFamilyIndex.ClearWater;
+
+			case 128: // stable, full
+			case 343: // stable, shallow
+			case 383: // stable, deep
+			case 120: // unstable, full
+			case 145: // unstable, shallow
+			case 121: // unstable...
+			case 122:
+			case 123:
+			case 142:
+			case 143:
+			case 144:
+				return LiquidFamilyIndex.ClearWater;
+
 			case 230: return LiquidFamilyIndex.HotWater;
 			case 231: return LiquidFamilyIndex.HotWater;
 			case 223: return LiquidFamilyIndex.HotWater;

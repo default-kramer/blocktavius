@@ -178,18 +178,31 @@ public sealed class LiquidFamily
 		}
 	}
 
-	public static readonly LiquidFamily ClearWater = new()
+	private static LiquidFamily Create(LiquidFamilyIndex fam, ushort full, ushort shallow, ushort deep)
 	{
-		LiquidFamilyId = LiquidFamilyIndex.ClearWater,
-		BlockIdFull = 128,
-		BlockIdSurfaceShallow = 343,
-		BlockIdSurfaceDeep = 383,
-		SimpleBlockIds = [
-			120, 128, // Clear-water-full-block
-			145, 343, // Clear-water-shallow-block
-			121, 122, 123, 142, 143, 144, 383 // Clear-water-surface-block
-			],
-	};
+		var simpleIds = Block.IterateSimpleBlocks()
+			.Where(x => x.LiquidFamilyIndex == fam)
+			.Select(b => b.BlockIdCanonical)
+			.ToList();
+
+		bool ok = simpleIds.Contains(full) && simpleIds.Contains(shallow) && simpleIds.Contains(deep);
+		if (!ok) { throw new Exception("Assert fail (contains)"); }
+
+		// seawater has an extra one for some reason
+		int expectedCount = (fam == LiquidFamilyIndex.Seawater) ? 12 : 11;
+		if (simpleIds.Count != expectedCount) { throw new Exception("Assert fail (count)"); }
+
+		return new LiquidFamily
+		{
+			LiquidFamilyId = fam,
+			BlockIdFull = full,
+			BlockIdSurfaceShallow = shallow,
+			BlockIdSurfaceDeep = deep,
+			SimpleBlockIds = simpleIds,
+		};
+	}
+
+	public static readonly LiquidFamily ClearWater = Create(LiquidFamilyIndex.ClearWater, 128, 343, 383);
 
 	public static readonly LiquidFamily HotWater = new()
 	{

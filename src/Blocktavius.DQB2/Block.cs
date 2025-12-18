@@ -199,6 +199,13 @@ public readonly partial struct Block : IEquatable<Block>, IComparable<Block>
 		}
 	}
 
+	public static IEnumerable<Block> IterateSimpleBlocks()
+	{
+		for (ushort i = 0; i < FirstPropId; i++)
+		{
+			yield return Lookup(i);
+		}
+	}
 
 	private static readonly MaskedBlockLookup<PackedBlockInfo> lookup;
 
