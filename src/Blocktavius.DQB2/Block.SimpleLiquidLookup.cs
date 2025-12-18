@@ -89,17 +89,20 @@ partial struct Block
 			case 395: return LiquidFamilyIndex.Plasma;
 			case 396: return LiquidFamilyIndex.Plasma;
 			case 400: return LiquidFamilyIndex.Plasma;
-			case 189: return LiquidFamilyIndex.Poison;
-			case 190: return LiquidFamilyIndex.Poison;
-			case 182: return LiquidFamilyIndex.Poison;
-			case 345: return LiquidFamilyIndex.Poison;
-			case 183: return LiquidFamilyIndex.Poison;
-			case 184: return LiquidFamilyIndex.Poison;
-			case 185: return LiquidFamilyIndex.Poison;
-			case 186: return LiquidFamilyIndex.Poison;
-			case 187: return LiquidFamilyIndex.Poison;
-			case 188: return LiquidFamilyIndex.Poison;
-			case 385: return LiquidFamilyIndex.Poison;
+
+			case 190: // stable, full
+			case 345: // stable, shallow
+			case 385: // stable, deep
+			case 189: // unstable, full
+			case 182: // unstable, shallow (also zero)
+			case 183: // runoff, deep...
+			case 184:
+			case 185:
+			case 186:
+			case 187:
+			case 188:
+				return LiquidFamilyIndex.Poison;
+
 			case 340: return LiquidFamilyIndex.Seawater;
 			case 341: return LiquidFamilyIndex.Seawater;
 			case 333: return LiquidFamilyIndex.Seawater;
