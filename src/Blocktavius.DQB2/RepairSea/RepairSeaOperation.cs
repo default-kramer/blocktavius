@@ -57,22 +57,21 @@ sealed class RepairSeaOperation
 		var me = new RepairSeaOperation(p, area);
 
 		var sw2 = System.Diagnostics.Stopwatch.StartNew();
-		var points = me.Execute3dFloodFill(startingPoints);
+		var seaBlockCount = me.Execute3dFloodFill(startingPoints);
 		sw2.Stop();
 
-		RepairSeaMutation.DEBUG = $"{sw1.ElapsedMilliseconds} / {sw2.ElapsedMilliseconds} / {points.Count}";
+		RepairSeaMutation.DEBUG = $"{sw1.ElapsedMilliseconds} / {sw2.ElapsedMilliseconds} / {seaBlockCount}";
 	}
 
-	private HashSet<Point> Execute3dFloodFill(IEnumerable<Point> startingPoints)
+	private int Execute3dFloodFill(IEnumerable<Point> startingPoints)
 	{
 		var bounds = this.filterArea.Bounds;
 		var visited = new bool[bounds.Size.X, seaLevel + 1, bounds.Size.Z];
-		var seaBlocks = new HashSet<Point>();
 		var queue = new Queue<Point>();
+		int seaBlockCount = 0;
 
 		foreach (var startPoint in startingPoints)
 		{
-			// The user-provided FindStartingPoints can yield points for y=0, which we must ignore.
 			if (startPoint.Y <= 0 || startPoint.Y > seaLevel) continue;
 
 			var ix = startPoint.xz.X - bounds.start.X;
@@ -81,6 +80,7 @@ sealed class RepairSeaOperation
 			if (visited[ix, iy, iz]) continue;
 
 			visited[ix, iy, iz] = true;
+			seaBlockCount++;
 			queue.Enqueue(startPoint);
 		}
 
@@ -90,7 +90,6 @@ sealed class RepairSeaOperation
 			var ix = currentPoint.xz.X - bounds.start.X;
 			var iz = currentPoint.xz.Z - bounds.start.Z;
 
-			// We have found a new unvisited point. Scan its vertical run.
 			if (!stage.TryGetChunk(ChunkOffset.FromXZ(currentPoint.xz), out var columnChunk))
 			{
 				continue;
@@ -105,6 +104,7 @@ sealed class RepairSeaOperation
 				if (visited[ix, next_y, iz]) break;
 				if (!policy.CanBePartOfSea(Block.Lookup(columnChunk.GetBlock(new Point(currentPoint.xz, next_y))))) break;
 				visited[ix, next_y, iz] = true;
+				seaBlockCount++;
 				y_min = next_y;
 			}
 
@@ -117,16 +117,15 @@ sealed class RepairSeaOperation
 				if (visited[ix, next_y, iz]) break;
 				if (!policy.CanBePartOfSea(Block.Lookup(columnChunk.GetBlock(new Point(currentPoint.xz, next_y))))) break;
 				visited[ix, next_y, iz] = true;
+				seaBlockCount++;
 				y_max = next_y;
 			}
 
-			// For the full vertical run, add to sea blocks and check horizontal neighbors
+			// For the full vertical run, check horizontal neighbors
 			for (int y = y_min; y <= y_max; y++)
 			{
 				var runPoint = new Point(currentPoint.xz, y);
-				seaBlocks.Add(runPoint);
 
-				// Enqueue horizontal neighbors
 				foreach (var neighborXz in runPoint.xz.CardinalNeighbors())
 				{
 					if (!filterArea.InArea(neighborXz)) continue;
@@ -142,6 +141,7 @@ sealed class RepairSeaOperation
 						if (policy.CanBePartOfSea(block))
 						{
 							visited[neighbor_ix, y, neighbor_iz] = true;
+							seaBlockCount++;
 							queue.Enqueue(neighborPoint);
 						}
 					}
@@ -150,47 +150,42 @@ sealed class RepairSeaOperation
 		}
 
 		// Parallelize the block replacement
-		seaBlocks.AsParallel().GroupBy(p => ChunkOffset.FromXZ(p.xz)).ForAll(group =>
+		stage.ChunksInUse.AsParallel().ForAll(chunkOffset =>
 		{
-			if (stage.TryGetChunk(group.Key, out var chunk))
+			if (stage.TryGetChunk(chunkOffset, out var chunk))
 			{
-				foreach (var point in group)
+				foreach (var xz in chunk.Offset.Bounds.Enumerate())
 				{
-					var block = Block.Lookup(chunk.GetBlock(point));
-					if (policy.ShouldOverwriteWhenPartOfSea(Block.Lookup(chunk.GetBlock(point))))
+					var ix = xz.X - bounds.start.X;
+					var iz = xz.Z - bounds.start.Z;
+					for (int y = 1; y <= seaLevel; y++)
 					{
-						bool isTopLayer = point.Y == seaLevel;
-						if (block.IsProp)
+						if (visited[ix, y, iz])
 						{
-							var amount = isTopLayer ? topLayerAmount : LiquidAmountIndex.Subsurface;
-							var newBlock = block.SetLiquid(liquidFamily.LiquidFamilyId, amount);
-							chunk.ReplaceProp(point, newBlock);
-						}
-						else
-						{
-							ushort simpleBlockId = (point.Y == seaLevel) ? topLayerBlockId : liquidFamily.BlockIdSubsurface;
-							chunk.SetBlock(point, simpleBlockId);
+							var point = new Point(xz, y);
+							var block = Block.Lookup(chunk.GetBlock(point));
+							if (policy.ShouldOverwriteWhenPartOfSea(block))
+							{
+								bool isTopLayer = point.Y == seaLevel;
+								if (block.IsProp)
+								{
+									var amount = isTopLayer ? topLayerAmount : LiquidAmountIndex.Subsurface;
+									var newBlock = block.SetLiquid(liquidFamily.LiquidFamilyId, amount);
+									chunk.ReplaceProp(point, newBlock);
+								}
+								else
+								{
+									ushort simpleBlockId = isTopLayer ? topLayerBlockId : liquidFamily.BlockIdSubsurface;
+									chunk.SetBlock(point, simpleBlockId);
+								}
+							}
 						}
 					}
 				}
 			}
 		});
 
-		return seaBlocks;
-	}
-
-	private void ReplaceBlock(IMutableChunk chunk, Point point, ushort simpleBlockId, LiquidAmountIndex amount)
-	{
-		var existingBlock = Block.Lookup(chunk.GetBlock(point));
-		if (existingBlock.IsProp)
-		{
-			var newBlock = existingBlock.SetLiquid(liquidFamily.LiquidFamilyId, amount);
-			chunk.ReplaceProp(point, newBlock);
-		}
-		else
-		{
-			chunk.SetBlock(point, simpleBlockId);
-		}
+		return seaBlockCount;
 	}
 
 	private static IEnumerable<Point> FindStartingPoints(IStage stage, int seaLevel, IPolicy policy)
