@@ -11,7 +11,7 @@ interface IPolicy
 	/// <summary>
 	/// During sea detection, can this block join the sea (when adjacent)?
 	/// </summary>
-	bool CanBePartOfSea(ushort blockId);
+	bool CanBePartOfSea(Block block);
 
 	/// <summary>
 	/// During sea replacement, should this block ID be replaced by the sea's liquid ID?

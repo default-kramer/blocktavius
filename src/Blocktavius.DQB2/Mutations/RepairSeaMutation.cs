@@ -25,4 +25,6 @@ public sealed class RepairSeaMutation : StageMutation
 		};
 		RepairSeaOperation.RepairSea(p);
 	}
+
+	public static string DEBUG = ""; // NOMERGE
 }

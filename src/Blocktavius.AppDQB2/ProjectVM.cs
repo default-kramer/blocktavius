@@ -301,6 +301,11 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 			workingStage.Mutate(mutation);
 		}
 
+		if (DQB2.Mutations.RepairSeaMutation.DEBUG.Length > 0)
+		{
+			System.Windows.MessageBox.Show(DQB2.Mutations.RepairSeaMutation.DEBUG);
+		}
+
 		return workingStage;
 	}
 

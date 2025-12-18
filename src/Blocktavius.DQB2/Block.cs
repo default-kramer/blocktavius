@@ -142,6 +142,8 @@ public readonly partial struct Block : IEquatable<Block>, IComparable<Block>
 	public ImmersionIndex ImmersionIndex => (ImmersionIndex)((val & Mask_Immersion) >> Shift_Immersion);
 	public bool IsProp => (val & Mask_IsProp) != 0;
 
+	public bool IsEmptyBlock => BlockIdCanonical == 0;
+
 	/// <summary>
 	/// DOES NOT VALIDATE THE ARGS.
 	/// Returns the canonical block ID for the given shell+liquid+immersion.
