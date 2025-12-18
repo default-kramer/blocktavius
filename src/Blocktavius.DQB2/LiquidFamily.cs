@@ -204,18 +204,7 @@ public sealed class LiquidFamily
 
 	public static readonly LiquidFamily ClearWater = Create(LiquidFamilyIndex.ClearWater, 128, 343, 383);
 
-	public static readonly LiquidFamily HotWater = new()
-	{
-		LiquidFamilyId = LiquidFamilyIndex.HotWater,
-		BlockIdFull = 231,
-		BlockIdSurfaceShallow = 344,
-		BlockIdSurfaceDeep = 384,
-		SimpleBlockIds = [
-			230, 231, // Hot-Water-full-block
-			223, 344, // Hot-Water-shallow-block
-			224, 225, 226, 227, 228, 229, 384 // Hot-Water-surface-block
-			],
-	};
+	public static readonly LiquidFamily HotWater = Create(LiquidFamilyIndex.HotWater, 231, 344, 384);
 
 	public static readonly LiquidFamily Poison = new()
 	{

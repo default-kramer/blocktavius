@@ -29,7 +29,7 @@ partial struct Block
 			case 383: // stable, deep
 			case 120: // unstable, full
 			case 145: // unstable, shallow
-			case 121: // unstable...
+			case 121: // runoff, deep (unconfirmed) ...
 			case 122:
 			case 123:
 			case 142:
@@ -37,17 +37,25 @@ partial struct Block
 			case 144:
 				return LiquidFamilyIndex.ClearWater;
 
-			case 230: return LiquidFamilyIndex.HotWater;
-			case 231: return LiquidFamilyIndex.HotWater;
-			case 223: return LiquidFamilyIndex.HotWater;
-			case 224: return LiquidFamilyIndex.HotWater;
-			case 225: return LiquidFamilyIndex.HotWater;
-			case 226: return LiquidFamilyIndex.HotWater;
-			case 227: return LiquidFamilyIndex.HotWater;
-			case 228: return LiquidFamilyIndex.HotWater;
-			case 229: return LiquidFamilyIndex.HotWater;
-			case 344: return LiquidFamilyIndex.HotWater;
-			case 384: return LiquidFamilyIndex.HotWater;
+			// Confirmed that when you pour shallow hot water from the pot,
+			// you get 344 for the main area with a border of 223 (border thickness = 1).
+			//
+			// I think 223 is expected to always be adjacent to at least one 344 (or 224, maybe)
+			// in which case it looks normal. If you use modding to violate this,
+			// you can see 233 render strangely as having zero height.
+			case 231: // stable, full
+			case 344: // stable, shallow
+			case 384: // stable, deep
+			case 230: // unstable, full
+			case 223: // unstable, shallow (can be "zero height", see comment above)
+			case 224: // runoff, deep...
+			case 225:
+			case 226:
+			case 227:
+			case 228:
+			case 229:
+				return LiquidFamilyIndex.HotWater;
+
 			case 259: return LiquidFamilyIndex.Lava;
 			case 346: return LiquidFamilyIndex.Lava;
 			case 260: return LiquidFamilyIndex.Lava;
