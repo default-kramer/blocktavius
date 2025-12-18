@@ -208,18 +208,7 @@ public sealed class LiquidFamily
 
 	public static readonly LiquidFamily Poison = Create(LiquidFamilyIndex.Poison, 190, 345, 385);
 
-	public static readonly LiquidFamily Lava = new()
-	{
-		LiquidFamilyId = LiquidFamilyIndex.Lava,
-		BlockIdFull = 267,
-		BlockIdSurfaceShallow = 346,
-		BlockIdSurfaceDeep = 386,
-		SimpleBlockIds = [
-			266, 267, // confirmed 267 is full+stable, and 266 is full+unstable
-			259, 346, // Lava-shallow-block
-			260, 261, 262, 263, 264, 265, 386 // Lava-surface-block
-			],
-	};
+	public static readonly LiquidFamily Lava = Create(LiquidFamilyIndex.Lava, 267, 346, 386);
 
 	public static readonly LiquidFamily BottomlessSwamp = new()
 	{

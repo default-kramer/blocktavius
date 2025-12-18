@@ -27,14 +27,14 @@ partial struct Block
 			case 128: // stable, full
 			case 343: // stable, shallow
 			case 383: // stable, deep
-			case 120: // unstable, full
-			case 145: // unstable, shallow
+			case 145: // runoff, shallow (also zero)
 			case 121: // runoff, deep (unconfirmed) ...
 			case 122:
 			case 123:
 			case 142:
 			case 143:
 			case 144:
+			case 120: // runoff, full
 				return LiquidFamilyIndex.ClearWater;
 
 			// Confirmed that when you pour shallow hot water from the pot,
@@ -46,27 +46,29 @@ partial struct Block
 			case 231: // stable, full
 			case 344: // stable, shallow
 			case 384: // stable, deep
-			case 230: // unstable, full
-			case 223: // unstable, shallow (can be "zero height", see comment above)
+			case 223: // runoff, shallow (can be "zero height", see comment above)
 			case 224: // runoff, deep...
 			case 225:
 			case 226:
 			case 227:
 			case 228:
 			case 229:
+			case 230: // runoff, full
 				return LiquidFamilyIndex.HotWater;
 
-			case 259: return LiquidFamilyIndex.Lava;
-			case 346: return LiquidFamilyIndex.Lava;
-			case 260: return LiquidFamilyIndex.Lava;
-			case 261: return LiquidFamilyIndex.Lava;
-			case 262: return LiquidFamilyIndex.Lava;
-			case 263: return LiquidFamilyIndex.Lava;
-			case 264: return LiquidFamilyIndex.Lava;
-			case 265: return LiquidFamilyIndex.Lava;
-			case 266: return LiquidFamilyIndex.Lava;
-			case 267: return LiquidFamilyIndex.Lava;
-			case 386: return LiquidFamilyIndex.Lava;
+			case 267: // stable, full
+			case 346: // stable, shallow
+			case 386: // stable, deep
+			case 259: // runoff, shallow (mostly invisible when zero, still burns the builder)
+			case 260: // runoff, deep...
+			case 261:
+			case 262:
+			case 263:
+			case 264:
+			case 265:
+			case 266: // runoff, full
+				return LiquidFamilyIndex.Lava;
+
 			case 207: return LiquidFamilyIndex.MuddyWater;
 			case 208: return LiquidFamilyIndex.MuddyWater;
 			case 200: return LiquidFamilyIndex.MuddyWater;
