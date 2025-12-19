@@ -66,7 +66,7 @@ sealed class RepairSeaOperation
 	private int Execute3dFloodFill(IEnumerable<Point> startingPoints)
 	{
 		var bounds = this.filterArea.Bounds;
-		var visited = new bool[bounds.Size.X, seaLevel + 1, bounds.Size.Z];
+		var visited = new bool[bounds.Size.X, bounds.Size.Z, seaLevel + 1];
 		var queue = new Queue<Point>();
 		int seaBlockCount = 0;
 
@@ -77,9 +77,9 @@ sealed class RepairSeaOperation
 			var ix = startPoint.xz.X - bounds.start.X;
 			var iy = startPoint.Y;
 			var iz = startPoint.xz.Z - bounds.start.Z;
-			if (visited[ix, iy, iz]) continue;
+			if (visited[ix, iz, iy]) continue;
 
-			visited[ix, iy, iz] = true;
+			visited[ix, iz, iy] = true;
 			seaBlockCount++;
 			queue.Enqueue(startPoint);
 		}
@@ -101,9 +101,9 @@ sealed class RepairSeaOperation
 			{
 				var next_y = y_min - 1;
 				if (next_y <= 0) break;
-				if (visited[ix, next_y, iz]) break;
+				if (visited[ix, iz, next_y]) break;
 				if (!policy.CanBePartOfSea(Block.Lookup(columnChunk.GetBlock(new Point(currentPoint.xz, next_y))))) break;
-				visited[ix, next_y, iz] = true;
+				visited[ix, iz, next_y] = true;
 				seaBlockCount++;
 				y_min = next_y;
 			}
@@ -114,36 +114,35 @@ sealed class RepairSeaOperation
 			{
 				var next_y = y_max + 1;
 				if (next_y > seaLevel) break;
-				if (visited[ix, next_y, iz]) break;
+				if (visited[ix, iz, next_y]) break;
 				if (!policy.CanBePartOfSea(Block.Lookup(columnChunk.GetBlock(new Point(currentPoint.xz, next_y))))) break;
-				visited[ix, next_y, iz] = true;
+				visited[ix, iz, next_y] = true;
 				seaBlockCount++;
 				y_max = next_y;
 			}
 
 			// For the full vertical run, check horizontal neighbors
-			for (int y = y_min; y <= y_max; y++)
+			foreach (var neighborXz in currentPoint.xz.CardinalNeighbors())
 			{
-				var runPoint = new Point(currentPoint.xz, y);
-
-				foreach (var neighborXz in runPoint.xz.CardinalNeighbors())
+				if (!filterArea.InArea(neighborXz)) continue;
+				if (!stage.TryGetChunk(ChunkOffset.FromXZ(neighborXz), out var neighborChunk))
 				{
-					if (!filterArea.InArea(neighborXz)) continue;
+					continue;
+				}
 
+				for (int y = y_min; y <= y_max; y++)
+				{
 					var neighbor_ix = neighborXz.X - bounds.start.X;
 					var neighbor_iz = neighborXz.Z - bounds.start.Z;
-					if (visited[neighbor_ix, y, neighbor_iz]) continue;
+					if (visited[neighbor_ix, neighbor_iz, y]) continue;
 
-					if (stage.TryGetChunk(ChunkOffset.FromXZ(neighborXz), out var neighborChunk))
+					var neighborPoint = new Point(neighborXz, y);
+					var block = Block.Lookup(neighborChunk.GetBlock(neighborPoint));
+					if (policy.CanBePartOfSea(block))
 					{
-						var neighborPoint = new Point(neighborXz, y);
-						var block = Block.Lookup(neighborChunk.GetBlock(neighborPoint));
-						if (policy.CanBePartOfSea(block))
-						{
-							visited[neighbor_ix, y, neighbor_iz] = true;
-							seaBlockCount++;
-							queue.Enqueue(neighborPoint);
-						}
+						visited[neighbor_ix, neighbor_iz, y] = true;
+						seaBlockCount++;
+						queue.Enqueue(neighborPoint);
 					}
 				}
 			}
@@ -160,7 +159,7 @@ sealed class RepairSeaOperation
 					var iz = xz.Z - bounds.start.Z;
 					for (int y = 1; y <= seaLevel; y++)
 					{
-						if (visited[ix, y, iz])
+						if (visited[ix, iz, y])
 						{
 							var point = new Point(xz, y);
 							var block = Block.Lookup(chunk.GetBlock(point));
@@ -385,3 +384,4 @@ sealed class RepairSeaOperation
 		}
 	}
 }
+
