@@ -21,7 +21,7 @@ public sealed class RepairSeaMutation : StageMutation
 			LiquidFamily = LiquidFamily.Seawater,
 			SeaSurfaceType = LiquidAmountIndex.SurfaceLow,
 			Stage = stage,
-			Policy = Policy.TODO_DefaultPolicy(),
+			Policy = Policy.DefaultPolicy(),
 		};
 		RepairSeaOperation.RepairSea(p);
 	}
