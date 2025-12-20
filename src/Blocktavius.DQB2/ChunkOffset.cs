@@ -43,10 +43,4 @@ public record struct ChunkOffset(int OffsetX, int OffsetZ)
 	}
 
 	public ChunkOffset Add(ChunkOffset other) => new ChunkOffset(this.OffsetX + other.OffsetX, this.OffsetZ + other.OffsetZ);
-
-	public ChunkOffset GetNeighbor(Direction direction)
-	{
-		var offset = this.RawUnscaledOffset.Add(direction.Step);
-		return new ChunkOffset(offset.X, offset.Z);
-	}
 }
