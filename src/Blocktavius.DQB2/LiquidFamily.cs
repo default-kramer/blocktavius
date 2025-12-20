@@ -219,15 +219,5 @@ public sealed class LiquidFamily
 	// I guess the difference is for the minimap tile?
 	public static readonly LiquidFamily Seawater = Create(LiquidFamilyIndex.Seawater, 341, 349, 389);
 
-	public static readonly LiquidFamily Plasma = new()
-	{
-		LiquidFamilyId = LiquidFamilyIndex.Plasma,
-		BlockIdSubsurface = 397,
-		BlockIdSurfaceLow = 399,
-		BlockIdSurfaceHigh = 400,
-		SimpleBlockIds = [
-			397, 398, // Plasma-full-block
-			390, 399, // Plasma-shallow-block
-			391, 392, 393, 394, 395, 396, 400], // Plasma-surface-block
-	};
+	public static readonly LiquidFamily Plasma = Create(LiquidFamilyIndex.Plasma, 398, 399, 400);
 }
