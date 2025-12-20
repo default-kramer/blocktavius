@@ -42,7 +42,6 @@ sealed class RepairSeaOperation
 		this.liquidFamily = p.LiquidFamily;
 		this.topLayerAmount = p.SeaSurfaceType;
 		this.policy = p.Policy;
-		this.filterArea = filterArea;
 	}
 
 	public static void RepairSea(Params p)
@@ -63,10 +62,23 @@ sealed class RepairSeaOperation
 		RepairSeaMutation.DEBUG = $"{sw1.ElapsedMilliseconds} / {sw2.ElapsedMilliseconds} / {seaBlockCount}";
 	}
 
+	/// <summary>
+	/// Flood fill that prioritizes vertical columns.
+	/// Whenever a new point is added to the sea, we immediately process up and down
+	/// its column as far as we can.
+	/// </summary>
+	/// <remarks>
+	/// Performance doesn't matter for most use cases, but can really matter for some.
+	/// (A naive implementation was about 8x slower than the current implementation,
+	///  which can handle a sea having ~5M blocks in ~1 second.)
+	/// </remarks>
 	private int Execute3dFloodFill(IEnumerable<Point> startingPoints)
 	{
 		var bounds = this.filterArea.Bounds;
-		var visited = new bool[bounds.Size.X, seaLevel + 1, bounds.Size.Z];
+		// You would think that [x,z,y] would outperform [x,y,z] because we frequently
+		// operate on y-adjacent points, but for some reason [x,y,z] performed better
+		// in all my tests.
+		var isSea = new bool[bounds.Size.X, seaLevel + 1, bounds.Size.Z];
 		var queue = new Queue<Point>();
 		int seaBlockCount = 0;
 
@@ -77,9 +89,9 @@ sealed class RepairSeaOperation
 			var ix = startPoint.xz.X - bounds.start.X;
 			var iy = startPoint.Y;
 			var iz = startPoint.xz.Z - bounds.start.Z;
-			if (visited[ix, iy, iz]) continue;
+			if (isSea[ix, iy, iz]) continue;
 
-			visited[ix, iy, iz] = true;
+			isSea[ix, iy, iz] = true;
 			seaBlockCount++;
 			queue.Enqueue(startPoint);
 		}
@@ -96,43 +108,48 @@ sealed class RepairSeaOperation
 			}
 
 			// Scan down
-			var y_min = currentPoint.Y;
+			var columnMinY = currentPoint.Y;
 			while (true)
 			{
-				var next_y = y_min - 1;
+				var next_y = columnMinY - 1;
 				if (next_y <= 0) break;
-				if (visited[ix, next_y, iz]) break;
+				if (isSea[ix, next_y, iz]) break;
 				if (!policy.CanBePartOfSea(columnChunk.GetBlock(new Point(currentPoint.xz, next_y)))) break;
-				visited[ix, next_y, iz] = true;
+				isSea[ix, next_y, iz] = true;
 				seaBlockCount++;
-				y_min = next_y;
+				columnMinY = next_y;
 			}
 
 			// Scan up
-			var y_max = currentPoint.Y;
+			var columnMaxY = currentPoint.Y;
 			while (true)
 			{
-				var next_y = y_max + 1;
+				var next_y = columnMaxY + 1;
 				if (next_y > seaLevel) break;
-				if (visited[ix, next_y, iz]) break;
+				if (isSea[ix, next_y, iz]) break;
 				if (!policy.CanBePartOfSea(columnChunk.GetBlock(new Point(currentPoint.xz, next_y)))) break;
-				visited[ix, next_y, iz] = true;
+				isSea[ix, next_y, iz] = true;
 				seaBlockCount++;
-				y_max = next_y;
+				columnMaxY = next_y;
 			}
 
 			// For the full vertical run, check horizontal neighbors
-			for (int y = y_min; y <= y_max; y++)
+			for (int y = columnMinY; y <= columnMaxY; y++)
 			{
-				var runPoint = new Point(currentPoint.xz, y);
-
-				foreach (var neighborXz in runPoint.xz.CardinalNeighbors())
+				foreach (var neighborXz in currentPoint.xz.CardinalNeighbors())
 				{
+					// Given that the profiler reports InArea and TryGetChunk as the two slowest
+					// methods in this algorithm, you would *really* think it would be faster to
+					// rearrange these loops so that you only check InArea and TryGetChunk once per
+					// neighbor XZ, and then you process each Y in the column.
+					// But nope, "for Y in column, for neighbor XZ" is faster whether the isSea array
+					// has an [x,y,z] or an [x,z,y] layout!
+					// I have no idea why this is true...
 					if (!filterArea.InArea(neighborXz)) continue;
 
 					var neighbor_ix = neighborXz.X - bounds.start.X;
 					var neighbor_iz = neighborXz.Z - bounds.start.Z;
-					if (visited[neighbor_ix, y, neighbor_iz]) continue;
+					if (isSea[neighbor_ix, y, neighbor_iz]) continue;
 
 					if (stage.TryGetChunk(ChunkOffset.FromXZ(neighborXz), out var neighborChunk))
 					{
@@ -140,7 +157,7 @@ sealed class RepairSeaOperation
 						var block = neighborChunk.GetBlock(neighborPoint);
 						if (policy.CanBePartOfSea(block))
 						{
-							visited[neighbor_ix, y, neighbor_iz] = true;
+							isSea[neighbor_ix, y, neighbor_iz] = true;
 							seaBlockCount++;
 							queue.Enqueue(neighborPoint);
 						}
@@ -160,7 +177,7 @@ sealed class RepairSeaOperation
 					var iz = xz.Z - bounds.start.Z;
 					for (int y = 1; y <= seaLevel; y++)
 					{
-						if (visited[ix, y, iz])
+						if (isSea[ix, y, iz])
 						{
 							var point = new Point(xz, y);
 							var block = Block.Lookup(chunk.GetBlock(point));
