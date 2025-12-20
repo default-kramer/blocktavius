@@ -70,17 +70,19 @@ partial struct Block
 			case 266: // runoff, full
 				return LiquidFamilyIndex.Lava;
 
-			case 207: return LiquidFamilyIndex.MuddyWater;
-			case 208: return LiquidFamilyIndex.MuddyWater;
-			case 200: return LiquidFamilyIndex.MuddyWater;
-			case 348: return LiquidFamilyIndex.MuddyWater;
-			case 201: return LiquidFamilyIndex.MuddyWater;
-			case 202: return LiquidFamilyIndex.MuddyWater;
-			case 203: return LiquidFamilyIndex.MuddyWater;
-			case 204: return LiquidFamilyIndex.MuddyWater;
-			case 205: return LiquidFamilyIndex.MuddyWater;
-			case 206: return LiquidFamilyIndex.MuddyWater;
-			case 388: return LiquidFamilyIndex.MuddyWater;
+			case 208: // stable, subsurface
+			case 348: // stable, surface low
+			case 388: // stable, surface high
+			case 200: // runoff, shallow/zero
+			case 201: // runoff, deep...
+			case 202:
+			case 203:
+			case 204:
+			case 205:
+			case 206:
+			case 207: // runoff, full
+				return LiquidFamilyIndex.MuddyWater;
+
 			case 397: return LiquidFamilyIndex.Plasma;
 			case 398: return LiquidFamilyIndex.Plasma;
 			case 390: return LiquidFamilyIndex.Plasma;

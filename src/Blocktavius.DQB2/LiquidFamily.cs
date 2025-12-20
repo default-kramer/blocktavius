@@ -213,18 +213,7 @@ public sealed class LiquidFamily
 	// "This water can't be scooped up."
 	public static readonly LiquidFamily BottomlessSwamp = Create(LiquidFamilyIndex.BottomlessSwamp, 199, 347, 387);
 
-	public static readonly LiquidFamily MuddyWater = new()
-	{
-		LiquidFamilyId = LiquidFamilyIndex.MuddyWater,
-		BlockIdSubsurface = 208,
-		BlockIdSurfaceLow = 348,
-		BlockIdSurfaceHigh = 388,
-		SimpleBlockIds = [
-			207, 208, // Muddy-Water-full-block
-			200, 348, // Muddy-Water-shallow-block
-			201, 202, 203, 204, 205, 206, 388 // Muddy-Water-surface-block
-			],
-	};
+	public static readonly LiquidFamily MuddyWater = Create(LiquidFamilyIndex.MuddyWater, 208, 348, 388);
 
 	public static readonly LiquidFamily Seawater = new()
 	{
