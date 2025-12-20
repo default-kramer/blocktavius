@@ -12,17 +12,18 @@ partial struct Block
 	{
 		switch (blockId)
 		{
-			case 198: return LiquidFamilyIndex.BottomlessSwamp;
-			case 199: return LiquidFamilyIndex.BottomlessSwamp;
-			case 347: return LiquidFamilyIndex.BottomlessSwamp;
-			case 191: return LiquidFamilyIndex.BottomlessSwamp;
-			case 192: return LiquidFamilyIndex.BottomlessSwamp;
-			case 193: return LiquidFamilyIndex.BottomlessSwamp;
-			case 194: return LiquidFamilyIndex.BottomlessSwamp;
-			case 195: return LiquidFamilyIndex.BottomlessSwamp;
-			case 196: return LiquidFamilyIndex.BottomlessSwamp;
-			case 197: return LiquidFamilyIndex.BottomlessSwamp;
-			case 387: return LiquidFamilyIndex.BottomlessSwamp;
+			case 199: // stable, subsurface
+			case 347: // stable, surface low
+			case 387: // stable, surface high
+			case 191: // runoff, shallow/zero
+			case 192: // runoff, deep...
+			case 193:
+			case 194:
+			case 195:
+			case 196:
+			case 197:
+			case 198: // runoff, full
+				return LiquidFamilyIndex.BottomlessSwamp;
 
 			case 128: // stable, subsurface
 			case 343: // stable, surface low
