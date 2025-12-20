@@ -10,6 +10,18 @@ partial struct Block
 {
 	private static LiquidFamilyIndex GetLiquidFamily_ForSimpleBlocksOnly(ushort blockId)
 	{
+		// Here "stable" could also be called "source".
+		// It seems the game performs the runoff logic when you place or remove a block
+		// adjacent to some liquid. If you play the game normally, it is impossible to
+		// have runoff that isn't coming from some source block.
+		// But if you use save file editing, you can create disconnected runoff that will
+		// disappear whenever its runoff logic is recalculated.
+		//
+		// The shallow/zero runoff renders strangely when it is not adjacent to a deeper
+		// block of the same liquid (which should be impossible when playing normally).
+		// For example, if you place some disconnected shallow/zero Lava it barely renders
+		// at all (but still creates splashes and burns the builder).
+
 		switch (blockId)
 		{
 			case 199: // stable, subsurface
@@ -28,7 +40,7 @@ partial struct Block
 			case 128: // stable, subsurface
 			case 343: // stable, surface low
 			case 383: // stable, surface high
-			case 145: // runoff, shallow (also zero)
+			case 145: // runoff, shallow/zero
 			case 121: // runoff, deep (unconfirmed) ...
 			case 122:
 			case 123:
@@ -38,16 +50,10 @@ partial struct Block
 			case 120: // runoff, full
 				return LiquidFamilyIndex.ClearWater;
 
-			// Confirmed that when you pour shallow hot water from the pot,
-			// you get 344 for the main area with a border of 223 (border thickness = 1).
-			//
-			// I think 223 is expected to always be adjacent to at least one 344 (or 224, maybe)
-			// in which case it looks normal. If you use modding to violate this,
-			// you can see 233 render strangely as having zero height.
 			case 231: // stable, subsurface
 			case 344: // stable, surface low
 			case 384: // stable, surface high
-			case 223: // runoff, shallow (can be "zero height", see comment above)
+			case 223: // runoff, shallow/zero
 			case 224: // runoff, deep...
 			case 225:
 			case 226:
@@ -60,7 +66,7 @@ partial struct Block
 			case 267: // stable, subsurface
 			case 346: // stable, surface low
 			case 386: // stable, surface high
-			case 259: // runoff, shallow (mostly invisible when zero, still burns the builder)
+			case 259: // runoff, shallow/zero
 			case 260: // runoff, deep...
 			case 261:
 			case 262:
@@ -99,7 +105,7 @@ partial struct Block
 			case 190: // stable, subsurface
 			case 345: // stable, surface low
 			case 385: // stable, surface high
-			case 182: // runoff, shallow (also zero)
+			case 182: // runoff, shallow/zero
 			case 183: // runoff, deep...
 			case 184:
 			case 185:
