@@ -215,18 +215,9 @@ public sealed class LiquidFamily
 
 	public static readonly LiquidFamily MuddyWater = Create(LiquidFamilyIndex.MuddyWater, 208, 348, 388);
 
-	public static readonly LiquidFamily Seawater = new()
-	{
-		LiquidFamilyId = LiquidFamilyIndex.Seawater,
-		BlockIdSubsurface = 341,
-		// fresh IoA/Moonbrooke also use 420 in places, but 349 is most common:
-		BlockIdSurfaceLow = 349,
-		BlockIdSurfaceHigh = 389,
-		SimpleBlockIds = [
-			340, 341, // Sea-water-full-block
-			333, 349, 420, // Sea-water-shallow-block
-			334, 335, 336, 337, 338, 339, 389], // Sea-water-surface-block
-	};
+	// 349 and 420 are (almost?) the same, but 349 is more common.
+	// I guess the difference is for the minimap tile?
+	public static readonly LiquidFamily Seawater = Create(LiquidFamilyIndex.Seawater, 341, 349, 389);
 
 	public static readonly LiquidFamily Plasma = new()
 	{

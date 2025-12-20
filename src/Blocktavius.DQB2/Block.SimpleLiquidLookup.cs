@@ -108,18 +108,20 @@ partial struct Block
 			case 189: // runoff, full
 				return LiquidFamilyIndex.Poison;
 
-			case 340: return LiquidFamilyIndex.Seawater;
-			case 341: return LiquidFamilyIndex.Seawater;
-			case 333: return LiquidFamilyIndex.Seawater;
-			case 349: return LiquidFamilyIndex.Seawater;
-			case 420: return LiquidFamilyIndex.Seawater;
-			case 334: return LiquidFamilyIndex.Seawater;
-			case 335: return LiquidFamilyIndex.Seawater;
-			case 336: return LiquidFamilyIndex.Seawater;
-			case 337: return LiquidFamilyIndex.Seawater;
-			case 338: return LiquidFamilyIndex.Seawater;
-			case 339: return LiquidFamilyIndex.Seawater;
-			case 389: return LiquidFamilyIndex.Seawater;
+			case 341: // stable, subsurface
+			case 349: // stable, surface low
+			case 389: // stable, surface high
+			case 333: // runoff, shallow/zero
+			case 334: // runoff, deep...
+			case 335:
+			case 336:
+			case 337:
+			case 338:
+			case 339:
+			case 340: // runoff, full
+			case 420: // ALTERNATE: stable, surface low (for minimap sea color?)
+				return LiquidFamilyIndex.Seawater;
+
 			default: return LiquidFamilyIndex.None;
 		}
 	}
