@@ -47,20 +47,10 @@ sealed class RepairSeaOperation
 	public static void RepairSea(Params p)
 	{
 		p.Stage.PerformColumnCleanup(p.ColumnCleanupMode);
-
 		var area = new LayerZeroArea(p.Stage);
-
-		var sw1 = System.Diagnostics.Stopwatch.StartNew();
 		var startingPoints = FindStartingPoints(p.Stage, p.SeaLevel, p.Policy, area);
-		sw1.Stop();
-
 		var me = new RepairSeaOperation(p, area);
-
-		var sw2 = System.Diagnostics.Stopwatch.StartNew();
-		var seaBlockCount = me.Execute3dFloodFill(startingPoints);
-		sw2.Stop();
-
-		RepairSeaMutation.DEBUG = $"{sw1.ElapsedMilliseconds} / {sw2.ElapsedMilliseconds} / {seaBlockCount}";
+		me.Execute3dFloodFill(startingPoints);
 	}
 
 	/// <summary>
