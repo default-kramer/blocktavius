@@ -102,7 +102,7 @@ sealed class RepairSeaOperation
 				var next_y = y_min - 1;
 				if (next_y <= 0) break;
 				if (visited[ix, next_y, iz]) break;
-				if (!policy.CanBePartOfSea(Block.Lookup(columnChunk.GetBlock(new Point(currentPoint.xz, next_y))))) break;
+				if (!policy.CanBePartOfSea(columnChunk.GetBlock(new Point(currentPoint.xz, next_y)))) break;
 				visited[ix, next_y, iz] = true;
 				seaBlockCount++;
 				y_min = next_y;
@@ -115,7 +115,7 @@ sealed class RepairSeaOperation
 				var next_y = y_max + 1;
 				if (next_y > seaLevel) break;
 				if (visited[ix, next_y, iz]) break;
-				if (!policy.CanBePartOfSea(Block.Lookup(columnChunk.GetBlock(new Point(currentPoint.xz, next_y))))) break;
+				if (!policy.CanBePartOfSea(columnChunk.GetBlock(new Point(currentPoint.xz, next_y)))) break;
 				visited[ix, next_y, iz] = true;
 				seaBlockCount++;
 				y_max = next_y;
@@ -137,7 +137,7 @@ sealed class RepairSeaOperation
 					if (stage.TryGetChunk(ChunkOffset.FromXZ(neighborXz), out var neighborChunk))
 					{
 						var neighborPoint = new Point(neighborXz, y);
-						var block = Block.Lookup(neighborChunk.GetBlock(neighborPoint));
+						var block = neighborChunk.GetBlock(neighborPoint);
 						if (policy.CanBePartOfSea(block))
 						{
 							visited[neighbor_ix, y, neighbor_iz] = true;
@@ -167,10 +167,10 @@ sealed class RepairSeaOperation
 							if (policy.ShouldOverwriteWhenPartOfSea(block))
 							{
 								bool isTopLayer = point.Y == seaLevel;
-								if (block.IsProp)
+								if (block.IsProp(out var prop))
 								{
 									var amount = isTopLayer ? topLayerAmount : LiquidAmountIndex.Subsurface;
-									var newBlock = block.SetLiquid(liquidFamily.LiquidFamilyId, amount);
+									var newBlock = prop.SetLiquid(liquidFamily.LiquidFamilyId, amount);
 									chunk.ReplaceProp(point, newBlock);
 								}
 								else
@@ -190,8 +190,6 @@ sealed class RepairSeaOperation
 
 	private static IEnumerable<Point> FindStartingPoints(IStage stage, int seaLevel, IPolicy policy)
 	{
-		var stageBounds = Rect.Union(stage.ChunksInUse.Select(offset => offset.Bounds));
-
 		foreach (var chunk in stage.IterateChunks())
 		{
 			foreach (var xz in chunk.Offset.Bounds.Enumerate())
@@ -201,17 +199,10 @@ sealed class RepairSeaOperation
 					continue;
 				}
 
-				//var point = new Point(xz, seaLevel);
-				//var block = Block.Lookup(chunk.GetBlock(point));
-				//if (!policy.CanBePartOfSea(block))
-				{
-					//continue;
-				}
-
 				bool hasOutOfBoundsNeighbor = false;
 				foreach (var neighbor in xz.CardinalNeighbors())
 				{
-					if (IsOutOfBounds(neighbor, stage, stageBounds))
+					if (IsOutOfBounds(neighbor, stage))
 					{
 						hasOutOfBoundsNeighbor = true;
 						break;
@@ -223,7 +214,7 @@ sealed class RepairSeaOperation
 					for (int y = 0; y <= seaLevel; y++)
 					{
 						var point = new Point(xz, y);
-						var block = Block.Lookup(chunk.GetBlock(point));
+						var block = chunk.GetBlock(point);
 						if (policy.CanBePartOfSea(block))
 						{
 							yield return point;
@@ -234,15 +225,8 @@ sealed class RepairSeaOperation
 		}
 	}
 
-	private static bool IsOutOfBounds(XZ xz, IStage stage, Rect stageBounds)
+	private static bool IsOutOfBounds(XZ xz, IStage stage)
 	{
-		// A tile is "out of bounds" if it's outside the Rect containing all chunks,
-		// or if there is no chunk there, or if the chunk has no solid ground at Y=0.
-		if (!stageBounds.Contains(xz))
-		{
-			return true;
-		}
-
 		if (!stage.TryReadChunk(ChunkOffset.FromXZ(xz), out var chunk))
 		{
 			return true;
@@ -255,112 +239,6 @@ sealed class RepairSeaOperation
 
 		return false;
 	}
-
-
-	#region Old Implementation
-	private readonly IReadOnlyList<XZ>? edgeLocs;
-
-	private RepairSeaOperation(Params p, IReadOnlyList<XZ> edgeLocs, IArea filterArea)
-	{
-		// This constructor is only used by the old implementation.
-		this.edgeLocs = edgeLocs;
-
-		this.filterArea = filterArea;
-		this.topLayerBlockId = p.SeaSurfaceType switch
-		{
-			LiquidAmountIndex.SurfaceLow => p.LiquidFamily.BlockIdSurfaceLow,
-			LiquidAmountIndex.SurfaceHigh => p.LiquidFamily.BlockIdSurfaceHigh,
-			LiquidAmountIndex.Subsurface => p.LiquidFamily.BlockIdSubsurface,
-			_ => throw new ArgumentException($"Unsupported SeaSurfaceType: {p.SeaSurfaceType}"),
-		};
-		this.stage = p.Stage;
-		this.seaLevel = p.SeaLevel;
-		this.liquidFamily = p.LiquidFamily;
-		this.topLayerAmount = p.SeaSurfaceType;
-		this.policy = p.Policy;
-	}
-
-	private static IEnumerable<XZ> FindEdgeLocs(IStage stage, LayerZeroArea area)
-	{
-		var shells = ShellLogic.ComputeShells(area);
-
-		XZ prev = new XZ(int.MaxValue, int.MaxValue); // for simple deduplication
-		foreach (var item in shells.SelectMany(s => s.ShellItems))
-		{
-			var xz = item.XZ.Step(item.InsideDirection);
-			if (xz != prev)
-			{
-				prev = xz;
-				yield return xz;
-			}
-		}
-	}
-
-	private void Execute()
-	{
-		for (int y = 1; y < seaLevel; y++)
-		{
-			RepairLayer(y, liquidFamily.BlockIdSubsurface, LiquidAmountIndex.Subsurface);
-		}
-		RepairLayer(seaLevel, topLayerBlockId, topLayerAmount);
-	}
-
-	private void RepairLayer(int y, ushort simpleBlockId, LiquidAmountIndex amount)
-	{
-		var sea = FindSea(y);
-		ReplaceBlocks(sea, y, amount, simpleBlockId);
-	}
-
-	private IReadOnlySet<XZ> FindSea(int y)
-	{
-		HashSet<XZ> sea = new();
-		Queue<XZ> pending = new(edgeLocs ?? Enumerable.Empty<XZ>());
-		while (pending.TryDequeue(out var xz))
-		{
-			if (stage.TryGetChunk(ChunkOffset.FromXZ(xz), out var chunk))
-			{
-				var blockId = chunk.GetBlock(new Point(xz, y));
-				var block = Block.Lookup(blockId);
-				if (policy.CanBePartOfSea(block) && sea.Add(xz))
-				{
-					foreach (var neighbor in xz.CardinalNeighbors())
-					{
-						if (!sea.Contains(neighbor) && filterArea.InArea(neighbor))
-						{
-							pending.Enqueue(neighbor);
-						}
-					}
-				}
-			}
-		}
-		return sea;
-	}
-
-	private void ReplaceBlocks(IReadOnlySet<XZ> sea, int y, LiquidAmountIndex amount, ushort simpleBlockId)
-	{
-		foreach (var xz in sea)
-		{
-			if (!stage.TryGetChunk(ChunkOffset.FromXZ(xz), out var chunk))
-			{
-				throw new Exception("Assert fail"); // should never have been added to the set
-			}
-			var point = new Point(xz, y);
-			var existingBlock = Block.Lookup(chunk.GetBlock(point));
-			if (policy.ShouldOverwriteWhenPartOfSea(existingBlock))
-			{
-				if (existingBlock.IsProp)
-				{
-					var newBlock = existingBlock.SetLiquid(liquidFamily.LiquidFamilyId, amount);
-					chunk.ReplaceProp(point, newBlock);
-				}
-				else
-				{
-					chunk.SetBlock(point, simpleBlockId);
-				}
-			}
-		}
-	}
-	#endregion
 
 	/// <summary>
 	/// An area that simply checks whether there is a block at Y=0
@@ -375,8 +253,6 @@ sealed class RepairSeaOperation
 			this.stage = stage;
 			this.Bounds = Rect.Union(stage.ChunksInUse.Select(offset => offset.Bounds));
 		}
-
-
 
 		public bool InArea(XZ xz)
 		{

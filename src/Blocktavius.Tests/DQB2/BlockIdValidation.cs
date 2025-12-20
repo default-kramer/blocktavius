@@ -20,7 +20,7 @@ public class BlockIdValidation
 			bool isProp = blockId >= firstPropId;
 
 			var block = Block.Lookup(blockId);
-			Assert.AreEqual(block.IsProp, isProp);
+			Assert.AreEqual(block.IsProp(), isProp);
 			if (!isProp)
 			{
 				Assert.AreEqual(PropShellIndex.None, block.PropShellIndex);
@@ -107,7 +107,7 @@ public class BlockIdValidation
 			Assert.IsFalse(block.BlockIdComplete == canonicalBlock.BlockIdComplete);
 
 			// Everything else should be the same:
-			Assert.IsTrue(block.IsProp == canonicalBlock.IsProp);
+			Assert.IsTrue(block.IsProp() == canonicalBlock.IsProp());
 			Assert.IsTrue(block.BlockIdCanonical == canonicalBlock.BlockIdCanonical);
 			Assert.IsTrue(block.PropShellIndex == canonicalBlock.PropShellIndex);
 			Assert.IsTrue(block.LiquidFamilyIndex == canonicalBlock.LiquidFamilyIndex);
@@ -132,7 +132,12 @@ public class BlockIdValidation
 
 			foreach (var liquid in liquids)
 			{
-				bool result = orig.TryChangeLiquidFamily(liquid, out var changed);
+				if (!orig.IsProp(out var prop))
+				{
+					Assert.Fail($"Not a prop: {blockId}");
+					continue;
+				}
+				bool result = prop.TryChangeLiquidFamily(liquid, out var changed);
 				if (orig.LiquidFamilyIndex == LiquidFamilyIndex.None && liquid != LiquidFamilyIndex.None)
 				{
 					// Cannot change from None to some other value (don't know what Immersion to use)
@@ -140,7 +145,7 @@ public class BlockIdValidation
 					continue;
 				}
 				Assert.IsTrue(result);
-				Assert.IsTrue(changed.IsProp == orig.IsProp);
+				Assert.IsTrue(changed.IsProp() == orig.IsProp());
 				Assert.IsTrue(changed.PropShellIndex == orig.PropShellIndex);
 
 				if (liquid == LiquidFamilyIndex.None)

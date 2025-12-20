@@ -140,7 +140,12 @@ public readonly partial struct Block : IEquatable<Block>, IComparable<Block>
 	public PropShellIndex PropShellIndex => (PropShellIndex)((val & Mask_PropShell) >> Shift_PropShell);
 	public LiquidFamilyIndex LiquidFamilyIndex => (LiquidFamilyIndex)((val & Mask_LiquidFamily) >> Shift_LiquidFamily);
 	public ImmersionIndex ImmersionIndex => (ImmersionIndex)((val & Mask_Immersion) >> Shift_Immersion);
-	public bool IsProp => (val & Mask_IsProp) != 0;
+	public bool IsProp() => (val & Mask_IsProp) != 0;
+	public bool IsProp(out Prop prop)
+	{
+		prop = new(this);
+		return this.IsProp();
+	}
 
 	public bool IsEmptyBlock => BlockIdCanonical == 0;
 
@@ -173,48 +178,46 @@ public readonly partial struct Block : IEquatable<Block>, IComparable<Block>
 		return Lookup((ushort)newId);
 	}
 
-	public bool TryChangeLiquidFamily(LiquidFamilyIndex requestedFamily, out Block changedBlock)
+	/// <summary>
+	/// Contains operations which are well-defined for props but not for simple blocks.
+	/// Should only construct instances using <see cref="IsProp(out Prop)"/>.
+	/// </summary>
+	public readonly ref struct Prop
 	{
-		if (this.LiquidFamilyIndex == LiquidFamilyIndex.None)
+		public readonly Block Block;
+		internal Prop(Block block) { this.Block = block; }
+
+		public bool TryChangeLiquidFamily(LiquidFamilyIndex requestedFamily, out Block changedBlock)
 		{
-			if (requestedFamily == LiquidFamilyIndex.None)
+			if (Block.LiquidFamilyIndex == LiquidFamilyIndex.None)
 			{
-				changedBlock = this;
-				return true;
+				if (requestedFamily == LiquidFamilyIndex.None)
+				{
+					changedBlock = Block;
+					return true;
+				}
+				// Cannot change, don't know what depth/immersion to use
+				changedBlock = default;
+				return false;
 			}
-			// Cannot change, don't know what depth/immersion to use
-			changedBlock = default;
-			return false;
+
+			int newId = RecomputeProp(Block.PropShellIndex, requestedFamily, Block.ImmersionIndex);
+			changedBlock = Block.PreserveChisel(newId);
+			return true;
 		}
 
-		if (!IsProp)
+		public Block SetLiquid(LiquidFamilyIndex liquid, LiquidAmountIndex amount)
 		{
-			throw new Exception("TODO - need to handle simple blocks...");
-		}
+			if (liquid == LiquidFamilyIndex.None || amount == LiquidAmountIndex.None)
+			{
+				throw new ArgumentException("Must specify liquid and depth");
+			}
 
-		int newId = RecomputeProp(this.PropShellIndex, requestedFamily, this.ImmersionIndex);
-		changedBlock = PreserveChisel(newId);
-		return true;
-	}
-
-	public Block SetLiquid(LiquidFamilyIndex liquid, LiquidAmountIndex amount)
-	{
-		if (liquid == LiquidFamilyIndex.None || amount == LiquidAmountIndex.None)
-		{
-			throw new ArgumentException("Must specify liquid and depth");
-		}
-
-		if (IsProp)
-		{
 			// This Amount -> Immersion cast looks correct for Full and SurfaceShallow,
 			// but still untested for SurfaceDeep.
 			var immersion = (ImmersionIndex)amount;
-			int newId = RecomputeProp(this.PropShellIndex, liquid, immersion);
-			return PreserveChisel(newId);
-		}
-		else
-		{
-			throw new NotImplementedException("TODO??");
+			int newId = RecomputeProp(Block.PropShellIndex, liquid, immersion);
+			return Block.PreserveChisel(newId);
 		}
 	}
 

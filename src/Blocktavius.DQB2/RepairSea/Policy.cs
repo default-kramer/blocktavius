@@ -21,7 +21,7 @@ sealed class Policy : IPolicy
 		this.lookup = lookup;
 	}
 
-	public bool CanBePartOfSea(Block block) => lookup[block.BlockIdCanonical].HasFlag(Flags.CanBePartOfSea);
+	public bool CanBePartOfSea(ushort block) => lookup[block].HasFlag(Flags.CanBePartOfSea);
 	public bool ShouldOverwriteWhenPartOfSea(Block block) => lookup[block.BlockIdCanonical].HasFlag(Flags.ShouldOverwrite);
 
 	public static Policy TODO_DefaultPolicy() // NOMERGE
