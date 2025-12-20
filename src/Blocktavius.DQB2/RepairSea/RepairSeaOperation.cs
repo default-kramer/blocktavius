@@ -19,7 +19,7 @@ sealed class RepairSeaOperation
 		public required ColumnCleanupMode ColumnCleanupMode { get; init; }
 	}
 
-	private readonly IArea filterArea; // needed so that we don't put sea beyond the bedrock
+	private readonly IArea filterArea;
 	private readonly ushort topLayerBlockId;
 	private readonly IMutableStage stage;
 	private readonly int seaLevel;
@@ -48,11 +48,12 @@ sealed class RepairSeaOperation
 	{
 		p.Stage.PerformColumnCleanup(p.ColumnCleanupMode);
 
+		var area = new LayerZeroArea(p.Stage);
+
 		var sw1 = System.Diagnostics.Stopwatch.StartNew();
-		var startingPoints = FindStartingPoints(p.Stage, p.SeaLevel, p.Policy).ToList();
+		var startingPoints = FindStartingPoints(p.Stage, p.SeaLevel, p.Policy, area);
 		sw1.Stop();
 
-		var area = new LayerZeroArea(p.Stage);
 		var me = new RepairSeaOperation(p, area);
 
 		var sw2 = System.Diagnostics.Stopwatch.StartNew();
@@ -72,17 +73,16 @@ sealed class RepairSeaOperation
 	/// (A naive implementation was about 8x slower than the current implementation,
 	///  which can handle a sea having ~5M blocks in ~1 second.)
 	/// </remarks>
-	private int Execute3dFloodFill(IEnumerable<Point> startingPoints)
+	private int Execute3dFloodFill(Queue<Point> queue)
 	{
 		var bounds = this.filterArea.Bounds;
 		// You would think that [x,z,y] would outperform [x,y,z] because we frequently
 		// operate on y-adjacent points, but for some reason [x,y,z] performed better
 		// in all my tests.
 		var isSea = new bool[bounds.Size.X, seaLevel + 1, bounds.Size.Z];
-		var queue = new Queue<Point>();
-		int seaBlockCount = 0;
+		int seaCount = 0;
 
-		foreach (var startPoint in startingPoints)
+		foreach (var startPoint in queue)
 		{
 			if (startPoint.Y <= 0 || startPoint.Y > seaLevel) continue;
 
@@ -92,8 +92,7 @@ sealed class RepairSeaOperation
 			if (isSea[ix, iy, iz]) continue;
 
 			isSea[ix, iy, iz] = true;
-			seaBlockCount++;
-			queue.Enqueue(startPoint);
+			seaCount++;
 		}
 
 
@@ -116,7 +115,7 @@ sealed class RepairSeaOperation
 				if (isSea[ix, next_y, iz]) break;
 				if (!policy.CanBePartOfSea(columnChunk.GetBlock(new Point(currentPoint.xz, next_y)))) break;
 				isSea[ix, next_y, iz] = true;
-				seaBlockCount++;
+				seaCount++;
 				columnMinY = next_y;
 			}
 
@@ -129,7 +128,7 @@ sealed class RepairSeaOperation
 				if (isSea[ix, next_y, iz]) break;
 				if (!policy.CanBePartOfSea(columnChunk.GetBlock(new Point(currentPoint.xz, next_y)))) break;
 				isSea[ix, next_y, iz] = true;
-				seaBlockCount++;
+				seaCount++;
 				columnMaxY = next_y;
 			}
 
@@ -158,7 +157,7 @@ sealed class RepairSeaOperation
 						if (policy.CanBePartOfSea(block))
 						{
 							isSea[neighbor_ix, y, neighbor_iz] = true;
-							seaBlockCount++;
+							seaCount++;
 							queue.Enqueue(neighborPoint);
 						}
 					}
@@ -202,29 +201,53 @@ sealed class RepairSeaOperation
 			}
 		});
 
-		return seaBlockCount;
+		return seaCount;
 	}
 
-	private static IEnumerable<Point> FindStartingPoints(IStage stage, int seaLevel, IPolicy policy)
+	/// <summary>
+	/// Enqueues all points which
+	/// * have a Y coordinate not exceeding the given <paramref name="seaLevel"/>
+	/// * have an XZ inside the given <see cref="filterArea"/>
+	/// * have a cardinal neighbor outside that same area
+	/// * can become part of the sea according to the given <paramref name="policy"/>
+	/// </summary>
+	/// <remarks>
+	/// This method is probably only appropriate for the ocean-facing sea.
+	/// For inland seas/ponds/pools it would probably be better to have the user
+	/// pour a bit of the desired liquid manually and use those points as
+	/// the starting points...
+	///
+	/// But for the ocean-facing sea, here is why it works:
+	/// First note that DQB2 automatically renders ocean in every empty column.
+	/// Maybe you have stripped an island down to just its bedrock and observed
+	/// this wall of ocean surrounding the bedrock; if not you can imagine it.
+	/// We want that wall of ocean to "push inwards" to start our flood fill.
+	/// So we define the filter area as every non-empty column.
+	/// (For performance, we assume that emptiness at Y=0 implies emptiness for
+	///  the entire column; this is why we run column cleanup first.)
+	/// This means the logic will find all points which are
+	/// * cardinally adjacent to the wall of ocean
+	/// * and can become part of the sea according to the given <paramref name="policy"/>.
+	/// </remarks>
+	private static Queue<Point> FindStartingPoints(IStage stage, int seaLevel, IPolicy policy, IArea filterArea)
 	{
+		var startingPoints = new Queue<Point>();
+
 		foreach (var chunk in stage.IterateChunks())
 		{
+			if (!filterArea.Intersects(chunk.Offset.Bounds))
+			{
+				continue;
+			}
+
 			foreach (var xz in chunk.Offset.Bounds.Enumerate())
 			{
-				if (chunk.GetBlock(new Point(xz, 0)).IsEmptyBlock())
+				if (!filterArea.InArea(xz))
 				{
 					continue;
 				}
 
-				bool hasOutOfBoundsNeighbor = false;
-				foreach (var neighbor in xz.CardinalNeighbors())
-				{
-					if (IsOutOfBounds(neighbor, stage))
-					{
-						hasOutOfBoundsNeighbor = true;
-						break;
-					}
-				}
+				bool hasOutOfBoundsNeighbor = xz.CardinalNeighbors().Any(otherXZ => !filterArea.InArea(otherXZ));
 
 				if (hasOutOfBoundsNeighbor)
 				{
@@ -234,27 +257,14 @@ sealed class RepairSeaOperation
 						var block = chunk.GetBlock(point);
 						if (policy.CanBePartOfSea(block))
 						{
-							yield return point;
+							startingPoints.Enqueue(point);
 						}
 					}
 				}
 			}
 		}
-	}
 
-	private static bool IsOutOfBounds(XZ xz, IStage stage)
-	{
-		if (!stage.TryReadChunk(ChunkOffset.FromXZ(xz), out var chunk))
-		{
-			return true;
-		}
-
-		if (chunk.GetBlock(new Point(xz, 0)).IsEmptyBlock())
-		{
-			return true;
-		}
-
-		return false;
+		return startingPoints;
 	}
 
 	/// <summary>
