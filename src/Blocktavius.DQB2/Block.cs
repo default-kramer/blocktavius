@@ -111,7 +111,7 @@ public readonly partial struct Block : IEquatable<Block>, IComparable<Block>
 	internal const int Mask_CanonicalBlockId = 0x7FF;
 	internal const int CanonicalBlockCount = 0x800;
 
-	private const int FirstPropId = 1158;
+	internal const int FirstPropId = 1158;
 	private const int ImmersionsPerLiquid = 11;
 	private const int LiquidsPerShell = 8;
 	private const int PropShellSize = LiquidsPerShell * ImmersionsPerLiquid + 1; // last one is for the "not submerged" case
