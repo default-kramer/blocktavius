@@ -80,7 +80,7 @@ namespace Blocktavius.Tests
 
 		private static string GetSnapshotPath(string fileName)
 		{
-			return Path.Combine(TestUtil.SnapshotRoot, fileName);
+			return Path.Combine(TestUtil.SnapshotRoot, "ElevationImages", fileName);
 		}
 
 		private static Bitmap CreateImageFromSampler(I2DSampler<int> sampler)
