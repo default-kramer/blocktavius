@@ -73,9 +73,23 @@ public enum LiquidFamilyIndex
 public enum ImmersionIndex
 {
 	None = 0,
+
+	/// <summary>
+	/// Matches <see cref="LiquidAmountIndex.Subsurface"/>
+	/// </summary>
 	Full1 = 1,
+
+	/// <summary>
+	/// Matches <see cref="LiquidAmountIndex.SurfaceLow"/>
+	/// </summary>
 	Shallow2 = 2,
+
+	/// <summary>
+	/// Matches <see cref="LiquidAmountIndex.SurfaceHigh"/>
+	/// </summary>
 	Surface3 = 3,
+
+	// Runoff:
 	Small4 = 4,
 	Surface5 = 5,
 	Surface6 = 6,
@@ -213,8 +227,7 @@ public readonly partial struct Block : IEquatable<Block>, IComparable<Block>
 				throw new ArgumentException("Must specify liquid and depth");
 			}
 
-			// This Amount -> Immersion cast looks correct for Full and SurfaceShallow,
-			// but still untested for SurfaceDeep.
+			// Values were chosen so that this cast does the right thing:
 			var immersion = (ImmersionIndex)amount;
 			int newId = RecomputeProp(Block.PropShellIndex, liquid, immersion);
 			return Block.PreserveChisel(newId);
