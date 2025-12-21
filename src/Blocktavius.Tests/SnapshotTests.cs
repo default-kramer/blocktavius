@@ -80,10 +80,7 @@ namespace Blocktavius.Tests
 
 		private static string GetSnapshotPath(string fileName)
 		{
-			var assemblyLocation = Path.GetDirectoryName(typeof(SnapshotTests).Assembly.Location)!;
-			var snapshotDir = Path.Combine(assemblyLocation, "..", "..", "..", "Snapshots");
-			Directory.CreateDirectory(snapshotDir);
-			return Path.Combine(snapshotDir, fileName);
+			return Path.Combine(TestUtil.SnapshotRoot, fileName);
 		}
 
 		private static Bitmap CreateImageFromSampler(I2DSampler<int> sampler)
