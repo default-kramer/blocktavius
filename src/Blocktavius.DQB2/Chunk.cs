@@ -1,5 +1,4 @@
 ﻿using Blocktavius.Core;
-using System.Runtime.InteropServices;
 
 namespace Blocktavius.DQB2;
 
@@ -31,6 +30,8 @@ interface ICloneableChunk : IChunk
 public interface IMutableChunk : IChunk
 {
 	void SetBlock(Point point, ushort block);
+
+	void ReplaceProp(Point point, Block prop);
 
 	internal void PerformColumnCleanup(ColumnCleanupMode mode);
 }
@@ -77,6 +78,25 @@ public abstract class ChunkInternals
 	internal abstract ValueTask WriteBlockdataAsync(Stream stream);
 
 	internal abstract bool IsEmpty();
+
+	/// <summary>
+	/// Intended for snapshot tests
+	/// </summary>
+	public async Task<string> ComputeBlockdataHash()
+	{
+		if (IsEmpty())
+		{
+			return "<empty chunk>";
+		}
+
+		using var ms = new MemoryStream(capacity: ChunkMath.BytesPerChunk);
+		await WriteBlockdataAsync(ms);
+		ms.Seek(0, SeekOrigin.Begin);
+
+		using var hasher = System.Security.Cryptography.MD5.Create();
+		var hash = await hasher.ComputeHashAsync(ms);
+		return string.Concat(hash.Select(b => b.ToString("x2")));
+	}
 }
 
 sealed class ImmutableChunk<TBlockdata> : ChunkInternals, ICloneableChunk where TBlockdata : struct, IBlockdata
@@ -159,8 +179,27 @@ sealed class MutableChunk<TReadBlockdata> : ChunkInternals, IMutableChunk where 
 			writeSource = clone;
 			readSource = clone.HackySelfCast<TReadBlockdata>();
 		}
-
 		writeSource.SetBlock(point, block);
+	}
+
+	public void ReplaceProp(Point point, Block prop)
+	{
+		ushort block = prop.BlockIdComplete;
+
+		if (writeSource.IsNothing)
+		{
+			var prevVal = readSource.GetBlock(point);
+			if (block == prevVal)
+			{
+				return; // no change
+			}
+
+			// copy on write:
+			var clone = readSource.Clone();
+			writeSource = clone;
+			readSource = clone.HackySelfCast<TReadBlockdata>();
+		}
+		writeSource.ReplaceProp(point, block);
 	}
 
 	internal override ValueTask WriteBlockdataAsync(Stream stream) => readSource.WriteAsync(stream);
@@ -203,6 +242,12 @@ sealed class MutableEmptyChunk : ChunkInternals, IMutableChunk
 	{
 		bytes = bytes ?? new LittleEndianStuff.ByteArrayBlockdata(new byte[ChunkMath.BytesPerChunk]);
 		bytes.Value.SetBlock(point, block);
+	}
+
+	public void ReplaceProp(Point point, Block block)
+	{
+		bytes = bytes ?? new LittleEndianStuff.ByteArrayBlockdata(new byte[ChunkMath.BytesPerChunk]);
+		bytes.Value.ReplaceProp(point, block.BlockIdComplete);
 	}
 
 	internal override ValueTask WriteBlockdataAsync(Stream stream)

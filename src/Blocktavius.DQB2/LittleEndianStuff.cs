@@ -72,10 +72,6 @@ static class LittleEndianStuff
 
 		public ushort GetBlock(Point point) => BitConverter.ToUInt16(array, ChunkMath.GetByteIndex(point));
 
-		private const ushort blockMask = 0x7FF; // masks off the chisel and the alleged "placed by player" bit
-
-		private static bool IsSimple(ushort block) => (block & blockMask) < 1158; // equivalent to HH `simple?` proc
-
 		/// <remarks>
 		/// Blocktavius should never write to the Y=0 layer except during column cleanup,
 		/// read <see cref="ColumnCleanupMode"/> for more info.
@@ -89,7 +85,22 @@ static class LittleEndianStuff
 
 			var index = ChunkMath.GetUshortIndex(point);
 			var shortArray = MemoryMarshal.Cast<byte, ushort>(array);
-			if (IsSimple(shortArray[index]))
+			if (shortArray[index].IsSimple())
+			{
+				shortArray[index] = block;
+			}
+		}
+
+		public void ReplaceProp(Point point, ushort block)
+		{
+			if (point.Y == 0)
+			{
+				return;
+			}
+
+			var index = ChunkMath.GetUshortIndex(point);
+			var shortArray = MemoryMarshal.Cast<byte, ushort>(array);
+			if (shortArray[index].IsProp())
 			{
 				shortArray[index] = block;
 			}
@@ -155,7 +166,7 @@ static class LittleEndianStuff
 			{
 				return; // already has bedrock at Y=0
 			}
-			if (!IsSimple(block0))
+			if (!block0.IsSimple())
 			{
 				// They must have used some other tool to put an item at Y=0.
 				// Let's ignore the entire column.
@@ -192,7 +203,7 @@ static class LittleEndianStuff
 			for (int y = 1; y < DQB2Constants.MaxElevation; y++)
 			{
 				int index = ChunkMath.GetUshortIndex(new Point(xz, y));
-				if (IsSimple(shortArray[index]))
+				if (shortArray[index].IsSimple())
 				{
 					shortArray[index] = DQB2Constants.BlockId.Empty;
 				}

@@ -72,6 +72,8 @@ public interface IArea
 	Rect Bounds { get; }
 	bool InArea(XZ xz);
 
+	bool Intersects(Rect other) => !Bounds.Intersection(other).IsZero;
+
 	// Hmm....
 	I2DSampler<bool> AsSampler() => new AreaSampler { Area = this };
 }
