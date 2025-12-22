@@ -85,7 +85,7 @@ sealed class ScriptSettingsVM : ScriptLeafNodeVM
 74 - Coral Cay";
 	}
 
-	public sealed class SeaLevelItemsSource : IItemsSource
+	sealed class SeaLevelItemsSource : IItemsSource
 	{
 		public ItemCollection GetValues()
 		{
