@@ -125,23 +125,6 @@ abstract class ScriptNonleafNodeVM : ScriptNodeVM
 	public abstract IEnumerable<IChildNodeWrapperVM> ChildNodes { get; }
 }
 
-sealed class ScriptSettingsVM : ScriptLeafNodeVM
-{
-	private bool _expandBedrock = false;
-	public bool ExpandBedrock
-	{
-		get => _expandBedrock;
-		set => ChangeProperty(ref _expandBedrock, value);
-	}
-
-	private string? _scriptName = null;
-	public string? ScriptName
-	{
-		get => _scriptName;
-		set => ChangeProperty(ref _scriptName, value);
-	}
-}
-
 sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 {
 	public ScriptSettingsVM Settings { get; } = new();
@@ -235,12 +218,8 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 				mutations.Add(mutation);
 			}
 		}
-		if (mutations.Count > 0)
-		{
-			var mode = this.Settings.ExpandBedrock ? ColumnCleanupMode.ExpandBedrock : ColumnCleanupMode.ConstrainToBedrock;
-			return StageMutation.Combine(mutations, mode);
-		}
-		return null;
+
+		return Settings.BuildFinalMutation(mutations);
 	}
 
 	private ScriptNodeVM? _selectedNode = null;
