@@ -20,20 +20,29 @@
                 <RowDefinition Height="Auto"></RowDefinition>
                 <RowDefinition Height="2*"></RowDefinition>
             </Grid.RowDefinitions>
-            <ListView x:Name="lvScripts" ItemsSource="{Binding Scripts}" SelectedItem="{Binding SelectedScript}">
-                <ListView.View>
-                    <GridView>
-                        <GridViewColumn>
-                            <GridViewColumn.CellTemplate>
-                                <DataTemplate>
-                                    <RadioButton IsChecked="{Binding IsTheActiveScript, Mode=OneWay}" IsEnabled="False"></RadioButton>
-                                </DataTemplate>
-                            </GridViewColumn.CellTemplate>
-                        </GridViewColumn>
-                        <GridViewColumn DisplayMemberBinding="{Binding Settings.ScriptName}"></GridViewColumn>
-                    </GridView>
-                </ListView.View>
-            </ListView>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"></RowDefinition>
+                    <RowDefinition></RowDefinition>
+                </Grid.RowDefinitions>
+                <StackPanel Grid.Row="0">
+                    <Button Command="{Binding CommandAddScript}">Add Script</Button>
+                </StackPanel>
+                <ListView Grid.Row="1" x:Name="lvScripts" ItemsSource="{Binding Scripts}" SelectedItem="{Binding SelectedScript}">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn>
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <RadioButton IsChecked="{Binding IsTheActiveScript, Mode=OneWay}" IsEnabled="False"></RadioButton>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn DisplayMemberBinding="{Binding Settings.ScriptName}"></GridViewColumn>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </Grid>
             <pg:PropertyGrid Grid.Row="2" SelectedObject="{Binding SelectedScript.SelectedNode}"></pg:PropertyGrid>
             <GridSplitter Grid.Row="1" ResizeDirection="Rows" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Center"></GridSplitter>
         </Grid>

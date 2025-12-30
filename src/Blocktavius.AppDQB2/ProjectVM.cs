@@ -58,6 +58,7 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 	private readonly MyProperty.Notes xNotes;
 	// commands
 	public I.Project.CommandEditChunkGrid CommandEditChunkGrid { get; }
+	public ICommand CommandAddScript { get; }
 
 	// wrapper properties
 	private ProfileSettings getProfile => xProfile.Value;
@@ -111,6 +112,7 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 
 		CommandExportChunkMask = new RelayCommand(_ => chunkGridLayer.ChunkGridImage != null, ExportChunkMask);
 		CommandExportMinimap = new RelayCommand(_ => minimapLayer?.MinimapImage != null, ExportMinimap);
+		CommandAddScript = new RelayCommand(_ => true, AddScript);
 
 		ForceUpdateProfile(profile);
 	}
@@ -140,6 +142,12 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 		{
 			encoder.Save(fileStream);
 		}
+	}
+
+	private void AddScript(object? _)
+	{
+		string name = $"Script {Scripts.Count + 1}";
+		Scripts.Add(new ScriptVM().SetScriptName(name));
 	}
 
 	public static ProjectVM CreateNew(IServices services, ProfileSettings profile, FileInfo projectFile)
