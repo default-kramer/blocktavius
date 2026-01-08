@@ -21,7 +21,7 @@ sealed class PutHillMutation : StageMutation
 				var elevation = Sampler.Sample(xz);
 				if (elevation > 0)
 				{
-					for (int y = 1; y <= elevation; y++)
+					for (int y = elevation - 20; y <= elevation; y++)
 					{
 						chunk.SetBlock(new Point(xz, y), Block);
 					}

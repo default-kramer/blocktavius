@@ -97,7 +97,7 @@ public static class ShellLogic
 	/// </summary>
 	readonly record struct WalkState(XZ shellPosition, Direction insideDir)
 	{
-		public WalkState Advance(IArea area, List<ShellItem> itemCollector)
+		public WalkState Advance(I2DSampler<bool> area, List<ShellItem> itemCollector)
 		{
 			itemCollector.Add(new ShellItem()
 			{
@@ -108,7 +108,7 @@ public static class ShellLogic
 
 			var aheadDir = insideDir.TurnLeft90;
 			var aheadPos = shellPosition.Add(aheadDir.Step);
-			if (area.InArea(aheadPos))
+			if (area.Sample(aheadPos))
 			{
 				// inside corner, stay at the same position and turn left
 				itemCollector.Add(new ShellItem()
@@ -119,7 +119,7 @@ public static class ShellLogic
 				});
 				return new WalkState(shellPosition, aheadDir);
 			}
-			else if (!area.InArea(aheadPos.Add(insideDir.Step)))
+			else if (!area.Sample(aheadPos.Add(insideDir.Step)))
 			{
 				// outside corner
 				itemCollector.Add(new ShellItem()
@@ -138,7 +138,7 @@ public static class ShellLogic
 		}
 	}
 
-	static bool TryBuildShell(IArea area, IslandInfo island, out List<ShellItem> items)
+	static bool TryBuildShell(I2DSampler<bool> area, IslandInfo island, out List<ShellItem> items)
 	{
 		items = new();
 		if (island.MustIncludeStates.Count == 0)
@@ -171,12 +171,9 @@ public static class ShellLogic
 	/// Most of this logic must use the expanded bounds, since shell items
 	/// can be outside of the area's bounds.
 	/// </summary>
-	private static Rect ExpandBounds(IArea area)
-	{
-		return new Rect(area.Bounds.start.Add(-1, -1), area.Bounds.end.Add(1, 1));
-	}
+	private static Rect ExpandBounds<T>(I2DSampler<T> area) => area.Bounds.Expand(1);
 
-	public static IReadOnlyList<Shell> ComputeShells(IArea area)
+	public static IReadOnlyList<Shell> ComputeShells(I2DSampler<bool> area)
 	{
 		List<Shell> shells = new();
 
@@ -217,14 +214,14 @@ public static class ShellLogic
 		public required I2DSampler<bool> IslandArea { get; init; }
 	}
 
-	private static List<IslandInfo> FindIslands(IArea area)
+	private static List<IslandInfo> FindIslands(I2DSampler<bool> area)
 	{
 		List<IslandInfo> infos = new();
 
 		const int Empty = -1;
 		var islandFullMap = new MutableArray2D<int>(area.Bounds, Empty);
 
-		foreach (var xz in area.Bounds.Enumerate().Where(area.InArea))
+		foreach (var xz in area.Bounds.Enumerate().Where(area.Sample))
 		{
 			if (islandFullMap.Sample(xz) == Empty)
 			{
@@ -243,7 +240,7 @@ public static class ShellLogic
 					foreach (var dir in allDirections)
 					{
 						var neighbor = current.Add(dir.Step);
-						if (area.InArea(neighbor))
+						if (area.Sample(neighbor))
 						{
 							if (islandFullMap.Sample(neighbor) == Empty)
 							{
@@ -283,7 +280,7 @@ public static class ShellLogic
 	/// Finds all points that are not inside the area which can "escape" to the border.
 	/// Used for hole detection.
 	/// </summary>
-	private static HashSet<XZ> ComputeOutsidePoints(IArea area)
+	private static HashSet<XZ> ComputeOutsidePoints(I2DSampler<bool> area)
 	{
 		var searchBounds = ExpandBounds(area);
 		var outsidePoints = new HashSet<XZ>();
@@ -292,13 +289,13 @@ public static class ShellLogic
 		for (int x = searchBounds.start.X; x < searchBounds.end.X; x++)
 		{
 			var top = new XZ(x, searchBounds.start.Z);
-			if (!area.InArea(top) && outsidePoints.Add(top))
+			if (!area.Sample(top) && outsidePoints.Add(top))
 			{
 				floodQueue.Enqueue(top);
 			}
 
 			var bottom = new XZ(x, searchBounds.end.Z - 1);
-			if (!area.InArea(bottom) && outsidePoints.Add(bottom))
+			if (!area.Sample(bottom) && outsidePoints.Add(bottom))
 			{
 				floodQueue.Enqueue(bottom);
 			}
@@ -307,13 +304,13 @@ public static class ShellLogic
 		for (int z = searchBounds.start.Z; z < searchBounds.end.Z; z++)
 		{
 			var left = new XZ(searchBounds.start.X, z);
-			if (!area.InArea(left) && outsidePoints.Add(left))
+			if (!area.Sample(left) && outsidePoints.Add(left))
 			{
 				floodQueue.Enqueue(left);
 			}
 
 			var right = new XZ(searchBounds.end.X - 1, z);
-			if (!area.InArea(right) && outsidePoints.Add(right))
+			if (!area.Sample(right) && outsidePoints.Add(right))
 			{
 				floodQueue.Enqueue(right);
 			}
@@ -325,7 +322,7 @@ public static class ShellLogic
 			foreach (var direction in allDirections)
 			{
 				var neighbor = current.Add(direction.Step);
-				if (searchBounds.Contains(neighbor) && !area.InArea(neighbor) && outsidePoints.Add(neighbor))
+				if (searchBounds.Contains(neighbor) && !area.Sample(neighbor) && outsidePoints.Add(neighbor))
 				{
 					floodQueue.Enqueue(neighbor);
 				}

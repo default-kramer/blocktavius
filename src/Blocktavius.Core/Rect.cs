@@ -43,6 +43,8 @@ public record Rect(XZ start, XZ end)
 
 	public bool IsZero => Size.X < 1 || Size.Z < 1;
 
+	public Rect Expand(int amount) => new Rect(this.start.Add(-amount, -amount), this.end.Add(amount, amount));
+
 	public static Rect Union(IEnumerable<Rect> boxes) => DoUnion(boxes);
 
 	public static Rect Union(params IEnumerable<Rect>[] dater) => DoUnion(dater);
