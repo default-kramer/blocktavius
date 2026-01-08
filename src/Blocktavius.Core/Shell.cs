@@ -108,7 +108,7 @@ public static class ShellLogic
 
 			var aheadDir = insideDir.TurnLeft90;
 			var aheadPos = shellPosition.Add(aheadDir.Step);
-			if (area.Sample(aheadPos))
+			if (area.InArea(aheadPos))
 			{
 				// inside corner, stay at the same position and turn left
 				var diagonalDir = insideDir.TurnLeft45;
@@ -123,7 +123,7 @@ public static class ShellLogic
 				}
 				return new WalkState(shellPosition, aheadDir);
 			}
-			else if (!area.Sample(aheadPos.Add(insideDir.Step)))
+			else if (!area.InArea(aheadPos.Add(insideDir.Step)))
 			{
 				// outside corner
 				var diagonalDir = insideDir.TurnRight45;
@@ -233,7 +233,7 @@ public static class ShellLogic
 		const int Empty = -1;
 		var islandFullMap = new MutableArray2D<int>(area.Bounds, Empty);
 
-		foreach (var xz in area.Bounds.Enumerate().Where(area.Sample))
+		foreach (var xz in area.Bounds.Enumerate().Where(area.InArea))
 		{
 			if (islandFullMap.Sample(xz) == Empty)
 			{
@@ -252,7 +252,7 @@ public static class ShellLogic
 					foreach (var dir in allDirections)
 					{
 						var neighbor = current.Add(dir.Step);
-						if (area.Sample(neighbor))
+						if (area.InArea(neighbor))
 						{
 							if (islandFullMap.Sample(neighbor) == Empty)
 							{
@@ -301,13 +301,13 @@ public static class ShellLogic
 		for (int x = searchBounds.start.X; x < searchBounds.end.X; x++)
 		{
 			var top = new XZ(x, searchBounds.start.Z);
-			if (!area.Sample(top) && outsidePoints.Add(top))
+			if (!area.InArea(top) && outsidePoints.Add(top))
 			{
 				floodQueue.Enqueue(top);
 			}
 
 			var bottom = new XZ(x, searchBounds.end.Z - 1);
-			if (!area.Sample(bottom) && outsidePoints.Add(bottom))
+			if (!area.InArea(bottom) && outsidePoints.Add(bottom))
 			{
 				floodQueue.Enqueue(bottom);
 			}
@@ -316,13 +316,13 @@ public static class ShellLogic
 		for (int z = searchBounds.start.Z; z < searchBounds.end.Z; z++)
 		{
 			var left = new XZ(searchBounds.start.X, z);
-			if (!area.Sample(left) && outsidePoints.Add(left))
+			if (!area.InArea(left) && outsidePoints.Add(left))
 			{
 				floodQueue.Enqueue(left);
 			}
 
 			var right = new XZ(searchBounds.end.X - 1, z);
-			if (!area.Sample(right) && outsidePoints.Add(right))
+			if (!area.InArea(right) && outsidePoints.Add(right))
 			{
 				floodQueue.Enqueue(right);
 			}
@@ -334,7 +334,7 @@ public static class ShellLogic
 			foreach (var direction in cardinalDirections)
 			{
 				var neighbor = current.Add(direction.Step);
-				if (searchBounds.Contains(neighbor) && !area.Sample(neighbor) && outsidePoints.Add(neighbor))
+				if (searchBounds.Contains(neighbor) && !area.InArea(neighbor) && outsidePoints.Add(neighbor))
 				{
 					floodQueue.Enqueue(neighbor);
 				}
