@@ -197,43 +197,10 @@ namespace Blocktavius.Tests
 		public void duplicate_shell_regression()
 		{
 			var area = TestUtil.CreateAreaFromAscii(@"
-_______xxx____________________
-___xx_xxxxx___________________
-__xxxxxxxx____________________
-_xxxxxxxxxx___________________
-__xxxxxxxxxx_xxxxxxx__________
-_xxxxxxxxxxxxxxxxxxx__________
-_xxxxxxxxxxxxxxxxxxxx_________
-_xxxxxxxxxxxxxxxxxxxx_x_______
-_xxxxxxxxxxxxxxxxxxxxxx_______
-_xxxxxxxxxxxxxxxxxxxxxxx______
-__xxxxxxxxxxxxxxxxxxxxxxx_____
-__xxxxxxxxxxxxxxxxxxxxxxxx____
-__xxxxxxxxxxxxxxxxxxxxxxx_____
-__xxxxxxxxxxxxxxxxxxxxxxx_____
-_xxxxxxxxxxxxxxxxxxxxxxxx_____
-_xxxxxxxxxxxxxxxxxxxxxxxxx____
-_xxxxxxxxxxxxxxxxxxxxxxxxxxxx_
-_xxxxxxxxxxxxxxxxxxxxxxxxxxxx_
-_xxxxxxxxxxxxxxxxxxxxxxxxxxxx_
-_xxxxxxxxxxxxxxxxxxxxxxxxxxxx_
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxx_
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxx_
-_xxxxxxxxxxxxxxxxxxxxxxxxxxxx_
-_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-_xxxxxxxxxxxxxxxxxxxxxxxxxxxx_
-_xxxxxxxxxxxxxxxxxxxxxxxxxxxx_
-_xxxxxxxxxxxxxxxxxxxxxxxxxx___
-xxxxxxxxxxxxxxxxxxxxxxxxxx____
-xxxxxxxxxxxxxxxxxxxxxxxx______
-xxxxxxxxxxxxxxxxxxxxxxxx______
-xxxxxxxxxxxxxxxxxxxxxxxxx_____
-x_xxxxxxxxxxxxxxxxxxxxx_______
-__xxxxxxxxxxxxxxxxxx_xx_______
-______xxxxxxxxxxxxxxx_________
-_____xxxxxxxxxxxx_____________
-_________xx_xx__x_____________
-________xxx___________________");
+xxxxxx_
+xxxx___
+x_xx___
+xx_____");
 
 			var shells = ShellLogic.ComputeShells(area)
 				.Where(s => !s.IsHole)
