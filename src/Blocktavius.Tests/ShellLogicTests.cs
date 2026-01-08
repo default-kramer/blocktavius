@@ -194,18 +194,37 @@ namespace Blocktavius.Tests
 		}
 
 		[TestMethod]
-		public void duplicate_shell_regression()
+		public void diagonal_corner_hole_regression()
 		{
 			// The hole below H was not being identified as a hole.
+			// Also the invariant "the InsideDirection always points to an XZ inside the area"
+			// was not correct for both shells regarding the loose diagonal corner.
 			var area = TestUtil.CreateAreaFromAscii(@"
 xxxxxx_
 xHxx___
 x_xx___
 xx_____");
 
-			var shells = ShellLogic.ComputeShells(area).ToList();
+			var shells = ShellLogic.ComputeShells(area).OrderBy(s => s.ShellItems.Count).ToList();
 			Assert.AreEqual(2, shells.Count);
-			Assert.AreEqual(1, shells.Where(s => s.IsHole).Count());
+			var inner = shells[0];
+			var outer = shells[1];
+			Assert.IsTrue(inner.IsHole);
+			Assert.IsFalse(outer.IsHole);
+
+			Assert.Fail("TODO - there is more to do here...");
+			/* TODO - pretty sure the correct counts are 7 and 27...
+			Assert.AreEqual(8, inner.ShellItems.Count);
+			Assert.AreEqual(28, outer.ShellItems.Count);
+
+			foreach (var shell in shells)
+			{
+				foreach (var item in shell.ShellItems)
+				{
+					Assert.IsTrue(area.InArea(item.XZ.Step(item.InsideDirection)));
+				}
+			}
+			*/
 		}
 	}
 }

@@ -167,6 +167,8 @@ public static class ShellLogic
 		Direction.South, Direction.SouthWest, Direction.West, Direction.NorthWest
 	};
 
+	private static readonly Direction[] cardinalDirections = allDirections.Where(d => d.IsCardinal).ToArray();
+
 	/// <summary>
 	/// Most of this logic must use the expanded bounds, since shell items
 	/// can be outside of the area's bounds.
@@ -322,7 +324,7 @@ public static class ShellLogic
 		while (floodQueue.Count > 0)
 		{
 			var current = floodQueue.Dequeue();
-			foreach (var direction in allDirections)
+			foreach (var direction in cardinalDirections)
 			{
 				var neighbor = current.Add(direction.Step);
 				if (searchBounds.Contains(neighbor) && !area.InArea(neighbor) && outsidePoints.Add(neighbor))
