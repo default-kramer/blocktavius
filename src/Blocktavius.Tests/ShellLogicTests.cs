@@ -196,17 +196,16 @@ namespace Blocktavius.Tests
 		[TestMethod]
 		public void duplicate_shell_regression()
 		{
+			// The hole below H was not being identified as a hole.
 			var area = TestUtil.CreateAreaFromAscii(@"
 xxxxxx_
-xxxx___
+xHxx___
 x_xx___
 xx_____");
 
-			var shells = ShellLogic.ComputeShells(area)
-				.Where(s => !s.IsHole)
-				.ToList();
-
-			Assert.AreEqual(1, shells.Count);
+			var shells = ShellLogic.ComputeShells(area).ToList();
+			Assert.AreEqual(2, shells.Count);
+			Assert.AreEqual(1, shells.Where(s => s.IsHole).Count());
 		}
 	}
 }
