@@ -111,23 +111,31 @@ public static class ShellLogic
 			if (area.Sample(aheadPos))
 			{
 				// inside corner, stay at the same position and turn left
-				itemCollector.Add(new ShellItem()
+				var diagonalDir = insideDir.TurnLeft45;
+				if (area.InArea(shellPosition.Step(diagonalDir)))
 				{
-					InsideDirection = insideDir.TurnLeft45,
-					XZ = shellPosition,
-					CornerType = CornerType.Inside,
-				});
+					itemCollector.Add(new ShellItem()
+					{
+						InsideDirection = diagonalDir,
+						XZ = shellPosition,
+						CornerType = CornerType.Inside,
+					});
+				}
 				return new WalkState(shellPosition, aheadDir);
 			}
 			else if (!area.Sample(aheadPos.Add(insideDir.Step)))
 			{
 				// outside corner
-				itemCollector.Add(new ShellItem()
+				var diagonalDir = insideDir.TurnRight45;
+				if (area.InArea(aheadPos.Step(diagonalDir)))
 				{
-					InsideDirection = insideDir.TurnRight45,
-					XZ = aheadPos,
-					CornerType = CornerType.Outside,
-				});
+					itemCollector.Add(new ShellItem()
+					{
+						InsideDirection = diagonalDir,
+						XZ = aheadPos, // The XZ for outside corners is the "inner" point
+						CornerType = CornerType.Outside,
+					});
+				}
 				return new WalkState(aheadPos.Add(insideDir.Step), insideDir.TurnRight90);
 			}
 			else
@@ -166,6 +174,8 @@ public static class ShellLogic
 		Direction.North, Direction.NorthEast, Direction.East, Direction.SouthEast,
 		Direction.South, Direction.SouthWest, Direction.West, Direction.NorthWest
 	};
+
+	private static readonly Direction[] cardinalDirections = allDirections.Where(d => d.IsCardinal).ToArray();
 
 	/// <summary>
 	/// Most of this logic must use the expanded bounds, since shell items
@@ -321,7 +331,7 @@ public static class ShellLogic
 		while (floodQueue.Count > 0)
 		{
 			var current = floodQueue.Dequeue();
-			foreach (var direction in allDirections)
+			foreach (var direction in cardinalDirections)
 			{
 				var neighbor = current.Add(direction.Step);
 				if (searchBounds.Contains(neighbor) && !area.Sample(neighbor) && outsidePoints.Add(neighbor))

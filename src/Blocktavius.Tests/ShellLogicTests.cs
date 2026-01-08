@@ -8,7 +8,6 @@ namespace Blocktavius.Tests
 	[TestClass]
 	public class ShellLogicTests
 	{
-
 		[TestMethod]
 		public void ComputeShells_SimpleSquare_CreatesOneOuterShell()
 		{
@@ -195,52 +194,38 @@ namespace Blocktavius.Tests
 		}
 
 		[TestMethod]
-		public void duplicate_shell_regression()
+		public void diagonal_corner_hole_regression()
 		{
+			// The hole below H was not being identified as a hole.
+			// Also the invariant "the InsideDirection always points to an XZ inside the area"
+			// was not correct for both shells regarding the "loose"/"weak" diagonal corner.
 			var area = TestUtil.CreateAreaFromAscii(@"
-_______xxx____________________
-___xx_xxxxx___________________
-__xxxxxxxx____________________
-_xxxxxxxxxx___________________
-__xxxxxxxxxx_xxxxxxx__________
-_xxxxxxxxxxxxxxxxxxx__________
-_xxxxxxxxxxxxxxxxxxxx_________
-_xxxxxxxxxxxxxxxxxxxx_x_______
-_xxxxxxxxxxxxxxxxxxxxxx_______
-_xxxxxxxxxxxxxxxxxxxxxxx______
-__xxxxxxxxxxxxxxxxxxxxxxx_____
-__xxxxxxxxxxxxxxxxxxxxxxxx____
-__xxxxxxxxxxxxxxxxxxxxxxx_____
-__xxxxxxxxxxxxxxxxxxxxxxx_____
-_xxxxxxxxxxxxxxxxxxxxxxxx_____
-_xxxxxxxxxxxxxxxxxxxxxxxxx____
-_xxxxxxxxxxxxxxxxxxxxxxxxxxxx_
-_xxxxxxxxxxxxxxxxxxxxxxxxxxxx_
-_xxxxxxxxxxxxxxxxxxxxxxxxxxxx_
-_xxxxxxxxxxxxxxxxxxxxxxxxxxxx_
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxx_
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxx_
-_xxxxxxxxxxxxxxxxxxxxxxxxxxxx_
-_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-_xxxxxxxxxxxxxxxxxxxxxxxxxxxx_
-_xxxxxxxxxxxxxxxxxxxxxxxxxxxx_
-_xxxxxxxxxxxxxxxxxxxxxxxxxx___
-xxxxxxxxxxxxxxxxxxxxxxxxxx____
-xxxxxxxxxxxxxxxxxxxxxxxx______
-xxxxxxxxxxxxxxxxxxxxxxxx______
-xxxxxxxxxxxxxxxxxxxxxxxxx_____
-x_xxxxxxxxxxxxxxxxxxxxx_______
-__xxxxxxxxxxxxxxxxxx_xx_______
-______xxxxxxxxxxxxxxx_________
-_____xxxxxxxxxxxx_____________
-_________xx_xx__x_____________
-________xxx___________________");
+xxxxxx_
+xHxx___
+x_xx___
+xx_____");
 
-			var shells = ShellLogic.ComputeShells(area)
-				.Where(s => !s.IsHole)
-				.ToList();
+			var shells = ShellLogic.ComputeShells(area).OrderBy(s => s.ShellItems.Count).ToList();
+			Assert.AreEqual(2, shells.Count);
+			var inner = shells[0];
+			var outer = shells[1];
+			Assert.IsTrue(inner.IsHole);
+			Assert.IsFalse(outer.IsHole);
 
-			Assert.AreEqual(1, shells.Count);
+			// It's easy to see that the inner shell should have 7 items.
+			// There are 8 possible directions, but SouthEast must be omitted.
+			Assert.AreEqual(7, inner.ShellItems.Count);
+			Assert.AreEqual(0, inner.ShellItems.Where(x => x.InsideDirection == Direction.SouthEast).Count());
+
+			Assert.AreEqual(27, outer.ShellItems.Count);
+
+			foreach (var shell in shells)
+			{
+				foreach (var item in shell.ShellItems)
+				{
+					Assert.IsTrue(area.InArea(item.XZ.Step(item.InsideDirection)));
+				}
+			}
 		}
 	}
 }
