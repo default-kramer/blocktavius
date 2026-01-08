@@ -20,16 +20,12 @@ public static class NewHill
 
 	public static I2DSampler<HillItem> BuildNewHill(Settings settings, Shell shell)
 	{
-		int expansion = settings.MaxElevation - settings.MinElevation;
-		var bounds = shell.IslandArea.Bounds.Expand(expansion * 2);
-		var array = new MutableArray2D<HillItem>(bounds, new HillItem() { Elevation = emptyValue, Slab = null });
-
-		var tier = Tier.CreateFirstTier(shell, settings, array);
+		var tier = Tier.CreateFirstTier(shell, settings);
 		while (tier.MinElevation > settings.MinElevation)
 		{
 			tier = tier.CreateNextTier();
 		}
-		return tier.Array; //.Project(x => x.Elevation);
+		return tier.Array.Crop();
 	}
 
 	public record struct HillItem
@@ -55,6 +51,29 @@ public static class NewHill
 		public required int AncestorCount { get; init; }
 	}
 
+	sealed class HillItemArray
+	{
+		private readonly MutableArray2D<HillItem> array;
+		private readonly Rect.BoundsFinder boundsFinder = new();
+
+		public HillItemArray(Rect bounds)
+		{
+			this.array = new MutableArray2D<HillItem>(bounds, new HillItem { Elevation = emptyValue, Slab = null });
+		}
+
+		public void Put(XZ xz, HillItem hillItem)
+		{
+			array.Put(xz, hillItem);
+			boundsFinder.Include(xz);
+		}
+
+		public I2DSampler<HillItem> Uncropped => array;
+
+		public I2DSampler<HillItem> Crop() => array.Crop(boundsFinder.CurrentBounds() ?? array.Bounds);
+
+		public I2DSampler<bool> AsArea() => array.Project(item => item.Elevation > emptyValue);
+	}
+
 	/// <summary>
 	/// Each tier is basically "add slabs until previous tier is fully covered."
 	/// </summary>
@@ -63,19 +82,23 @@ public static class NewHill
 		public required Tier? ParentTier { get; init; }
 		public required Settings Settings { get; init; }
 		public required IReadOnlyList<Slab> Slabs { get; init; }
-		public required MutableArray2D<HillItem> Array { get; init; }
+		public required HillItemArray Array { get; init; }
 
 		/// <summary>
 		/// Must be set to Slabs.Min(slab => slab.MinElevation) when any slabs exist.
 		/// </summary>
 		public required int MinElevation { get; init; }
 
-		public static Tier CreateFirstTier(Shell shell, Settings settings, MutableArray2D<HillItem> array)
+		public static Tier CreateFirstTier(Shell shell, Settings settings)
 		{
 			if (settings.MinElevation >= settings.MaxElevation)
 			{
 				throw new ArgumentException("MinElevation must be less than MaxElevation");
 			}
+
+			// Reserve space and just hope it's enough... TODO make this bulletproof!
+			int expansion = settings.MaxElevation - settings.MinElevation;
+			var array = new HillItemArray(shell.IslandArea.Bounds.Expand(expansion * 2));
 
 			foreach (var xz in shell.IslandArea.Bounds.Enumerate())
 			{
@@ -98,7 +121,7 @@ public static class NewHill
 		public Tier CreateNextTier()
 		{
 			// The shell of the parent tier defines what we need to cover in this tier.
-			var shellToCover = ShellLogic.ComputeShells(Array.Project(x => x.Elevation > emptyValue))
+			var shellToCover = ShellLogic.ComputeShells(Array.AsArea())
 				.Where(shell => !shell.IsHole)
 				.Single();
 
@@ -118,7 +141,7 @@ public static class NewHill
 			while (uncoveredShellPoints.Count > 0)
 			{
 				// The "current" shell is the shell of the tier-in-progress, which can change with each new slab.
-				var currentShell = ShellLogic.ComputeShells(Array.Project(x => x.Elevation > emptyValue))
+				var currentShell = ShellLogic.ComputeShells(Array.AsArea())
 					.Where(shell => !shell.IsHole)
 					.Single();
 				var shellItems = currentShell.ShellItems;
@@ -176,7 +199,7 @@ public static class NewHill
 
 				// Find parent slabs by looking at the neighbors of the run items.
 				var parentSlabs = slabRunItems
-					.Select(item => Array.Sample(item.XZ.Step(item.InsideDirection)))
+					.Select(item => Array.Uncropped.Sample(item.XZ.Step(item.InsideDirection)))
 					.Select(hillItem => hillItem.Slab)
 					.WhereNotNull()
 					.Distinct()

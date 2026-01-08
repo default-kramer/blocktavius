@@ -27,7 +27,7 @@ sealed class NewHillDesigner : ShellBasedHillDesigner
 		var settings = new NewHill.Settings()
 		{
 			MaxElevation = 80,
-			MinElevation = 60,
+			MinElevation = 25,
 			PRNG = context.Prng.AdvanceAndClone(),
 		};
 		var hill = NewHill.BuildNewHill(settings, shell);
