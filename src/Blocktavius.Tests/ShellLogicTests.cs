@@ -198,7 +198,7 @@ namespace Blocktavius.Tests
 		{
 			// The hole below H was not being identified as a hole.
 			// Also the invariant "the InsideDirection always points to an XZ inside the area"
-			// was not correct for both shells regarding the loose diagonal corner.
+			// was not correct for both shells regarding the "loose"/"weak" diagonal corner.
 			var area = TestUtil.CreateAreaFromAscii(@"
 xxxxxx_
 xHxx___
@@ -212,10 +212,12 @@ xx_____");
 			Assert.IsTrue(inner.IsHole);
 			Assert.IsFalse(outer.IsHole);
 
-			Assert.Fail("TODO - there is more to do here...");
-			/* TODO - pretty sure the correct counts are 7 and 27...
-			Assert.AreEqual(8, inner.ShellItems.Count);
-			Assert.AreEqual(28, outer.ShellItems.Count);
+			// It's easy to see that the inner shell should have 7 items.
+			// There are 8 possible directions, but SouthEast must be omitted.
+			Assert.AreEqual(7, inner.ShellItems.Count);
+			Assert.AreEqual(0, inner.ShellItems.Where(x => x.InsideDirection == Direction.SouthEast).Count());
+
+			Assert.AreEqual(27, outer.ShellItems.Count);
 
 			foreach (var shell in shells)
 			{
@@ -224,7 +226,6 @@ xx_____");
 					Assert.IsTrue(area.InArea(item.XZ.Step(item.InsideDirection)));
 				}
 			}
-			*/
 		}
 	}
 }

@@ -108,26 +108,35 @@ public static class ShellLogic
 
 			var aheadDir = insideDir.TurnLeft90;
 			var aheadPos = shellPosition.Add(aheadDir.Step);
+
 			if (area.InArea(aheadPos))
 			{
 				// inside corner, stay at the same position and turn left
-				itemCollector.Add(new ShellItem()
+				var diagonalDir = insideDir.TurnLeft45;
+				if (area.InArea(shellPosition.Step(diagonalDir)))
 				{
-					InsideDirection = insideDir.TurnLeft45,
-					XZ = shellPosition,
-					CornerType = CornerType.Inside,
-				});
+					itemCollector.Add(new ShellItem()
+					{
+						InsideDirection = diagonalDir,
+						XZ = shellPosition,
+						CornerType = CornerType.Inside,
+					});
+				}
 				return new WalkState(shellPosition, aheadDir);
 			}
 			else if (!area.InArea(aheadPos.Add(insideDir.Step)))
 			{
 				// outside corner
-				itemCollector.Add(new ShellItem()
+				var diagonalDir = insideDir.TurnRight45;
+				if (area.InArea(aheadPos.Step(diagonalDir)))
 				{
-					InsideDirection = insideDir.TurnRight45,
-					XZ = aheadPos,
-					CornerType = CornerType.Outside,
-				});
+					itemCollector.Add(new ShellItem()
+					{
+						InsideDirection = diagonalDir,
+						XZ = aheadPos, // The XZ for outside corners is the "inner" point
+						CornerType = CornerType.Outside,
+					});
+				}
 				return new WalkState(aheadPos.Add(insideDir.Step), insideDir.TurnRight90);
 			}
 			else
