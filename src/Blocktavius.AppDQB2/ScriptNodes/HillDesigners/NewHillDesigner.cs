@@ -47,20 +47,21 @@ sealed class NewHillDesigner : ShellBasedHillDesigner
 					var item = Sampler.Sample(xz);
 					if (item.Elevation > 0)
 					{
-						ushort blockId;
+						ushort topperId;
 						if (item.Slab != null)
 						{
-							blockId = Convert.ToUInt16(item.Slab.AncestorCount % 2 + 4);
+							topperId = Convert.ToUInt16(item.Slab.AncestorCount % 2 + 4);
 						}
 						else
 						{
-							blockId = 3;
+							topperId = 3;
 						}
 
-						for (int y = 1; y <= item.Elevation; y++)
+						for (int y = 1; y < item.Elevation; y++)
 						{
-							chunk.SetBlock(new Point(xz, y), blockId);
+							chunk.SetBlock(new Point(xz, y), 5);
 						}
+						chunk.SetBlock(new Point(xz, item.Elevation), topperId);
 					}
 				}
 			}

@@ -146,6 +146,54 @@ public static class ShellLogic
 		}
 	}
 
+	private static WalkState FindFirstWalkState(I2DSampler<bool> area, XZ pointInArea)
+	{
+		var queue = new Queue<XZ>();
+		var visited = new HashSet<XZ>();
+
+		if (area.InArea(pointInArea))
+		{
+			queue.Enqueue(pointInArea);
+			visited.Add(pointInArea);
+		}
+
+		while (queue.Count > 0)
+		{
+			var current = queue.Dequeue();
+			foreach (var dir in cardinalDirections)
+			{
+				var neighbor = current.Add(dir.Step);
+				if (area.InArea(neighbor))
+				{
+					if (visited.Add(neighbor))
+					{
+						queue.Enqueue(neighbor);
+					}
+				}
+				else
+				{
+					return new WalkState(neighbor, dir.Turn180);
+				}
+			}
+		}
+
+		throw new Exception("Could not find any edge for the given area.");
+	}
+
+	public static List<ShellItem> WalkShellFromPoint(I2DSampler<bool> area, XZ pointInArea)
+	{
+		var startState = FindFirstWalkState(area, pointInArea);
+		var items = new List<ShellItem>();
+		var current = startState;
+		do
+		{
+			current = current.Advance(area, items);
+		}
+		while (current != startState);
+
+		return items;
+	}
+
 	static bool TryBuildShell(I2DSampler<bool> area, IslandInfo island, out List<ShellItem> items)
 	{
 		items = new();

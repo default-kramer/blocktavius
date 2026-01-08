@@ -134,17 +134,11 @@ public static class NewHill
 			var slabs = new List<Slab>();
 			var uncoveredShellPoints = shellToCover.ShellItems.Select(item => item.XZ).ToHashSet();
 
-			// All slabs in this new tier will have the same elevation.
-			// TODO WRONG!
-			//int slabElevation = MinElevation - 1;
+			var currentShellItems = shellToCover.ShellItems.ToList();
 
 			while (uncoveredShellPoints.Count > 0)
 			{
-				// The "current" shell is the shell of the tier-in-progress, which can change with each new slab.
-				var currentShell = ShellLogic.ComputeShells(Array.AsArea())
-					.Where(shell => !shell.IsHole)
-					.Single();
-				var shellItems = currentShell.ShellItems;
+				var shellItems = currentShellItems;
 
 				// For quick lookups of a shell item's indices, handling corners correctly.
 				var shellItemsIndexMap = new Dictionary<XZ, List<int>>();
@@ -235,6 +229,11 @@ public static class NewHill
 					// It's possible for this to overwrite a HillItem from a previous slab in this same tier. This is intentional.
 					Array.Put(xz, newHillItem);
 					uncoveredShellPoints.Remove(xz);
+				}
+
+				if (uncoveredShellPoints.Count > 0)
+				{
+					currentShellItems = ShellLogic.WalkShellFromPoint(Array.AsArea(), uniqueXzsInRun.First());
 				}
 			}
 
