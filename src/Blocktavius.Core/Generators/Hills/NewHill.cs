@@ -100,7 +100,7 @@ public static class NewHill
 			// The shell of the parent tier defines what we need to cover in this tier.
 			var shellToCover = ShellLogic.ComputeShells(Array.Project(x => x.Elevation > emptyValue))
 				.Where(shell => !shell.IsHole)
-				.FirstOrDefault(); // TODO duplicate shell bug
+				.Single();
 
 			// If there's no shell, there's nothing to do.
 			if (shellToCover is null)
@@ -118,26 +118,9 @@ public static class NewHill
 			while (uncoveredShellPoints.Count > 0)
 			{
 				// The "current" shell is the shell of the tier-in-progress, which can change with each new slab.
-				var TODO = ShellLogic.ComputeShells(Array.Project(x => x.Elevation > emptyValue))
+				var currentShell = ShellLogic.ComputeShells(Array.Project(x => x.Elevation > emptyValue))
 					.Where(shell => !shell.IsHole)
-					.ToList();
-				if (TODO.Count > 1)
-				{
-					var sb = new StringBuilder();
-					for (int zz = Array.Bounds.start.Z; zz < Array.Bounds.end.Z; zz++)
-					{
-						for (int xx = Array.Bounds.start.X; xx < Array.Bounds.end.X; xx++)
-						{
-							sb.Append(Array.Sample(new XZ(xx, zz)).Elevation > emptyValue ? "x" : "_");
-						}
-						sb.AppendLine();
-					}
-					var blah = sb.ToString();
-
-					Debugger.Break(); // TODO how is this possible??
-				}
-				var currentShell = TODO.First();
-
+					.Single();
 				var shellItems = currentShell.ShellItems;
 
 				// For quick lookups of a shell item's indices, handling corners correctly.
