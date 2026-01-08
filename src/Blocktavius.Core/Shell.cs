@@ -173,6 +173,8 @@ public static class ShellLogic
 	/// </summary>
 	private static Rect ExpandBounds<T>(I2DSampler<T> area) => area.Bounds.Expand(1);
 
+	public static IReadOnlyList<Shell> ComputeShells(IArea area) => ComputeShells(area.AsSampler());
+
 	public static IReadOnlyList<Shell> ComputeShells(I2DSampler<bool> area)
 	{
 		List<Shell> shells = new();
