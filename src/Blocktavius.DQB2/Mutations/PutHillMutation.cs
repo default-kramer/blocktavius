@@ -12,7 +12,7 @@ sealed class PutHillMutation : StageMutation
 	public required I2DSampler<int> Sampler { get; init; }
 	public required ushort Block { get; init; }
 
-	internal override void Apply(IMutableStage stage)
+	public override void Apply(IMutableStage stage)
 	{
 		foreach (var chunk in Enumerate(Sampler.Bounds, stage))
 		{
