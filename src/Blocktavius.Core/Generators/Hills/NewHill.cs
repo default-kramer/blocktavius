@@ -19,14 +19,12 @@ public static class NewHill
 
 	public static I2DSampler<int> BuildNewHill(Settings settings, Shell shell)
 	{
-		if (settings.MinElevation >= settings.MaxElevation)
+		var tier = Tier.CreateFirstTier(shell, settings);
+		while (tier.MinElevation > settings.MinElevation)
 		{
-			throw new ArgumentException("MinElevation must be less than MaxElevation");
+			tier = tier.CreateNextTier();
 		}
-
-		int expansion = settings.MaxElevation - settings.MinElevation;
-		var bounds = shell.IslandArea.Bounds.Expand(expansion * 2);
-		var array = new MutableArray2D<HillItem>(bounds, new HillItem() { Elevation = emptyValue, Slab = null });
+		return tier.Array.Project(x => x.Elevation);
 	}
 
 	record struct HillItem
