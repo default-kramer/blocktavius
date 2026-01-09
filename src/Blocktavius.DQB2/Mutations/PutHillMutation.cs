@@ -12,7 +12,7 @@ sealed class PutHillMutation : StageMutation
 	public required I2DSampler<int> Sampler { get; init; }
 	public required ushort Block { get; init; }
 
-	internal override void Apply(IMutableStage stage)
+	public override void Apply(IMutableStage stage)
 	{
 		foreach (var chunk in Enumerate(Sampler.Bounds, stage))
 		{
@@ -21,7 +21,7 @@ sealed class PutHillMutation : StageMutation
 				var elevation = Sampler.Sample(xz);
 				if (elevation > 0)
 				{
-					for (int y = 1; y <= elevation; y++)
+					for (int y = elevation - 20; y <= elevation; y++)
 					{
 						chunk.SetBlock(new Point(xz, y), Block);
 					}

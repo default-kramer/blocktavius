@@ -60,6 +60,32 @@ namespace Blocktavius.Tests
 			AssertMatches(hill, "CornerPusher01.png");
 		}
 
+		[TestMethod]
+		public void NewHill01()
+		{
+			var prng = PRNG.Deserialize("12345-67890-12345-67890-12345-67890");
+
+			var area = TestUtil.CreateAreaFromAscii(@"
+xxxx
+x__x
+x__x
+xxxx");
+
+			// The NewHill generator only works on a single outer shell.
+			var shell = ShellLogic.ComputeShells(area).Where(s => !s.IsHole).Single();
+
+			var settings = new NewHill.Settings
+			{
+				MaxElevation = 30,
+				MinElevation = 10,
+				PRNG = prng,
+			};
+
+			var hill = NewHill.BuildNewHill(settings, shell).Project(i => i.Elevation);
+
+			AssertMatches(hill, "NewHill01.png");
+		}
+
 		private static void AssertMatches(I2DSampler<int> cliff, string imageName)
 		{
 			var snapshotImage = CreateImageFromSampler(cliff);

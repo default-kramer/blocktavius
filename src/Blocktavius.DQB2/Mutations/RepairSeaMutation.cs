@@ -13,7 +13,7 @@ public sealed class RepairSeaMutation : StageMutation
 	public required int SeaLevel { get; init; }
 	public LiquidFamily LiquidFamily { get; init; } = LiquidFamily.Seawater;
 
-	internal override void Apply(IMutableStage stage)
+	public override void Apply(IMutableStage stage)
 	{
 		var p = new RepairSeaOperation.Params
 		{
