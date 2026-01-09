@@ -34,7 +34,7 @@ public static class NewHill
 		{
 			tier = tier.CreateNextTier();
 		}
-		return tier.Array.Crop();
+		return tier.Array.Cropped;
 	}
 
 	public record struct HillItem
@@ -62,23 +62,19 @@ public static class NewHill
 
 	sealed class HillItemArray
 	{
-		private readonly MutableArray2D<HillItem> array;
-		private readonly Rect.BoundsFinder boundsFinder = new();
+		private readonly MutableList2D<HillItem> array;
 
 		public HillItemArray(Rect bounds)
 		{
-			this.array = new MutableArray2D<HillItem>(bounds, new HillItem { Elevation = emptyValue, Slab = null });
+			this.array = new MutableList2D<HillItem>(new HillItem { Elevation = emptyValue, Slab = null }, bounds);
 		}
 
 		public void Put(XZ xz, HillItem hillItem)
 		{
 			array.Put(xz, hillItem);
-			boundsFinder.Include(xz);
 		}
 
-		public I2DSampler<HillItem> Uncropped => array;
-
-		public I2DSampler<HillItem> Crop() => array.Crop(boundsFinder.CurrentBounds() ?? array.Bounds);
+		public I2DSampler<HillItem> Cropped => array;
 
 		public I2DSampler<bool> AsArea() => array.Project(item => item.Elevation > emptyValue);
 	}
@@ -107,9 +103,7 @@ public static class NewHill
 				throw new ArgumentException("MinElevation must be less than MaxElevation");
 			}
 
-			// Reserve space and just hope it's enough... TODO make this bulletproof!
-			int expansion = settings.MaxElevation - settings.MinElevation;
-			var array = new HillItemArray(shell.IslandArea.Bounds.Expand(expansion * 2));
+			var array = new HillItemArray(shell.IslandArea.Bounds);
 
 			foreach (var xz in shell.IslandArea.Bounds.Enumerate())
 			{
@@ -202,7 +196,7 @@ public static class NewHill
 
 				// Find parent slabs by looking at the neighbors of the run items.
 				var parentSlabs = slabRunItems
-					.Select(item => Array.Uncropped.Sample(item.XZ.Step(item.InsideDirection)))
+					.Select(item => Array.Cropped.Sample(item.XZ.Step(item.InsideDirection)))
 					.Select(hillItem => hillItem.Slab)
 					.WhereNotNull()
 					.Distinct()
