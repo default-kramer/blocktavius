@@ -17,6 +17,41 @@ sealed class NewHillDesigner : ShellBasedHillDesigner
 		throw new NotImplementedException();
 	}
 
+	private int _minRunLength = 4;
+	public int MinRunLength
+	{
+		get => _minRunLength;
+		set => ChangeProperty(ref _minRunLength, value);
+	}
+
+	private int _maxRunLength = 15;
+	public int MaxRunLength
+	{
+		get => _maxRunLength;
+		set => ChangeProperty(ref _maxRunLength, value);
+	}
+
+	private int _coveragePerTier = 80;
+	public int CoveragePerTier
+	{
+		get => _coveragePerTier;
+		set => ChangeProperty(ref _coveragePerTier, Math.Clamp(value, 0, 100));
+	}
+
+	private int _minDrop = 1;
+	public int MinDrop
+	{
+		get => _minDrop;
+		set => ChangeProperty(ref _minDrop, value);
+	}
+
+	private int _maxDrop = 3;
+	public int MaxDrop
+	{
+		get => _maxDrop;
+		set => ChangeProperty(ref _maxDrop, value);
+	}
+
 	protected override StageMutation? CreateMutation(HillDesignContext context, Shell shell)
 	{
 		if (shell.IsHole)
@@ -27,8 +62,13 @@ sealed class NewHillDesigner : ShellBasedHillDesigner
 		var settings = new NewHill.Settings()
 		{
 			MaxElevation = 80,
-			MinElevation = 25,
+			MinElevation = 14,
+			MinRunLength = MinRunLength,
+			RunLengthRand = Math.Max(0, 1 + MaxRunLength - MinRunLength),
+			RequiredCoveragePerTier = CoveragePerTier,
 			PRNG = context.Prng.AdvanceAndClone(),
+			MinDrop = MinDrop,
+			DropRand = Math.Max(0, 1 + MaxDrop - MinDrop),
 		};
 		var hill = NewHill.BuildNewHill(settings, shell);
 		return new Mutation { Sampler = hill };

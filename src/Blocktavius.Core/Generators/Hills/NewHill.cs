@@ -7,13 +7,22 @@ using System.Threading.Tasks;
 
 namespace Blocktavius.Core.Generators.Hills;
 
+/// <summary>
+/// TODO - Similar to the CornerPusherHill, but we allow overlapping slabs in the same tier...
+/// But maybe they are really the same algorithm with different config settings??
+/// </summary>
 public static class NewHill
 {
 	public sealed record Settings
 	{
 		public required PRNG PRNG { get; init; }
-		public int MaxElevation { get; init; }
-		public int MinElevation { get; init; }
+		public required int MaxElevation { get; init; }
+		public required int MinElevation { get; init; }
+		public int MinRunLength { get; init; } = 4;
+		public int RunLengthRand { get; init; } = 4;
+		public int RequiredCoveragePerTier { get; set; } = 100;
+		public int MinDrop { get; set; } = 1;
+		public int DropRand { get; set; } = 1;
 	}
 
 	const int emptyValue = -1;
@@ -89,6 +98,8 @@ public static class NewHill
 		/// </summary>
 		public required int MinElevation { get; init; }
 
+		public required IReadOnlyList<ShellItem> NextTierShell { get; init; }
+
 		public static Tier CreateFirstTier(Shell shell, Settings settings)
 		{
 			if (settings.MinElevation >= settings.MaxElevation)
@@ -115,28 +126,26 @@ public static class NewHill
 				Slabs = [],
 				Array = array,
 				MinElevation = settings.MaxElevation,
+				NextTierShell = shell.ShellItems,
 			};
 		}
 
 		public Tier CreateNextTier()
 		{
-			// The shell of the parent tier defines what we need to cover in this tier.
-			var shellToCover = ShellLogic.ComputeShells(Array.AsArea())
-				.Where(shell => !shell.IsHole)
-				.Single();
-
-			// If there's no shell, there's nothing to do.
-			if (shellToCover is null)
+			if (NextTierShell.Count < 1)
 			{
-				throw new Exception("Impossible");
+				throw new Exception("Assert fail - empty shell should be impossible");
 			}
 
 			var slabs = new List<Slab>();
-			var uncoveredShellPoints = shellToCover.ShellItems.Select(item => item.XZ).ToHashSet();
+			var uncoveredShellPoints = NextTierShell.Select(item => item.XZ).ToHashSet();
+			int neededCoverage = uncoveredShellPoints.Count * Math.Clamp(Settings.RequiredCoveragePerTier, 0, 100) / 100;
+			int stopAt = uncoveredShellPoints.Count - neededCoverage;
+			stopAt = Math.Clamp(stopAt, 0, uncoveredShellPoints.Count - 1);
 
-			var currentShellItems = shellToCover.ShellItems.ToList();
+			var currentShellItems = NextTierShell.ToList();
 
-			while (uncoveredShellPoints.Count > 0)
+			while (uncoveredShellPoints.Count > stopAt)
 			{
 				var shellItems = currentShellItems;
 
@@ -165,7 +174,7 @@ public static class NewHill
 				}
 
 				// Determine the run shape based on unique XZ coordinates.
-				int uniqueXzCount = 4 + Settings.PRNG.NextInt32(4);
+				int uniqueXzCount = Settings.MinRunLength + Settings.PRNG.NextInt32(Settings.RunLengthRand);
 				int seedPositionInRun = Settings.PRNG.NextInt32(uniqueXzCount);
 				int uniqueXzsBeforeSeed = seedPositionInRun;
 
@@ -199,17 +208,18 @@ public static class NewHill
 					.Distinct()
 					.ToList();
 
+				int slabDrop = Settings.MinDrop + Settings.PRNG.NextInt32(Settings.DropRand);
 				int ancestorCount;
 				int slabElevation;
 				if (parentSlabs.Any())
 				{
 					ancestorCount = parentSlabs.Max(x => x.AncestorCount) + 1;
-					slabElevation = parentSlabs.Min(x => x.MinElevation) - 1;
+					slabElevation = parentSlabs.Min(x => x.MinElevation) - slabDrop;
 				}
 				else
 				{
 					ancestorCount = 0;
-					slabElevation = this.MinElevation - 1;
+					slabElevation = this.MinElevation - slabDrop;
 				}
 
 				var slabXZs = slabRunItems.Select(x => x.XZ).ToList();
@@ -231,10 +241,7 @@ public static class NewHill
 					uncoveredShellPoints.Remove(xz);
 				}
 
-				if (uncoveredShellPoints.Count > 0)
-				{
-					currentShellItems = ShellLogic.WalkShellFromPoint(Array.AsArea(), uniqueXzsInRun.First());
-				}
+				currentShellItems = ShellLogic.WalkShellFromPoint(Array.AsArea(), uniqueXzsInRun.First());
 			}
 
 			if (slabs.Count == 0)
@@ -249,6 +256,7 @@ public static class NewHill
 				Slabs = slabs,
 				Array = Array,
 				MinElevation = Math.Min(this.MinElevation, slabs.Min(slab => slab.MinElevation)),
+				NextTierShell = currentShellItems,
 			};
 		}
 	}

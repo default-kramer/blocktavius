@@ -1,6 +1,7 @@
 ﻿using Blocktavius.Core;
 using Blocktavius.Core.Generators;
 using Blocktavius.Core.Generators.BasicHill;
+using Blocktavius.Core.Generators.Hills;
 
 namespace Blocktavius.Tests
 {
@@ -64,6 +65,33 @@ namespace Blocktavius.Tests
 				return;
 			}
 			Assert.Fail("ATTENTION: Is the bug in Adamant Cliff fixed? Or is it just fixed for this particular seed?");
+		}
+
+		[TestMethod]
+		public void ExerciseNewHill()
+		{
+			var prng = PRNG.Create(new Random());
+			Console.WriteLine(prng.Serialize());
+
+			var area = TestUtil.CreateAreaFromAscii(@"
+xxxxxx
+x____x
+x_____
+x____x
+xxxxxx");
+
+			var shell = ShellLogic.ComputeShells(area).Single();
+			var settings = new NewHill.Settings
+			{
+				MaxElevation = 30,
+				MinElevation = 10,
+				PRNG = prng,
+			};
+
+			for (int i = 0; i < 1000; i++)
+			{
+				NewHill.BuildNewHill(settings, shell);
+			}
 		}
 
 		[TestMethod]
