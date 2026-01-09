@@ -45,6 +45,17 @@ public record Rect(XZ start, XZ end)
 
 	public Rect Expand(int amount) => new Rect(this.start.Add(-amount, -amount), this.end.Add(amount, amount));
 
+	internal XZ ApproximateCenter()
+	{
+		if (IsZero)
+		{
+			throw new InvalidOperationException("not defined for Zero rect");
+		}
+		int x = start.X + (end.X - start.X) / 2;
+		int z = start.Z + (end.Z - start.Z) / 2;
+		return new XZ(x, z);
+	}
+
 	public static Rect Union(IEnumerable<Rect> boxes) => DoUnion(boxes);
 
 	public static Rect Union(params IEnumerable<Rect>[] dater) => DoUnion(dater);
