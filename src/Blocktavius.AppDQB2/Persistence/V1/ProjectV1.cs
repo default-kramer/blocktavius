@@ -124,3 +124,18 @@ sealed record ScriptV1
 		init => _scriptNodes = value?.ToContentEqualityList();
 	}
 }
+
+sealed record RectV1
+{
+	public required int X0 { get; init; }
+	public required int Z0 { get; init; }
+	public required int X1 { get; init; }
+	public required int Z1 { get; init; }
+
+	public Rect ToCoreRect()
+	{
+		var start = new XZ(Math.Min(X0, X1), Math.Min(Z0, Z1));
+		var end = new XZ(Math.Max(X0, X1), Math.Max(Z0, Z1));
+		return new Rect(start, end);
+	}
+}

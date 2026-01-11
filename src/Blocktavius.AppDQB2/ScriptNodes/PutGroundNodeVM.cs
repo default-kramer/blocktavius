@@ -1,6 +1,8 @@
 ﻿using Blocktavius.AppDQB2.Persistence;
+using Blocktavius.AppDQB2.Persistence.V1;
 using Blocktavius.Core;
 using Blocktavius.DQB2;
+using Blocktavius.DQB2.Mutations;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -19,8 +21,10 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 		public required int? Scale { get; init; }
 		public required int? YMin { get; init; }
 		public required int? YRange { get; init; }
+		public required int? YFloor { get; init; }
 		public required string? AreaPersistId { get; init; }
 		public required string? BlockPersistId { get; init; }
+		public required RectV1? CustomRectArea { get; init; }
 
 		public bool TryDeserializeV1(out ScriptNodeVM node, ScriptDeserializationContext context)
 		{
@@ -28,8 +32,16 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 			me.Scale = this.Scale.GetValueOrDefault(me.Scale);
 			me.YMin = this.YMin.GetValueOrDefault(me.YMin);
 			me.YRange = this.YRange.GetValueOrDefault(me.YRange);
+			me.YFloor = this.YFloor ?? me.YFloor;
 			me.Area = context.AreaManager.FindArea(this.AreaPersistId);
 			me.Block = context.BlockManager.FindBlock(this.BlockPersistId);
+			if (CustomRectArea != null)
+			{
+				me.RectAreaBeginX = CustomRectArea.X0;
+				me.RectAreaBeginZ = CustomRectArea.Z0;
+				me.RectAreaEndX = CustomRectArea.X1;
+				me.RectAreaEndZ = CustomRectArea.Z1;
+			}
 			node = me;
 			return true;
 		}
@@ -42,8 +54,10 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 			Scale = this.Scale,
 			YMin = this.YMin,
 			YRange = this.YRange,
+			YFloor = this.YFloor,
 			AreaPersistId = this.Area?.PersistentId,
 			BlockPersistId = this.Block?.PersistentId,
+			CustomRectArea = this.RebuildCustomRect(),
 		};
 	}
 
@@ -56,11 +70,77 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 	}
 
 	private IAreaVM? area;
+	[Category("Area")]
 	[ItemsSource(typeof(Global.AreasItemsSource))]
 	public IAreaVM? Area
 	{
 		get => area;
-		set => ChangeProperty(ref area, value);
+		set
+		{
+			if (ChangeProperty(ref area, value) && value != null)
+			{
+				RectAreaBeginX = null;
+				RectAreaBeginZ = null;
+				RectAreaEndX = null;
+				RectAreaEndZ = null;
+			}
+		}
+	}
+
+	private int? _beginX;
+	[Category("Area")]
+	public int? RectAreaBeginX
+	{
+		get => _beginX;
+		set
+		{
+			if (ChangeProperty(ref _beginX, value) && value.HasValue)
+			{
+				Area = null;
+			}
+		}
+	}
+
+	private int? _beginZ;
+	[Category("Area")]
+	public int? RectAreaBeginZ
+	{
+		get => _beginZ;
+		set
+		{
+			if (ChangeProperty(ref _beginZ, value) && value.HasValue)
+			{
+				Area = null;
+			}
+		}
+	}
+
+	private int? _endX;
+	[Category("Area")]
+	public int? RectAreaEndX
+	{
+		get => _endX;
+		set
+		{
+			if (ChangeProperty(ref _endX, value) && value.HasValue)
+			{
+				Area = null;
+			}
+		}
+	}
+
+	private int? _endZ;
+	[Category("Area")]
+	public int? RectAreaEndZ
+	{
+		get => _endZ;
+		set
+		{
+			if (ChangeProperty(ref _endZ, value) && value.HasValue)
+			{
+				Area = null;
+			}
+		}
 	}
 
 	private IBlockProviderVM? blockProvider = Blockdata.AnArbitraryBlockVM;
@@ -76,6 +156,13 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 	{
 		get => scale;
 		set => ChangeProperty(ref scale, value);
+	}
+
+	private int _yFloor = 1;
+	public int YFloor
+	{
+		get => _yFloor;
+		set => ChangeProperty(ref _yFloor, value);
 	}
 
 	private int _yMin = 37;
@@ -111,28 +198,63 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 	{
 		var rtb = new BindableRichTextBuilder();
 		rtb.Append("Put Ground:");
-		rtb.AppendLine().Append("  Area: ").FallbackIfNull("None Selected", Area?.DisplayName);
+
+		string? areaText = null;
+		if (Area != null)
+		{
+			areaText = Area.DisplayName;
+		}
+		else if (RebuildCustomRect() != null)
+		{
+			areaText = "Custom Rectangle";
+		}
+		rtb.AppendLine().Append("  Area: ").FallbackIfNull("None Selected", areaText);
+
 		rtb.AppendLine().Append("  Block: ").FallbackIfNull("None Selected", Block?.DisplayName);
 		rtb.AppendLine().Append($"  Min Elevation: {YMin}, Max Elevation: {YMax}");
 		LongStatus = rtb.Build();
 	}
 
+	private RectV1? RebuildCustomRect()
+	{
+		if (RectAreaBeginX.HasValue && RectAreaBeginZ.HasValue && RectAreaEndX.HasValue && RectAreaEndZ.HasValue)
+		{
+			return new RectV1()
+			{
+				X0 = RectAreaBeginX.Value,
+				Z0 = RectAreaBeginZ.Value,
+				X1 = RectAreaEndX.Value,
+				Z1 = RectAreaEndZ.Value,
+			};
+		}
+		return null;
+	}
+
 	public StageMutation? BuildMutation(StageRebuildContext context)
 	{
-		if (Area == null || Block == null)
+		if (Block == null)
 		{
 			return null;
 		}
 
 		List<IArea> areas = new();
-		if (Area.IsArea(context.ImageCoordTranslation, out var areaWrapper))
+		var customRect = RebuildCustomRect()?.ToCoreRect();
+		if (Area != null)
 		{
-			areas.Add(areaWrapper.Area);
+			if (Area.IsArea(context.ImageCoordTranslation, out var areaWrapper))
+			{
+				areas.Add(areaWrapper.Area);
+			}
+			else if (Area.IsRegional(out var tagger))
+			{
+				var regions = tagger.GetRegions(true, context.ImageCoordTranslation);
+				areas.AddRange(regions);
+			}
 		}
-		else if (Area.IsRegional(out var tagger))
+		else if (customRect != null)
 		{
-			var regions = tagger.GetRegions(true, context.ImageCoordTranslation);
-			areas.AddRange(regions);
+			// make end inclusive
+			areas.Add(new Rect(customRect.start, customRect.end.Add(1, 1)).AsArea());
 		}
 
 		if (areas.Count == 0)
@@ -169,7 +291,12 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 		foreach (var area in areas)
 		{
 			var sampler = area.AsSampler().Project((inArea, xz) => inArea ? elevationSampler.Sample(xz) : -1);
-			mutations.Add(StageMutation.CreateHills(sampler, Block.UniformBlockId.Value));
+			mutations.Add(new PutHillMutation()
+			{
+				Block = Block.UniformBlockId.Value,
+				Sampler = sampler,
+				YFloor = YFloor,
+			});
 		}
 
 		return StageMutation.Combine(mutations);
