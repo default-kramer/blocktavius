@@ -168,4 +168,13 @@ public record Rect(XZ start, XZ end)
 			return null;
 		}
 	}
+
+	sealed class RectArea : IArea
+	{
+		public required Rect Bounds { get; init; }
+
+		public bool InArea(XZ xz) => Bounds.Contains(xz);
+	}
+
+	public IArea AsArea() => new RectArea { Bounds = this };
 }
