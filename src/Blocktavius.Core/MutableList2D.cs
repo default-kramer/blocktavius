@@ -41,7 +41,7 @@ internal sealed class MutableList2D<T> : I2DSampler<T>
 		return defaultValue;
 	}
 
-	public void Set(XZ xz, T value)
+	public void Put(XZ xz, T value)
 	{
 		if (!xLookup.TryGetValue(xz.X, out var zLookup))
 		{

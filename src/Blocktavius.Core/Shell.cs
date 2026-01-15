@@ -97,7 +97,7 @@ public static class ShellLogic
 	/// </summary>
 	readonly record struct WalkState(XZ shellPosition, Direction insideDir)
 	{
-		public WalkState Advance(IArea area, List<ShellItem> itemCollector)
+		public WalkState Advance(I2DSampler<bool> area, List<ShellItem> itemCollector)
 		{
 			itemCollector.Add(new ShellItem()
 			{
@@ -108,7 +108,6 @@ public static class ShellLogic
 
 			var aheadDir = insideDir.TurnLeft90;
 			var aheadPos = shellPosition.Add(aheadDir.Step);
-
 			if (area.InArea(aheadPos))
 			{
 				// inside corner, stay at the same position and turn left
@@ -147,7 +146,55 @@ public static class ShellLogic
 		}
 	}
 
-	static bool TryBuildShell(IArea area, IslandInfo island, out List<ShellItem> items)
+	private static WalkState FindFirstWalkState(I2DSampler<bool> area, XZ pointInArea)
+	{
+		var queue = new Queue<XZ>();
+		var visited = new HashSet<XZ>();
+
+		if (area.InArea(pointInArea))
+		{
+			queue.Enqueue(pointInArea);
+			visited.Add(pointInArea);
+		}
+
+		while (queue.Count > 0)
+		{
+			var current = queue.Dequeue();
+			foreach (var dir in cardinalDirections)
+			{
+				var neighbor = current.Add(dir.Step);
+				if (area.InArea(neighbor))
+				{
+					if (visited.Add(neighbor))
+					{
+						queue.Enqueue(neighbor);
+					}
+				}
+				else
+				{
+					return new WalkState(neighbor, dir.Turn180);
+				}
+			}
+		}
+
+		throw new Exception("Could not find any edge for the given area.");
+	}
+
+	public static List<ShellItem> WalkShellFromPoint(I2DSampler<bool> area, XZ pointInArea)
+	{
+		var startState = FindFirstWalkState(area, pointInArea);
+		var items = new List<ShellItem>();
+		var current = startState;
+		do
+		{
+			current = current.Advance(area, items);
+		}
+		while (current != startState);
+
+		return items;
+	}
+
+	static bool TryBuildShell(I2DSampler<bool> area, IslandInfo island, out List<ShellItem> items)
 	{
 		items = new();
 		if (island.MustIncludeStates.Count == 0)
@@ -182,12 +229,11 @@ public static class ShellLogic
 	/// Most of this logic must use the expanded bounds, since shell items
 	/// can be outside of the area's bounds.
 	/// </summary>
-	private static Rect ExpandBounds(IArea area)
-	{
-		return new Rect(area.Bounds.start.Add(-1, -1), area.Bounds.end.Add(1, 1));
-	}
+	private static Rect ExpandBounds<T>(I2DSampler<T> area) => area.Bounds.Expand(1);
 
-	public static IReadOnlyList<Shell> ComputeShells(IArea area)
+	public static IReadOnlyList<Shell> ComputeShells(IArea area) => ComputeShells(area.AsSampler());
+
+	public static IReadOnlyList<Shell> ComputeShells(I2DSampler<bool> area)
 	{
 		List<Shell> shells = new();
 
@@ -228,7 +274,7 @@ public static class ShellLogic
 		public required I2DSampler<bool> IslandArea { get; init; }
 	}
 
-	private static List<IslandInfo> FindIslands(IArea area)
+	private static List<IslandInfo> FindIslands(I2DSampler<bool> area)
 	{
 		List<IslandInfo> infos = new();
 
@@ -294,7 +340,7 @@ public static class ShellLogic
 	/// Finds all points that are not inside the area which can "escape" to the border.
 	/// Used for hole detection.
 	/// </summary>
-	private static HashSet<XZ> ComputeOutsidePoints(IArea area)
+	private static HashSet<XZ> ComputeOutsidePoints(I2DSampler<bool> area)
 	{
 		var searchBounds = ExpandBounds(area);
 		var outsidePoints = new HashSet<XZ>();
