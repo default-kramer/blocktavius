@@ -49,6 +49,13 @@ sealed record ProjectV1
 
 	public required int? SelectedScriptIndex { get; init; }
 
+	private IContentEqualityList<ExtractedSnippetV1>? _extractedSnippets = null;
+	public required IReadOnlyList<ExtractedSnippetV1>? ExtractedSnippets
+	{
+		get => _extractedSnippets;
+		init => _extractedSnippets = value?.ToContentEqualityList();
+	}
+
 	public ProjectV1 VerifyProfileHash(ProfileSettings profile)
 	{
 		if (profile.VerificationHash == ProfileVerificationHash)
@@ -138,4 +145,13 @@ sealed record RectV1
 		var end = new XZ(Math.Max(X0, X1), Math.Max(Z0, Z1));
 		return new Rect(start, end);
 	}
+}
+
+sealed record ExtractedSnippetV1
+{
+	public required string? Name { get; init; }
+	public required SlotReferenceV1? SourceSlot { get; init; }
+	public required string? SourceStgdatFilename { get; init; }
+	public required string? AreaPersistentId { get; init; }
+	public required RectV1? CustomRectArea { get; init; }
 }
