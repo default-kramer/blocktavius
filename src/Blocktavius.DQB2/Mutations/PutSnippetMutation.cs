@@ -14,9 +14,13 @@ public sealed class PutSnippetMutation : StageMutation
 	public int AdjustY { get; set; } = 0;
 	public bool OverwriteBedrock { get; set; } = false;
 
+	// TODO what to name this? Should probably be an enum... Or maybe a flag in a MaskedBlockLookup
+	public bool AgressiveFilldown { get; set; } = false;
+
 	internal override void Apply(IMutableStage stage)
 	{
 		int floorY = OverwriteBedrock ? 0 : 1;
+		bool agressiveFilldown = this.AgressiveFilldown;
 
 		var bounds = Snippet.Bounds;
 		foreach (var offset in stage.ChunksInUse)
@@ -30,7 +34,11 @@ public sealed class PutSnippetMutation : StageMutation
 			foreach (var xz in intersection.Enumerate())
 			{
 				var column = Snippet.Sample(xz);
-				for (int y = column.YStart; y < column.YEnd; y++)
+
+				int fillDownStart = -1;
+				ushort fillDownBlock = 0;
+
+				for (int y = column.YEnd - 1; y >= column.YStart; y--)
 				{
 					int adjustedY = y + AdjustY;
 					if (adjustedY >= floorY && adjustedY < DQB2Constants.MaxElevation)
@@ -39,8 +47,21 @@ public sealed class PutSnippetMutation : StageMutation
 						if (BlocksToCopy[block])
 						{
 							chunk.SetBlock(new Point(xz, adjustedY), block);
+							fillDownBlock = (ushort)(block & Block.Mask_CanonicalBlockId); // mask off chisel during filldown
+							fillDownStart = adjustedY - 1;
+						}
+						else if (agressiveFilldown && fillDownStart >= 0)
+						{
+							// The previous block (above) passed the filter, this block did not.
+							// This specific pattern is what AgressiveFilldown acts on.
+							break;
 						}
 					}
+				}
+
+				for (int y = fillDownStart; y >= 1; y--) // filldown does not touch the Y=0 layer
+				{
+					chunk.SetBlock(new Point(xz, y), fillDownBlock);
 				}
 			}
 		}
@@ -49,9 +70,9 @@ public sealed class PutSnippetMutation : StageMutation
 	private static readonly MaskedBlockLookup<bool> DefaultBlocksToCopy = new();
 	static PutSnippetMutation()
 	{
-		foreach (var key in DefaultBlocksToCopy.Keys)
+		foreach (var block in Block.IterateSimpleBlocks())
 		{
-			DefaultBlocksToCopy[key] = true;
+			DefaultBlocksToCopy[block.BlockIdCanonical] = true;
 		}
 		DefaultBlocksToCopy[0] = false; // exclude vacancy
 		DefaultBlocksToCopy[1] = false; // exclude bedrock

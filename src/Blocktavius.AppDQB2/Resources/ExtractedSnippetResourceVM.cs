@@ -21,6 +21,13 @@ sealed class ExtractedSnippetResourceVM : ViewModelBase, ISnippetVM
 		set => ChangeProperty(ref _name, value);
 	}
 
+	private int _floorY = 1;
+	public int FloorY
+	{
+		get => _floorY;
+		set => ChangeProperty(ref _floorY, value);
+	}
+
 	public string PersistentId { get; private set; } = Guid.NewGuid().ToString();
 
 	private SlotVM? _sourceSlot;
@@ -55,6 +62,7 @@ sealed class ExtractedSnippetResourceVM : ViewModelBase, ISnippetVM
 			SourceStgdatFilename = this.SourceStage?.Filename,
 			AreaPersistentId = this.AreaDefiner.Area?.PersistentId,
 			CustomRectArea = this.AreaDefiner.RebuildCustomRect(),
+			FloorY = this.FloorY,
 		};
 	}
 
@@ -64,6 +72,7 @@ sealed class ExtractedSnippetResourceVM : ViewModelBase, ISnippetVM
 		{
 			PersistentId = persistModel.PersistentId ?? Guid.NewGuid().ToString(),
 			Name = persistModel.Name ?? "Unnamed Snippet",
+			FloorY = persistModel.FloorY ?? 1,
 		};
 
 		// Lookup Source Slot
@@ -93,8 +102,6 @@ sealed class ExtractedSnippetResourceVM : ViewModelBase, ISnippetVM
 		return vm;
 	}
 
-	public const int TODO_Y_ADJUST = 1; // skip bedrock
-
 	public Snippet? LoadSnippet(StageRebuildContext context)
 	{
 		if (SourceStage == null)
@@ -102,7 +109,7 @@ sealed class ExtractedSnippetResourceVM : ViewModelBase, ISnippetVM
 			return null;
 		}
 
-		var bounds = AreaDefiner.RebuildCustomRect()?.ToCoreRect();
+		var bounds = AreaDefiner.RebuildCustomRect()?.ToCoreRectInclusive();
 		IArea? area = null;
 		if (bounds == null && true == AreaDefiner.Area?.IsArea(context.ImageCoordTranslation, out var areaWrapper))
 		{
@@ -122,7 +129,7 @@ sealed class ExtractedSnippetResourceVM : ViewModelBase, ISnippetVM
 
 		// TODO!!! Need to respect area if not null here!
 		// Probably Snippet.Create should accept an IArea or a Rect
-		var snippet = Snippet.Create(loadResult.Stage, bounds, floorY: TODO_Y_ADJUST);
+		var snippet = Snippet.Create(loadResult.Stage, bounds, floorY: FloorY);
 		return snippet;
 	}
 }

@@ -153,7 +153,7 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 		}
 
 		List<IArea> areas = new();
-		var customRect = RebuildCustomRect()?.ToCoreRect();
+		var customRect = RebuildCustomRect()?.ToCoreRectInclusive();
 		if (Area != null)
 		{
 			if (Area.IsArea(context.ImageCoordTranslation, out var areaWrapper))
@@ -168,8 +168,7 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 		}
 		else if (customRect != null)
 		{
-			// make end inclusive
-			areas.Add(new Rect(customRect.start, customRect.end.Add(1, 1)).AsArea());
+			areas.Add(customRect.AsArea());
 		}
 
 		if (areas.Count == 0)

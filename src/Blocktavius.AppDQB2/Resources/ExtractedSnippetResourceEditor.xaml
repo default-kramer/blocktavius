@@ -21,6 +21,9 @@
                   SelectedItem="{Binding SourceStage}"
                   DisplayMemberPath="Name" Margin="0,0,0,10"/>
 
+        <TextBlock Text="Floor Y:" FontWeight="Bold"></TextBlock>
+        <xctk:IntegerUpDown Value="{Binding FloorY}" Minimum="0" Maximum="95" Margin="0,0,0,10"></xctk:IntegerUpDown>
+
         <GroupBox Header="Area" Margin="0,10,0,0">
             <StackPanel>
                 <TextBlock Text="Pre-defined Area:" Margin="0,5,0,0"/>
