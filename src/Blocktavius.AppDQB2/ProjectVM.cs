@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Blocktavius.AppDQB2.Persistence;
 
 namespace Blocktavius.AppDQB2;
 
@@ -470,7 +471,20 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 		Layers.Add(chunkGridLayer);
 		SelectedLayer = Layers.FirstOrDefault();
 
-		var scriptContext = new Persistence.ScriptDeserializationContext
+		var resourceContext = new Persistence.ResourceDeserializationContext
+		{
+			AreaManager = this,
+			Slots = getSourceSlots,
+		};
+
+		ExtractedSnippets.Clear();
+		foreach (var snippet in project.ExtractedSnippets.EmptyIfNull())
+		{
+			var snippetVM = Resources.ExtractedSnippetResourceVM.Load(snippet, resourceContext);
+			ExtractedSnippets.Add(snippetVM);
+		}
+
+		var scriptContext = new Persistence.ScriptDeserializationContext(ExtractedSnippets)
 		{
 			AreaManager = this,
 			BlockManager = this,
@@ -484,18 +498,7 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 		}
 		SelectedScript = Scripts.ElementAtOrDefault(project.SelectedScriptIndex.GetValueOrDefault(-1));
 
-		var resourceContext = new Persistence.ResourceDeserializationContext
-		{
-			AreaManager = this,
-			Slots = getSourceSlots,
-		};
 
-		ExtractedSnippets.Clear();
-		foreach (var snippet in project.ExtractedSnippets.EmptyIfNull())
-		{
-			var snippetVM = Resources.ExtractedSnippetResourceVM.Load(snippet, resourceContext);
-			ExtractedSnippets.Add(snippetVM);
-		}
 
 
 		changeset.Complete();
@@ -518,6 +521,7 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 		}
 		return Blockdata.AllBlockVMs.FirstOrDefault(x => x.PersistentId == persistentId);
 	}
+
 
 	static partial class MyProperty
 	{

@@ -15,6 +15,8 @@ sealed class ExtractedSnippetResourceVM : ViewModelBase
 		set => ChangeProperty(ref _name, value);
 	}
 
+	public string PersistentId { get; private set; } = Guid.NewGuid().ToString();
+
 	private SlotVM? _sourceSlot;
 	public SlotVM? SourceSlot
 	{
@@ -41,6 +43,7 @@ sealed class ExtractedSnippetResourceVM : ViewModelBase
 	{
 		return new ExtractedSnippetV1
 		{
+			PersistentId = this.PersistentId,
 			Name = this.Name,
 			SourceSlot = this.SourceSlot?.ToPersistModel(),
 			SourceStgdatFilename = this.SourceStage?.Filename,
@@ -53,6 +56,7 @@ sealed class ExtractedSnippetResourceVM : ViewModelBase
 	{
 		var vm = new ExtractedSnippetResourceVM
 		{
+			PersistentId = persistModel.PersistentId ?? Guid.NewGuid().ToString(),
 			Name = persistModel.Name ?? "Unnamed Snippet",
 		};
 

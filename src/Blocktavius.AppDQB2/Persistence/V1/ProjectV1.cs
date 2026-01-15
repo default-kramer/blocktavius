@@ -149,6 +149,7 @@ sealed record RectV1
 
 sealed record ExtractedSnippetV1
 {
+	public required string? PersistentId { get; init; }
 	public required string? Name { get; init; }
 	public required SlotReferenceV1? SourceSlot { get; init; }
 	public required string? SourceStgdatFilename { get; init; }
