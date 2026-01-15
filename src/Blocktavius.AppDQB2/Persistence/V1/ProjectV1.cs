@@ -139,7 +139,7 @@ sealed record RectV1
 	public required int X1 { get; init; }
 	public required int Z1 { get; init; }
 
-	public Rect ToCoreRect()
+	public Rect ToCoreRect() // TODO - make Inclusive() and Exclusive() versions of this function, since that's what we usually want
 	{
 		var start = new XZ(Math.Min(X0, X1), Math.Min(Z0, Z1));
 		var end = new XZ(Math.Max(X0, X1), Math.Max(Z0, Z1));

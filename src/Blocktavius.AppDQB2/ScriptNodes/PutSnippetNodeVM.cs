@@ -1,6 +1,8 @@
 using Blocktavius.AppDQB2.Persistence;
 using Blocktavius.AppDQB2.Resources;
+using Blocktavius.Core;
 using Blocktavius.DQB2;
+using Blocktavius.DQB2.Mutations;
 using System.ComponentModel;
 using Xceed.Wpf.Toolkit.PropertyGrid.Attributes;
 
@@ -118,7 +120,30 @@ sealed class PutSnippetNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMut
 
 	public StageMutation? BuildMutation(StageRebuildContext context)
 	{
-		// Not implemented as per request
-		return null;
+		var snippet = Snippet?.LoadSnippet(context);
+		if (snippet == null)
+		{
+			return null;
+		}
+
+		var translated = snippet
+			.Rotate(this.Rotation)
+			.TranslateTo(new XZ(NorthwestX, NorthwestZ));
+
+		// TEMP NOMERGE
+		var toCopy = new MaskedBlockLookup<bool>();
+		toCopy[2] = true; // earth
+		toCopy[3] = true; // grassy earth
+		toCopy[4] = true; // limegrassy earth
+		toCopy[10] = true; // obsidian
+		toCopy[130] = true; // dolomite
+		toCopy[131] = true; // dolomite
+
+		return new PutSnippetMutation()
+		{
+			Snippet = translated,
+			AdjustY = this.AdjustY + ExtractedSnippetResourceVM.TODO_Y_ADJUST,
+			BlocksToCopy = toCopy,
+		};
 	}
 }

@@ -3,10 +3,16 @@ using Blocktavius.AppDQB2.Persistence.V1;
 using Blocktavius.AppDQB2.Persistence;
 using System.Linq;
 using Blocktavius.Core;
+using Blocktavius.DQB2;
 
 namespace Blocktavius.AppDQB2.Resources;
 
-sealed class ExtractedSnippetResourceVM : ViewModelBase
+interface ISnippetVM
+{
+	Snippet? LoadSnippet(StageRebuildContext context);
+}
+
+sealed class ExtractedSnippetResourceVM : ViewModelBase, ISnippetVM
 {
 	private string _name = "New Snippet";
 	public string Name
@@ -85,5 +91,38 @@ sealed class ExtractedSnippetResourceVM : ViewModelBase
 		}
 
 		return vm;
+	}
+
+	public const int TODO_Y_ADJUST = 1; // skip bedrock
+
+	public Snippet? LoadSnippet(StageRebuildContext context)
+	{
+		if (SourceStage == null)
+		{
+			return null;
+		}
+
+		var bounds = AreaDefiner.RebuildCustomRect()?.ToCoreRect();
+		IArea? area = null;
+		if (bounds == null && true == AreaDefiner.Area?.IsArea(context.ImageCoordTranslation, out var areaWrapper))
+		{
+			area = areaWrapper.Area;
+			bounds = areaWrapper.Area.Bounds;
+		}
+		if (bounds == null)
+		{
+			return null;
+		}
+
+		var loadResult = context.StageLoader.LoadStage(SourceStage.StgdatFile).GetAwaiter().GetResult();
+		if (loadResult?.Stage == null)
+		{
+			return null;
+		}
+
+		// TODO!!! Need to respect area if not null here!
+		// Probably Snippet.Create should accept an IArea or a Rect
+		var snippet = Snippet.Create(loadResult.Stage, bounds, floorY: TODO_Y_ADJUST);
+		return snippet;
 	}
 }

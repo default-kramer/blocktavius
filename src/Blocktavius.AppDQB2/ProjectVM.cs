@@ -317,7 +317,7 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 			return null;
 		}
 
-		var context = new StageRebuildContext(workingStage);
+		var context = new StageRebuildContext(workingStage, stageLoader);
 		var mutation = this.SelectedScript?.BuildMutation(context);
 		if (mutation != null)
 		{
