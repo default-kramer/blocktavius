@@ -34,6 +34,12 @@
                 </TabItem.Header>
                 <local:ScriptsControl></local:ScriptsControl>
             </TabItem>
+            <TabItem>
+                <TabItem.Header>
+                    <TextBlock>Resources</TextBlock>
+                </TabItem.Header>
+                <local:ResourcesControl></local:ResourcesControl>
+            </TabItem>
         </TabControl>
     </Grid>
 </UserControl>

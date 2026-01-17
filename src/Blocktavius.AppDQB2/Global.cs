@@ -70,6 +70,35 @@ static class Global
 		}
 	}
 
+	public sealed class SnippetsItemsSource : IItemsSource
+	{
+		public ItemCollection GetValues()
+		{
+			var list = new ItemCollection();
+			if (currentProject != null)
+			{
+				foreach (var snippet in currentProject.ExtractedSnippets)
+				{
+					list.Add(snippet, snippet.Name);
+				}
+			}
+			return list;
+		}
+	}
+
+	public sealed class RotationItemsSource : IItemsSource
+	{
+		public ItemCollection GetValues()
+		{
+			var list = new ItemCollection();
+			list.Add(0);
+			list.Add(90);
+			list.Add(180);
+			list.Add(270);
+			return list;
+		}
+	}
+
 	public static IEnumerable<DependencyObject> LogicalAncestors(this DependencyObject obj)
 	{
 		do
