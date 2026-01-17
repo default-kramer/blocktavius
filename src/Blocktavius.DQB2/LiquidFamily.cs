@@ -89,8 +89,7 @@ public sealed class LiquidFamily
 
 	public static readonly LiquidFamily MuddyWater = Create(LiquidFamilyIndex.MuddyWater, 208, 348, 388);
 
-	// 349 and 420 are (almost?) the same, but 349 is more common.
-	// I guess the difference is for the minimap tile?
+	// It seems best to choose 349 (minimap normal sea) over 420 (minimap deep sea) here:
 	public static readonly LiquidFamily Seawater = Create(LiquidFamilyIndex.Seawater, 341, 349, 389);
 
 	public static readonly LiquidFamily Plasma = Create(LiquidFamilyIndex.Plasma, 398, 399, 400);
