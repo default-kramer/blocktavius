@@ -126,7 +126,8 @@ partial struct Block
 			case 338:
 			case 339:
 			case 340: // runoff, full
-			case 420: // ALTERNATE: stable, surface low (for minimap sea color?)
+			case 420: // 420 is a special variant of 349 (stable, surface low) which causes the minimap
+					  // to render deep sea. This also enables the seagull and ocean noises.
 				return LiquidFamilyIndex.Seawater;
 
 			default: return LiquidFamilyIndex.None;
