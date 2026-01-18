@@ -59,9 +59,12 @@ public sealed class PutSnippetMutation : StageMutation
 					}
 				}
 
-				for (int y = fillDownStart; y >= 1; y--) // filldown does not touch the Y=0 layer
+				if (agressiveFilldown)
 				{
-					chunk.SetBlock(new Point(xz, y), fillDownBlock);
+					for (int y = fillDownStart; y >= 1; y--) // filldown does not touch the Y=0 layer
+					{
+						chunk.SetBlock(new Point(xz, y), fillDownBlock);
+					}
 				}
 			}
 		}

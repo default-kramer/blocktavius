@@ -143,7 +143,7 @@ sealed class PutSnippetNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMut
 		{
 			Snippet = translated,
 			AdjustY = this.AdjustY,
-			BlocksToCopy = toCopy,
+			//BlocksToCopy = toCopy,
 			//AgressiveFilldown = true,
 		};
 	}
