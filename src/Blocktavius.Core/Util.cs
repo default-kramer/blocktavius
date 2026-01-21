@@ -22,6 +22,8 @@ public static class Util
 
 	public static IEnumerable<T> EmptyIfNull<T>(this IEnumerable<T>? sequence) => sequence ?? Enumerable.Empty<T>();
 
+	public static bool InArea(this I2DSampler<bool> area, XZ xz) => area.Sample(xz);
+
 	sealed class Translator<T> : I2DSampler<T>
 	{
 		private readonly I2DSampler<T> sampler;

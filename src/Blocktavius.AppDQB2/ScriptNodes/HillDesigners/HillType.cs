@@ -40,6 +40,7 @@ public abstract class HillType
 		Register<PlainHillDesigner>();
 		Register<CornerPusherHillDesigner>();
 		Register<BubblerHillDesigner>();
+		Register<NewHillDesigner>();
 	}
 
 	public sealed class PropGridItemsSource : IItemsSource

@@ -13,7 +13,7 @@ public sealed class PutHillMutation : StageMutation
 	public required ushort Block { get; init; }
 	public int? YFloor { get; init; } = null;
 
-	internal override void Apply(IMutableStage stage)
+	public override void Apply(IMutableStage stage)
 	{
 		int yFloor = this.YFloor ?? 1;
 

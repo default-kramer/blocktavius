@@ -9,7 +9,7 @@ namespace Blocktavius.DQB2;
 
 public abstract class StageMutation
 {
-	internal abstract void Apply(IMutableStage stage);
+	public abstract void Apply(IMutableStage stage);
 
 	protected static IEnumerable<IMutableChunk> Enumerate(Rect bounds, IMutableStage stage)
 	{
@@ -45,7 +45,7 @@ public abstract class StageMutation
 		public required IReadOnlyList<StageMutation> Mutations { get; init; }
 		public required ColumnCleanupMode? ColumnCleanupMode { get; init; }
 
-		internal override void Apply(IMutableStage stage)
+		public override void Apply(IMutableStage stage)
 		{
 			foreach (var m in Mutations)
 			{
