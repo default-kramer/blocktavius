@@ -40,25 +40,62 @@ sealed class ExpandableShell<T>
 
 	public IReadOnlyList<ShellItem> CurrentShell() => currentShell;
 
-	public ExpansionId Expand(IReadOnlyList<(XZ xz, T value)> expansion)
+	public ExpansionId Expand(IEnumerable<(XZ xz, T value)> expansion)
 	{
-		if (expansion.Count == 0)
+		if (!expansion.Any())
 		{
 			return currentExpansionId;
 		}
 
 		currentExpansionId = currentExpansionId.Next();
 
+		// Create the expansion with a temp ID, to be replaced during connectivity check
+		var tempId = new ExpansionId { Value = -1 };
+		Queue<XZ> notYetConnected = new();
 		foreach (var item in expansion)
 		{
 			if (expansions.Sample(item.xz).ExpansionId.Value != ExpansionId.Nothing.Value)
 			{
 				throw new InvalidOperationException("Cannot overwrite previously expanded value");
 			}
-			expansions.Set(item.xz, new Entry { ExpansionId = currentExpansionId, Value = item.value });
+			expansions.Set(item.xz, new Entry { ExpansionId = tempId, Value = item.value });
+			notYetConnected.Enqueue(item.xz);
 		}
 
-		// TODO connectivity check...
+		// Connectivity check; replace the temp ID with the correct ID when connected
+		bool doAnotherPass = notYetConnected.Any();
+		while (doAnotherPass)
+		{
+			doAnotherPass = false;
+			var nextPass = new Queue<XZ>();
+			while (notYetConnected.TryDequeue(out var xz))
+			{
+				bool isNowConnected = Direction.CardinalDirections().Any(dir =>
+				{
+					var neighbor = xz.Step(dir);
+					return originalShell.IslandArea.InArea(neighbor)
+						|| expansions.Sample(neighbor).ExpansionId.Value > 0;
+				});
+
+				if (isNowConnected)
+				{
+					// replace with correct ID
+					var value = expansions.Sample(xz).Value;
+					expansions.Set(xz, new Entry { ExpansionId = currentExpansionId, Value = value });
+					doAnotherPass = true;
+				}
+				else
+				{
+					nextPass.Enqueue(xz);
+				}
+			}
+			notYetConnected = nextPass;
+		}
+
+		if (notYetConnected.TryDequeue(out var disconnected))
+		{
+			throw new ArgumentException($"XZ ({disconnected.X},{disconnected.Z}) is not connected to the expanded area");
+		}
 
 		// update shell by walking another lap around the expanded area
 		currentShell = ShellLogic.WalkShellFromPoint(GetArea(currentExpansionId), expansion.First().xz);

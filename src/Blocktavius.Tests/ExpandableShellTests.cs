@@ -61,6 +61,40 @@ __b_____";
 			AssertShellsEqual(expected.ShellItems, shellEx.CurrentShell());
 		}
 
+		[TestMethod]
+		public void DiagonalIsDisconnected()
+		{
+			// ARRANGE
+			var areaPoints = new List<XZ>
+			{
+				new XZ(0, 0), new XZ(1, 0),
+				new XZ(0, 1), new XZ(1, 1)
+			};
+			var area = new TestArea(areaPoints);
+			var initialShells = ShellLogic.ComputeShells(area);
+			Assert.AreEqual(1, initialShells.Count);
+			var initialShell = initialShells[0];
+
+			var expandableShell = new ExpandableShell<int>(initialShell);
+
+			var expansion = new[] { (new XZ(2, 2), 1) };
+
+			// ACT
+			bool gotExpectedException = false;
+			try
+			{
+				expandableShell.Expand(expansion);
+			}
+			catch (Exception ex)
+			{
+				gotExpectedException = true;
+
+				// ASSERT
+				Assert.AreEqual("XZ (2,2) is not connected to the expanded area", ex.Message);
+			}
+			Assert.IsTrue(gotExpectedException, "Expected exception not thrown");
+		}
+
 		private void AssertShellsEqual(IReadOnlyList<ShellItem> expected, IReadOnlyList<ShellItem> actual)
 		{
 			var expectedSet = new HashSet<ShellItem>(expected);
