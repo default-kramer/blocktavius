@@ -97,7 +97,7 @@ public static class ShellLogic
 	/// </summary>
 	readonly record struct WalkState(XZ shellPosition, Direction insideDir)
 	{
-		public WalkState Advance(IArea area, List<ShellItem> itemCollector)
+		public WalkState Advance(I2DSampler<bool> area, List<ShellItem> itemCollector)
 		{
 			itemCollector.Add(new ShellItem()
 			{
@@ -108,7 +108,6 @@ public static class ShellLogic
 
 			var aheadDir = insideDir.TurnLeft90;
 			var aheadPos = shellPosition.Add(aheadDir.Step);
-
 			if (area.InArea(aheadPos))
 			{
 				// inside corner, stay at the same position and turn left
@@ -147,7 +146,46 @@ public static class ShellLogic
 		}
 	}
 
-	static bool TryBuildShell(IArea area, IslandInfo island, out List<ShellItem> items)
+	private static WalkState FindFirstWalkState(I2DSampler<bool> area, XZ pointInArea)
+	{
+		if (!area.InArea(pointInArea))
+		{
+			throw new ArgumentException($"Not in area: {pointInArea}");
+		}
+
+		// Cast 4 rays in each cardinal direction and use the first one that reaches the outside of the area.
+		(XZ xz, Direction dir)[] rays = Direction.CardinalDirections().Select(dir => (pointInArea, dir)).ToArray();
+
+		for (int eStop = 0; eStop < 10000; eStop++)
+		{
+			for (int i = 0; i < rays.Length; i++)
+			{
+				var ray = rays[i];
+				if (!area.InArea(ray.xz))
+				{
+					return new WalkState(ray.xz, ray.dir.Turn180);
+				}
+				rays[i] = (ray.xz.Step(ray.dir), ray.dir);
+			}
+		}
+		throw new ArgumentException("Given area is too big (maybe infinite?)");
+	}
+
+	public static List<ShellItem> WalkShellFromPoint(I2DSampler<bool> area, XZ pointInArea)
+	{
+		var startState = FindFirstWalkState(area, pointInArea);
+		var items = new List<ShellItem>();
+		var current = startState;
+		do
+		{
+			current = current.Advance(area, items);
+		}
+		while (current != startState);
+
+		return items;
+	}
+
+	static bool TryBuildShell(I2DSampler<bool> area, IslandInfo island, out List<ShellItem> items)
 	{
 		items = new();
 		if (island.MustIncludeStates.Count == 0)
@@ -182,12 +220,11 @@ public static class ShellLogic
 	/// Most of this logic must use the expanded bounds, since shell items
 	/// can be outside of the area's bounds.
 	/// </summary>
-	private static Rect ExpandBounds(IArea area)
-	{
-		return new Rect(area.Bounds.start.Add(-1, -1), area.Bounds.end.Add(1, 1));
-	}
+	private static Rect ExpandBounds<T>(I2DSampler<T> area) => area.Bounds.Expand(1);
 
-	public static IReadOnlyList<Shell> ComputeShells(IArea area)
+	public static IReadOnlyList<Shell> ComputeShells(IArea area) => ComputeShells(area.AsSampler());
+
+	public static IReadOnlyList<Shell> ComputeShells(I2DSampler<bool> area)
 	{
 		List<Shell> shells = new();
 
@@ -228,7 +265,7 @@ public static class ShellLogic
 		public required I2DSampler<bool> IslandArea { get; init; }
 	}
 
-	private static List<IslandInfo> FindIslands(IArea area)
+	private static List<IslandInfo> FindIslands(I2DSampler<bool> area)
 	{
 		List<IslandInfo> infos = new();
 
@@ -294,7 +331,7 @@ public static class ShellLogic
 	/// Finds all points that are not inside the area which can "escape" to the border.
 	/// Used for hole detection.
 	/// </summary>
-	private static HashSet<XZ> ComputeOutsidePoints(IArea area)
+	private static HashSet<XZ> ComputeOutsidePoints(I2DSampler<bool> area)
 	{
 		var searchBounds = ExpandBounds(area);
 		var outsidePoints = new HashSet<XZ>();

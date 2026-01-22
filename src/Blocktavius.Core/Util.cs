@@ -20,6 +20,8 @@ public static class Util
 		return sequence.Where(x => x != null)!;
 	}
 
+	public static bool InArea(this I2DSampler<bool> area, XZ xz) => area.Sample(xz);
+
 	public static IEnumerable<T> EmptyIfNull<T>(this IEnumerable<T>? sequence) => sequence ?? Enumerable.Empty<T>();
 
 	sealed class Translator<T> : I2DSampler<T>

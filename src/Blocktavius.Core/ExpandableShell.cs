@@ -40,8 +40,13 @@ sealed class ExpandableShell<T>
 
 	public IReadOnlyList<ShellItem> CurrentShell() => currentShell;
 
-	public ExpansionId Expand(IEnumerable<(XZ xz, T value)> expansion)
+	public ExpansionId Expand(IReadOnlyList<(XZ xz, T value)> expansion)
 	{
+		if (expansion.Count == 0)
+		{
+			return currentExpansionId;
+		}
+
 		currentExpansionId = currentExpansionId.Next();
 
 		foreach (var item in expansion)
@@ -53,11 +58,15 @@ sealed class ExpandableShell<T>
 			expansions.Set(item.xz, new Entry { ExpansionId = currentExpansionId, Value = item.value });
 		}
 
-		// TODO efficiently recompute shell.
-		// Should throw if the given expansion is not connected to the existing shell.
+		// TODO connectivity check...
+
+		// update shell by walking another lap around the expanded area
+		currentShell = ShellLogic.WalkShellFromPoint(GetArea(currentExpansionId), expansion.First().xz);
 
 		return currentExpansionId;
 	}
+
+	public I2DSampler<bool> GetArea(ExpansionId expansionId) => GetSampler(expansionId, default!).Project(tuple => tuple.Item1);
 
 	public I2DSampler<(bool, T)> GetSampler(ExpansionId expansionId, T originalAreaValue)
 	{
