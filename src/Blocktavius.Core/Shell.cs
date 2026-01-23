@@ -148,24 +148,39 @@ public static class ShellLogic
 
 	private static WalkState FindFirstWalkState(I2DSampler<bool> area, XZ pointInArea)
 	{
-		if (!area.InArea(pointInArea))
+		if (!area.InArea(pointInArea) || !area.Bounds.Contains(pointInArea))
 		{
 			throw new ArgumentException($"Not in area: {pointInArea}");
 		}
 
-		// Cast 4 rays in each cardinal direction and use the first one that reaches the outside of the area.
-		(XZ xz, Direction dir)[] rays = Direction.CardinalDirections().Select(dir => (pointInArea, dir)).ToArray();
+		int eStopLimit = Math.Max(area.Bounds.Size.X, area.Bounds.Size.Z) + 11; // +11 is probably 10 more than we need, but safe
 
-		for (int eStop = 0; eStop < 10000; eStop++)
+		// Cast 4 rays in each cardinal direction and use the first one that reaches the BOUNDS!
+		// (Stopping as soon as we reach any XZ not in the area might find a hole instead.)
+		WalkState? nullState = null;
+		(XZ xz, Direction dir, WalkState? walkState)[] rays = Direction.CardinalDirections().Select(dir => (pointInArea, dir, nullState)).ToArray();
+
+		for (int eStop = 0; eStop < eStopLimit; eStop++)
 		{
 			for (int i = 0; i < rays.Length; i++)
 			{
 				var ray = rays[i];
-				if (!area.InArea(ray.xz))
+				ray = (ray.xz.Step(ray.dir), ray.dir, ray.walkState);
+
+				if (area.InArea(ray.xz))
 				{
-					return new WalkState(ray.xz, ray.dir.Turn180);
+					ray = (ray.xz, ray.dir, null); // reset to null
 				}
-				rays[i] = (ray.xz.Step(ray.dir), ray.dir);
+				else if (ray.walkState == null)
+				{
+					ray = (ray.xz, ray.dir, new WalkState(ray.xz, ray.dir.Turn180));
+				}
+				rays[i] = ray;
+
+				if (!area.Bounds.Contains(ray.xz) && ray.walkState.HasValue)
+				{
+					return ray.walkState.Value;
+				}
 			}
 		}
 		throw new ArgumentException("Given area is too big (maybe infinite?)");

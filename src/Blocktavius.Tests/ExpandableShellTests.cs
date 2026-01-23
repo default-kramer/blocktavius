@@ -95,6 +95,32 @@ __b_____";
 			Assert.IsTrue(gotExpectedException, "Expected exception not thrown");
 		}
 
+		[TestMethod]
+		public void HoleRegression()
+		{
+			// It's possible to introduce a hole during expansion.
+			// TBD if we want to eagerly detect that or leave it for post-processing...
+			// But no matter what, the shell must be the outside shell rather than the hole.
+			const string ascii = @"
+xxxxx
+xx__x
+xxaxx";
+			var origArea = TestUtil.CreateAreaFromAscii(ascii.MultiReplace(["a"], "_"));
+			var origShell = ShellLogic.ComputeShells(origArea).Single();
+			var origPoints = origArea.AllPointsInArea().ToList();
+
+			var shell = new ExpandableShell<int>(origShell);
+			var expansion = TestUtil.CreateAreaFromAscii(ascii.MultiReplace(["x"], "_")).AllPointsInArea();
+			shell.Expand(expansion.Select(xz => (xz, 67)));
+			var expandedShell = shell.CurrentShell();
+
+			const int sideLengthA = 5;
+			const int sideLengthB = 3;
+			const int cornerCount = 4;
+			int expectedCount = 2 * sideLengthA + 2 * sideLengthB + cornerCount;
+			Assert.AreEqual(expectedCount, expandedShell.Count);
+		}
+
 		private void AssertShellsEqual(IReadOnlyList<ShellItem> expected, IReadOnlyList<ShellItem> actual)
 		{
 			var expectedSet = new HashSet<ShellItem>(expected);
