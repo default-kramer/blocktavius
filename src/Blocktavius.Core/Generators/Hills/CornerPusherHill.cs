@@ -110,9 +110,34 @@ public static class CornerPusherHill
 			return new Layer(shell, new Dictionary<XZ, int>(), null);
 		}
 
+		private static IReadOnlyList<ShellItem> Normalize(IReadOnlyList<ShellItem> items)
+		{
+			if (items.Count == 0)
+			{
+				return items;
+			}
+
+			var temp = items.Index().MinBy(a => a.Item.XZ);
+			// backup as long as the XZ matches (just in case the XZ wraps around the end of the list)
+			int startIndex = temp.Index;
+			while (items[startIndex].XZ == temp.Item.XZ)
+			{
+				startIndex = (startIndex + items.Count - 1) % items.Count;
+			}
+			startIndex++; // undo the last backup
+
+			int count = items.Count;
+			var shifted = new ShellItem[count];
+			for (int i = 0; i < count; i++)
+			{
+				shifted[i] = items[(i + startIndex) % count];
+			}
+			return shifted;
+		}
+
 		public Layer NextLayer(PRNG prng)
 		{
-			var prevLayer = this.shell.ShellItems;
+			var prevLayer = Normalize(this.shell.ShellItems);
 			var prevArea = this.area;
 			IReadOnlyDictionary<XZ, int> prevMissCounts = this.missCounts;
 
