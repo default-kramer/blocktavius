@@ -48,13 +48,22 @@ sealed class ExpandableShell<T>
 		}
 
 		currentExpansionId = currentExpansionId.Next();
+		var comparer = EqualityComparer<T>.Default;
 
 		// Create the expansion with a temp ID, to be replaced during connectivity check
 		var tempId = new ExpansionId { Value = -1 };
 		Queue<XZ> notYetConnected = new();
 		foreach (var item in expansion)
 		{
-			if (expansions.Sample(item.xz).ExpansionId.Value != ExpansionId.Nothing.Value)
+			var exist = expansions.Sample(item.xz);
+			if (exist.ExpansionId.Value == tempId.Value)
+			{
+				if (!comparer.Equals(item.value, exist.Value))
+				{
+					throw new ArgumentException($"conflicting values given for {item.xz}");
+				}
+			}
+			else if (exist.ExpansionId.Value != ExpansionId.Nothing.Value)
 			{
 				throw new InvalidOperationException("Cannot overwrite previously expanded value");
 			}
