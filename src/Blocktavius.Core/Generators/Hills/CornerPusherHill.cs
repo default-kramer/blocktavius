@@ -38,7 +38,7 @@ public static class CornerPusherHill
 			layers.Push(layers.Peek().NextLayer(settings.Prng));
 		}
 
-		var sampler = new MutableArray2D<int>(layers.Peek().area.Bounds, -1);
+		var sampler = new MutableArray2D<int>(layers.Peek().area.Bounds.Expand(1), -1);
 		int elevation = settings.MinElevation;
 		foreach (var layer in layers)
 		{
@@ -143,6 +143,7 @@ public static class CornerPusherHill
 
 			const int maxConsecutiveMisses = 11;
 			var newPopulation = this.population;
+			var newBounds = area.Bounds.BoundsExpander();
 
 			// Starting from a random point on the shell, do one lap.
 			// While one lap not completed:
@@ -178,6 +179,7 @@ public static class CornerPusherHill
 						var prevItem = prevLayer[loopingIndex % prevLayer.Count];
 						loopingIndex++;
 						newPopulation = newPopulation.Add(prevItem.XZ);
+						newBounds.Include(prevItem.XZ);
 					}
 				}
 				else
@@ -208,7 +210,7 @@ public static class CornerPusherHill
 
 			var newArea = new Area
 			{
-				Bounds = new Rect(prevArea.Bounds.start.Add(-1, -1), prevArea.Bounds.end.Add(1, 1)),
+				Bounds = newBounds.CurrentBounds() ?? area.Bounds,
 				Population = newPopulation,
 			};
 			return new Layer(newArea, prevMissCounts, newPopulation);
