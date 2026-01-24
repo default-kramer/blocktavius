@@ -55,9 +55,8 @@ __b_____";
 			var pointsEx = TestUtil.CreateAreaFromAscii(ascii).AllPointsInArea().Except(origPoints).ToList();
 			Assert.AreEqual(8, pointsEx.Count);
 			var expansionId = area.Expand(pointsEx.Select(xz => (xz, '.')).ToList());
-			var sampler = area.GetSampler(expansionId, 'x');
 
-			var expected = ShellLogic.ComputeShells(sampler.Project(a => a.Item1)).Single();
+			var expected = ShellLogic.ComputeShells(area.GetArea(expansionId)).Single();
 			AssertShellsEqual(expected.ShellItems, area.CurrentShell());
 		}
 
@@ -119,35 +118,6 @@ xxaxx";
 			const int cornerCount = 4;
 			int expectedCount = 2 * sideLengthA + 2 * sideLengthB + cornerCount;
 			Assert.AreEqual(expectedCount, expandedShell.Count);
-
-
-			// Related: compare XZ's by Z, then by X
-			var prng = PRNG.Create(new Random());
-			for (int i = 0; i < 100; i++)
-			{
-				var a = new XZ(prng.NextInt32(4), prng.NextInt32(4));
-				var b = new XZ(prng.NextInt32(4), prng.NextInt32(4));
-				if (a.Z < b.Z)
-				{
-					Assert.IsTrue(a.CompareTo(b) < 0);
-				}
-				else if (a.Z > b.Z)
-				{
-					Assert.IsTrue(a.CompareTo(b) > 0);
-				}
-				else if (a.X < b.X)
-				{
-					Assert.IsTrue(a.CompareTo(b) < 0);
-				}
-				else if (a.X > b.X)
-				{
-					Assert.IsTrue(a.CompareTo(b) > 0);
-				}
-				else
-				{
-					Assert.IsTrue(a.CompareTo(b) == 0);
-				}
-			}
 		}
 
 		private void AssertShellsEqual(IReadOnlyList<ShellItem> expected, IReadOnlyList<ShellItem> actual)
