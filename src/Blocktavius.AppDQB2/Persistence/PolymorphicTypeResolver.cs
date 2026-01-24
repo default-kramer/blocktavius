@@ -53,7 +53,11 @@ sealed class PolymorphicTypeResolver : NullablePropertiesNotRequiredResolver
 
 	private static IEnumerable<(Type type, TAttr attr)> DiscoverTypes<TAttr>(Type interfaceType) where TAttr : System.Attribute
 	{
+		// Filter out Microsoft to avoid this error in unit tests:
+		//    Could not load file or assembly 'Microsoft.Build.Utilities.Core, Version=15.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'. The system cannot find the file specified.
+		// See also https://github.com/microsoft/testfx/issues/2609
 		var types = AppDomain.CurrentDomain.GetAssemblies()
+			.Where(a => a.FullName?.StartsWith("Microsoft") == false)
 			.SelectMany(asm => asm.GetTypes())
 			.Where(t => t.IsClass && !t.IsAbstract && interfaceType.IsAssignableFrom(t))
 			.ToList();
