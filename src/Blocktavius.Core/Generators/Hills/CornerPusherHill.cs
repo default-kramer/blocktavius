@@ -18,6 +18,10 @@ public static class CornerPusherHill
 
 	public static I2DSampler<int> BuildHill(Settings settings, Shell shell)
 	{
+		if (shell.IsHole)
+		{
+			throw new ArgumentException("Shell must not be a hole");
+		}
 		return BuildHill(settings, Layer.FirstLayer(shell, settings.MaxElevation), shell.IslandArea.AsArea());
 	}
 
