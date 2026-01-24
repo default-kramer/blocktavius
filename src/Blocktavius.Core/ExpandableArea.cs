@@ -122,7 +122,7 @@ sealed class ExpandableArea<T>
 		}
 
 		// update shell by walking another lap around the expanded area
-		currentShell = ShellLogic.WalkShellFromPoint(GetArea(currentExpansionId), expansion.First().xz);
+		currentShell = ShellLogic.RecomputeOuterRing(GetArea(currentExpansionId), expansion.First().xz);
 
 		return currentExpansionId;
 	}

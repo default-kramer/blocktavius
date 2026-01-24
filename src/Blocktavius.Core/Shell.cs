@@ -186,7 +186,7 @@ public static class ShellLogic
 		throw new ArgumentException("Given area is too big (maybe infinite?)");
 	}
 
-	public static List<ShellItem> WalkShellFromPoint(I2DSampler<bool> area, XZ pointInArea)
+	internal static ShellItemRing RecomputeOuterRing(I2DSampler<bool> area, XZ pointInArea)
 	{
 		var startState = FindFirstWalkState(area, pointInArea);
 		var items = new List<ShellItem>();
@@ -197,7 +197,7 @@ public static class ShellLogic
 		}
 		while (current != startState);
 
-		return items;
+		return new ShellItemRing(items);
 	}
 
 	static bool TryBuildShell(I2DSampler<bool> area, IslandInfo island, out List<ShellItem> items)

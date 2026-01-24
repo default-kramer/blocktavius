@@ -67,7 +67,7 @@ public static class CornerPusherHill
 		public readonly Dictionary<XZ, PendingShellItem> pendingExpansion;
 
 		public readonly ExpandableArea<int> area;
-		public readonly IReadOnlyList<ShellItem> shellItems;
+		public readonly ShellItemRing shellItems;
 		public readonly int elevation;
 
 		private static void UpdateMisses(Dictionary<XZ, PendingShellItem> pendingItems, IEnumerable<ShellItem> shellItems, int elevation)
@@ -90,7 +90,7 @@ public static class CornerPusherHill
 		{
 			this.area = prev.area;
 			this.pendingExpansion = prev.pendingExpansion;
-			this.shellItems = area.CurrentShell();
+			this.shellItems = new ShellItemRing(area.CurrentShell());
 			this.elevation = prev.elevation - 1;
 
 			UpdateMisses(pendingExpansion, shellItems, elevation);
@@ -99,7 +99,7 @@ public static class CornerPusherHill
 		private Layer(Shell shell, int elevation)
 		{
 			this.area = new ExpandableArea<int>(shell);
-			this.shellItems = shell.ShellItems;
+			this.shellItems = new ShellItemRing(shell.ShellItems);
 			this.pendingExpansion = new();
 			this.elevation = elevation;
 
@@ -111,37 +111,9 @@ public static class CornerPusherHill
 			return new Layer(shell, elevation);
 		}
 
-		/// <summary>
-		/// Start from the min XZ for determinism (Shell Logic currently makes no guarantees about where in the ring is the start point)
-		/// </summary>
-		private static IReadOnlyList<ShellItem> Normalize(IReadOnlyList<ShellItem> items)
-		{
-			if (items.Count == 0)
-			{
-				return items;
-			}
-
-			var temp = items.Index().MinBy(a => a.Item.XZ);
-			// backup as long as the XZ matches (just in case the XZ wraps around the end of the list)
-			int startIndex = temp.Index;
-			while (items[startIndex].XZ == temp.Item.XZ)
-			{
-				startIndex = (startIndex + items.Count - 1) % items.Count;
-			}
-			startIndex++; // undo the last backup
-
-			int count = items.Count;
-			var shifted = new ShellItem[count];
-			for (int i = 0; i < count; i++)
-			{
-				shifted[i] = items[(i + startIndex) % count];
-			}
-			return shifted;
-		}
-
 		public Layer NextLayer(PRNG prng)
 		{
-			var prevLayer = Normalize(this.shellItems);
+			var prevLayer = this.shellItems;
 
 			const int maxConsecutiveMisses = 11;
 
@@ -170,7 +142,7 @@ public static class CornerPusherHill
 					const int minRunLength = 2;
 					const int maxRunLength = 7;
 
-					int mustTakeNow = OneLapFrom(prevLayer, loopingIndex)
+					int mustTakeNow = prevLayer.OneLapFrom(loopingIndex)
 						.TakeWhile(i => pendingExpansion[i.XZ].MissCount >= maxConsecutiveMisses)
 						.Take(maxRunLength)
 						.Count();
@@ -190,7 +162,7 @@ public static class CornerPusherHill
 					//const int maxRunLength = 50;
 					int maxRunLength = Math.Min(prevLayer.Count / 2, 50);
 
-					int mustStopAt = OneLapFrom(prevLayer, loopingIndex)
+					int mustStopAt = prevLayer.OneLapFrom(loopingIndex)
 						.TakeWhile(i => pendingExpansion[i.XZ].MissCount < maxConsecutiveMisses)
 						.Take(maxRunLength)
 						.Count();
@@ -217,17 +189,5 @@ public static class CornerPusherHill
 
 			return new Layer(this);
 		}
-	}
-
-	private static IEnumerable<T> OneLapFrom<T>(IReadOnlyList<T> list, int start)
-	{
-		start = start % list.Count;
-		int index = start;
-		do
-		{
-			yield return list[index];
-			index = (index + 1) % list.Count;
-		}
-		while (index != start);
 	}
 }
