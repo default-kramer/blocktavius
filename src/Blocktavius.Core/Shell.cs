@@ -97,7 +97,7 @@ public static class ShellLogic
 	/// </summary>
 	readonly record struct WalkState(XZ shellPosition, Direction insideDir)
 	{
-		public WalkState Advance(IArea area, List<ShellItem> itemCollector)
+		public WalkState Advance(I2DSampler<bool> area, List<ShellItem> itemCollector)
 		{
 			itemCollector.Add(new ShellItem()
 			{
@@ -108,7 +108,6 @@ public static class ShellLogic
 
 			var aheadDir = insideDir.TurnLeft90;
 			var aheadPos = shellPosition.Add(aheadDir.Step);
-
 			if (area.InArea(aheadPos))
 			{
 				// inside corner, stay at the same position and turn left
@@ -147,7 +146,61 @@ public static class ShellLogic
 		}
 	}
 
-	static bool TryBuildShell(IArea area, IslandInfo island, out List<ShellItem> items)
+	private static WalkState FindFirstWalkState(I2DSampler<bool> area, XZ pointInArea)
+	{
+		if (!area.InArea(pointInArea) || !area.Bounds.Contains(pointInArea))
+		{
+			throw new ArgumentException($"Not in area: {pointInArea}");
+		}
+
+		int eStopLimit = Math.Max(area.Bounds.Size.X, area.Bounds.Size.Z) + 11; // +11 is probably 10 more than we need, but safe
+
+		// Cast 4 rays in each cardinal direction and use the first one that reaches the BOUNDS!
+		// (Stopping as soon as we reach any XZ not in the area might find a hole instead.)
+		WalkState? nullState = null;
+		(XZ xz, Direction dir, WalkState? walkState)[] rays = Direction.CardinalDirections().Select(dir => (pointInArea, dir, nullState)).ToArray();
+
+		for (int eStop = 0; eStop < eStopLimit; eStop++)
+		{
+			for (int i = 0; i < rays.Length; i++)
+			{
+				var ray = rays[i];
+				ray = (ray.xz.Step(ray.dir), ray.dir, ray.walkState);
+
+				if (area.InArea(ray.xz))
+				{
+					ray = (ray.xz, ray.dir, null); // reset to null
+				}
+				else if (ray.walkState == null)
+				{
+					ray = (ray.xz, ray.dir, new WalkState(ray.xz, ray.dir.Turn180));
+				}
+				rays[i] = ray;
+
+				if (!area.Bounds.Contains(ray.xz) && ray.walkState.HasValue)
+				{
+					return ray.walkState.Value;
+				}
+			}
+		}
+		throw new ArgumentException("Given area is too big (maybe infinite?)");
+	}
+
+	internal static ShellItemRing RecomputeOuterRing(I2DSampler<bool> area, XZ pointInArea)
+	{
+		var startState = FindFirstWalkState(area, pointInArea);
+		var items = new List<ShellItem>();
+		var current = startState;
+		do
+		{
+			current = current.Advance(area, items);
+		}
+		while (current != startState);
+
+		return new ShellItemRing(items);
+	}
+
+	static bool TryBuildShell(I2DSampler<bool> area, IslandInfo island, out List<ShellItem> items)
 	{
 		items = new();
 		if (island.MustIncludeStates.Count == 0)
@@ -182,12 +235,11 @@ public static class ShellLogic
 	/// Most of this logic must use the expanded bounds, since shell items
 	/// can be outside of the area's bounds.
 	/// </summary>
-	private static Rect ExpandBounds(IArea area)
-	{
-		return new Rect(area.Bounds.start.Add(-1, -1), area.Bounds.end.Add(1, 1));
-	}
+	private static Rect ExpandBounds<T>(I2DSampler<T> area) => area.Bounds.Expand(1);
 
-	public static IReadOnlyList<Shell> ComputeShells(IArea area)
+	public static IReadOnlyList<Shell> ComputeShells(IArea area) => ComputeShells(area.AsSampler());
+
+	public static IReadOnlyList<Shell> ComputeShells(I2DSampler<bool> area)
 	{
 		List<Shell> shells = new();
 
@@ -228,7 +280,7 @@ public static class ShellLogic
 		public required I2DSampler<bool> IslandArea { get; init; }
 	}
 
-	private static List<IslandInfo> FindIslands(IArea area)
+	private static List<IslandInfo> FindIslands(I2DSampler<bool> area)
 	{
 		List<IslandInfo> infos = new();
 
@@ -294,7 +346,7 @@ public static class ShellLogic
 	/// Finds all points that are not inside the area which can "escape" to the border.
 	/// Used for hole detection.
 	/// </summary>
-	private static HashSet<XZ> ComputeOutsidePoints(IArea area)
+	private static HashSet<XZ> ComputeOutsidePoints(I2DSampler<bool> area)
 	{
 		var searchBounds = ExpandBounds(area);
 		var outsidePoints = new HashSet<XZ>();
