@@ -12,7 +12,8 @@ readonly struct ExpansionId
 
 	public ExpansionId Next() => new ExpansionId { Value = this.Value + 1 };
 
-	public static readonly ExpansionId Nothing = new ExpansionId { Value = 0 };
+	public static readonly ExpansionId Zero = new ExpansionId { Value = 0 };
+	public static readonly ExpansionId MaxValue = new ExpansionId { Value = int.MaxValue };
 }
 
 sealed class ExpandableShell<T>
@@ -22,7 +23,7 @@ sealed class ExpandableShell<T>
 		public required T Value { get; init; }
 		public required ExpansionId ExpansionId { get; init; }
 
-		public static readonly Entry Nothing = new Entry { ExpansionId = ExpansionId.Nothing, Value = default! };
+		public static readonly Entry Nothing = new Entry { ExpansionId = ExpansionId.Zero, Value = default! };
 	}
 
 	private readonly Shell originalShell;
@@ -34,7 +35,7 @@ sealed class ExpandableShell<T>
 	{
 		this.originalShell = shell;
 		this.expansions = new MutableList2D<Entry>(Entry.Nothing, shell.IslandArea.Bounds);
-		currentExpansionId = ExpansionId.Nothing;
+		currentExpansionId = ExpansionId.Zero;
 		currentShell = shell.ShellItems;
 	}
 
@@ -63,7 +64,7 @@ sealed class ExpandableShell<T>
 					throw new ArgumentException($"conflicting values given for {item.xz}");
 				}
 			}
-			else if (exist.ExpansionId.Value != ExpansionId.Nothing.Value)
+			else if (exist.ExpansionId.Value != ExpansionId.Zero.Value)
 			{
 				throw new InvalidOperationException("Cannot overwrite previously expanded value");
 			}
@@ -141,7 +142,7 @@ sealed class ExpandableShell<T>
 			}
 			var entry = ShellEx.expansions.Sample(xz);
 			int id = entry.ExpansionId.Value;
-			if (id > ExpansionId.Nothing.Value && id <= CutoffExpansionId.Value)
+			if (id > ExpansionId.Zero.Value && id <= CutoffExpansionId.Value)
 			{
 				return (true, entry.Value);
 			}

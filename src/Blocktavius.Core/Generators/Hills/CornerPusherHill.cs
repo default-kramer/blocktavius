@@ -16,15 +16,9 @@ public static class CornerPusherHill
 		public required int MaxElevation { get; init; }
 	}
 
-	public static I2DSampler<int> BuildHill(Settings settings, IArea origArea)
-	{
-		return BuildHill(settings, Layer.FirstLayer(origArea), origArea);
-	}
-
-	// TODO - This should be the *only* constructor, and Shell should
 	public static I2DSampler<int> BuildHill(Settings settings, Shell shell)
 	{
-		return BuildHill(settings, Layer.FirstLayer(shell), shell.IslandArea.AsArea());
+		return BuildHill(settings, Layer.FirstLayer(shell, settings.MaxElevation), shell.IslandArea.AsArea());
 	}
 
 	private static I2DSampler<int> BuildHill(Settings settings, Layer firstLayer, IArea origArea)
@@ -38,78 +32,84 @@ public static class CornerPusherHill
 			layers.Push(layers.Peek().NextLayer(settings.Prng));
 		}
 
-		var sampler = new MutableArray2D<int>(layers.Peek().area.Bounds.Expand(1), -1);
-		int elevation = settings.MinElevation;
-		foreach (var layer in layers)
-		{
-			foreach (var xz in layer.missCounts.Keys) // this is actually the shell
-			{
-				sampler.Put(xz, elevation);
-			}
-			elevation++;
-		}
-		foreach (var xz in origArea.Bounds.Enumerate())
-		{
-			if (origArea.InArea(xz))
-			{
-				sampler.Put(xz, settings.MaxElevation);
-			}
-		}
-		return sampler;
+		var finalLayer = layers.First();
+		var shellEx = finalLayer.shellEx;
+		var finalExpansion = finalLayer.pendingExpansion.Select(kvp => (kvp.Key, kvp.Value.Elevation)).ToList();
+		shellEx.Expand(finalExpansion);
+
+		return shellEx.GetSampler(ExpansionId.MaxValue, settings.MaxElevation)
+			.Project(tuple => tuple.Item1 ? tuple.Item2 : -1);
 	}
 
 	sealed class Layer
 	{
+		public sealed class PendingShellItem
+		{
+			public int MissCount { get; set; } // mutable
+
+			/// <summary>
+			/// We retain the elevation this item was *introduced* at to maintain
+			/// compatability with a previous version of this algorithm.
+			/// (Also because I can't figure out why it gets more jagged when we break compatability.)
+			/// </summary>
+			public int Elevation { get; init; }
+		}
+
 		/// <summary>
 		/// A "miss" occurs whenever we decide not to push a shell item out for the next layer.
 		/// This dictionary tracks consecutive miss counts; it resets to 0 when we push that XZ.
 		/// Permitting a larger number of consecutive misses creates a more vertical (steeper) hill.
 		/// </summary>
-		public readonly IReadOnlyDictionary<XZ, int> missCounts;
+		public readonly Dictionary<XZ, PendingShellItem> pendingExpansion;
 
-		public readonly Shell shell;
-		public readonly IArea area;
-		public readonly IImmutableSet<XZ> population;
+		public readonly ExpandableShell<int> shellEx;
+		public readonly IReadOnlyList<ShellItem> shellItems;
+		public readonly int elevation;
 
-		private Layer(IArea area, IReadOnlyDictionary<XZ, int> prevMissCounts, IImmutableSet<XZ>? population)
+		private static void UpdateMisses(Dictionary<XZ, PendingShellItem> pendingItems, IEnumerable<ShellItem> shellItems, int elevation)
 		{
-			this.area = area;
-			// TODO need to handle multiple shells.
-			// (Also, why does a tile-based region have more than 1 shell? Bug?)
-			this.shell = ShellLogic.ComputeShells(area).Where(a => !a.IsHole)
-				.OrderByDescending(s => s.ShellItems.Count)
-				.First();
-			this.missCounts = shell.ShellItems
-				.Where(si => si.CornerType != CornerType.Inside) // reduce inside corners weight from 3:1 down to 2:1
-				.GroupBy(si => si.XZ)
-				.ToDictionary(grp => grp.Key, grp => grp.Count() + prevMissCounts.GetValueOrDefault(grp.Key, 0));
-			this.population = population
-				?? area.Bounds.Enumerate().Where(area.InArea).ToImmutableHashSet();
+			// reduce inside corners weight from 3:1 down to 2:1
+			foreach (var item in shellItems.Where(i => i.CornerType != CornerType.Inside))
+			{
+				if (pendingItems.TryGetValue(item.XZ, out var pendingItem))
+				{
+					pendingItem.MissCount++;
+				}
+				else
+				{
+					pendingItems[item.XZ] = new PendingShellItem { MissCount = 1, Elevation = elevation };
+				}
+			}
 		}
 
-		private Layer(Shell shell, IReadOnlyDictionary<XZ, int> prevMissCounts, IImmutableSet<XZ>? population)
+		private Layer(Layer prev)
 		{
-			this.area = shell.IslandArea.AsArea();
-			this.shell = shell;
-			this.missCounts = shell.ShellItems
-				.Where(si => si.CornerType != CornerType.Inside) // reduce inside corners weight from 3:1 down to 2:1
-				.GroupBy(si => si.XZ)
-				.ToDictionary(grp => grp.Key, grp => grp.Count() + prevMissCounts.GetValueOrDefault(grp.Key, 0));
-			this.population = population
-				?? area.Bounds.Enumerate().Where(area.InArea).ToImmutableHashSet();
+			this.shellEx = prev.shellEx;
+			this.pendingExpansion = prev.pendingExpansion;
+			this.shellItems = shellEx.CurrentShell();
+			this.elevation = prev.elevation - 1;
+
+			UpdateMisses(pendingExpansion, shellItems, elevation);
 		}
 
-		public static Layer FirstLayer(IArea area)
+		private Layer(Shell shell, int elevation)
 		{
-			var population = area.Bounds.Enumerate().Where(area.InArea).ToImmutableHashSet();
-			return new Layer(area, new Dictionary<XZ, int>(), population);
+			this.shellEx = new ExpandableShell<int>(shell);
+			this.shellItems = shell.ShellItems;
+			this.pendingExpansion = new();
+			this.elevation = elevation;
+
+			UpdateMisses(pendingExpansion, shellItems, elevation);
 		}
 
-		public static Layer FirstLayer(Shell shell)
+		public static Layer FirstLayer(Shell shell, int elevation)
 		{
-			return new Layer(shell, new Dictionary<XZ, int>(), null);
+			return new Layer(shell, elevation);
 		}
 
+		/// <summary>
+		/// Start from the min XZ for determinism (Shell Logic currently makes no guarantees about where in the ring is the start point)
+		/// </summary>
 		private static IReadOnlyList<ShellItem> Normalize(IReadOnlyList<ShellItem> items)
 		{
 			if (items.Count == 0)
@@ -137,13 +137,11 @@ public static class CornerPusherHill
 
 		public Layer NextLayer(PRNG prng)
 		{
-			var prevLayer = Normalize(this.shell.ShellItems);
-			var prevArea = this.area;
-			IReadOnlyDictionary<XZ, int> prevMissCounts = this.missCounts;
+			var prevLayer = Normalize(this.shellItems);
 
 			const int maxConsecutiveMisses = 11;
-			var newPopulation = this.population;
-			var newBounds = area.Bounds.BoundsExpander();
+
+			List<(XZ, int)> expansion = new();
 
 			// Starting from a random point on the shell, do one lap.
 			// While one lap not completed:
@@ -169,7 +167,7 @@ public static class CornerPusherHill
 					const int maxRunLength = 7;
 
 					int mustTakeNow = OneLapFrom(prevLayer, loopingIndex)
-						.TakeWhile(i => prevMissCounts.GetValueOrDefault(i.XZ, 0) >= maxConsecutiveMisses)
+						.TakeWhile(i => pendingExpansion[i.XZ].MissCount >= maxConsecutiveMisses)
 						.Take(maxRunLength)
 						.Count();
 
@@ -178,8 +176,8 @@ public static class CornerPusherHill
 					{
 						var prevItem = prevLayer[loopingIndex % prevLayer.Count];
 						loopingIndex++;
-						newPopulation = newPopulation.Add(prevItem.XZ);
-						newBounds.Include(prevItem.XZ);
+						int elev = pendingExpansion[prevItem.XZ].Elevation;
+						expansion.Add((prevItem.XZ, elev));
 					}
 				}
 				else
@@ -189,7 +187,7 @@ public static class CornerPusherHill
 					int maxRunLength = Math.Min(prevLayer.Count / 2, 50);
 
 					int mustStopAt = OneLapFrom(prevLayer, loopingIndex)
-						.TakeWhile(i => prevMissCounts.GetValueOrDefault(i.XZ, 0) < maxConsecutiveMisses)
+						.TakeWhile(i => pendingExpansion[i.XZ].MissCount < maxConsecutiveMisses)
 						.Take(maxRunLength)
 						.Count();
 
@@ -207,21 +205,14 @@ public static class CornerPusherHill
 			}
 			while (loopingIndex < endIndex);
 
-
-			var newArea = new Area
+			foreach (var item in expansion)
 			{
-				Bounds = newBounds.CurrentBounds() ?? area.Bounds,
-				Population = newPopulation,
-			};
-			return new Layer(newArea, prevMissCounts, newPopulation);
-		}
-	}
+				pendingExpansion.Remove(item.Item1);
+			}
+			shellEx.Expand(expansion);
 
-	sealed class Area : IArea
-	{
-		public required IImmutableSet<XZ> Population { get; init; }
-		public required Rect Bounds { get; init; }
-		public bool InArea(XZ xz) => Population.Contains(xz);
+			return new Layer(this);
+		}
 	}
 
 	private static IEnumerable<T> OneLapFrom<T>(IReadOnlyList<T> list, int start)
