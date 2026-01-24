@@ -37,11 +37,11 @@ public static class CornerPusherHill
 		}
 
 		var finalLayer = layers.First();
-		var shellEx = finalLayer.shellEx;
+		var area = finalLayer.area;
 		var finalExpansion = finalLayer.pendingExpansion.Select(kvp => (kvp.Key, kvp.Value.Elevation)).ToList();
-		shellEx.Expand(finalExpansion);
+		area.Expand(finalExpansion);
 
-		return shellEx.GetSampler(ExpansionId.MaxValue, settings.MaxElevation)
+		return area.GetSampler(ExpansionId.MaxValue, settings.MaxElevation)
 			.Project(tuple => tuple.Item1 ? tuple.Item2 : -1);
 	}
 
@@ -66,7 +66,7 @@ public static class CornerPusherHill
 		/// </summary>
 		public readonly Dictionary<XZ, PendingShellItem> pendingExpansion;
 
-		public readonly ExpandableShell<int> shellEx;
+		public readonly ExpandableArea<int> area;
 		public readonly IReadOnlyList<ShellItem> shellItems;
 		public readonly int elevation;
 
@@ -88,9 +88,9 @@ public static class CornerPusherHill
 
 		private Layer(Layer prev)
 		{
-			this.shellEx = prev.shellEx;
+			this.area = prev.area;
 			this.pendingExpansion = prev.pendingExpansion;
-			this.shellItems = shellEx.CurrentShell();
+			this.shellItems = area.CurrentShell();
 			this.elevation = prev.elevation - 1;
 
 			UpdateMisses(pendingExpansion, shellItems, elevation);
@@ -98,7 +98,7 @@ public static class CornerPusherHill
 
 		private Layer(Shell shell, int elevation)
 		{
-			this.shellEx = new ExpandableShell<int>(shell);
+			this.area = new ExpandableArea<int>(shell);
 			this.shellItems = shell.ShellItems;
 			this.pendingExpansion = new();
 			this.elevation = elevation;
@@ -213,7 +213,7 @@ public static class CornerPusherHill
 			{
 				pendingExpansion.Remove(item.Item1);
 			}
-			shellEx.Expand(expansion);
+			area.Expand(expansion);
 
 			return new Layer(this);
 		}

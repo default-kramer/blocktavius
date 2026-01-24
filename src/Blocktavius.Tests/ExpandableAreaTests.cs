@@ -6,7 +6,7 @@ using System.Linq;
 namespace Blocktavius.Tests
 {
 	[TestClass]
-	public class ExpandableShellTests
+	public class ExpandableAreaTests
 	{
 		[TestMethod]
 		public void Expand_SinglePoint_CorrectlyUpdatesShell()
@@ -17,18 +17,18 @@ namespace Blocktavius.Tests
 				new XZ(0, 0), new XZ(1, 0),
 				new XZ(0, 1), new XZ(1, 1)
 			};
-			var area = new TestArea(areaPoints);
-			var initialShells = ShellLogic.ComputeShells(area);
+			var origArea = new TestArea(areaPoints);
+			var initialShells = ShellLogic.ComputeShells(origArea);
 			Assert.AreEqual(1, initialShells.Count);
 			var initialShell = initialShells[0];
 
-			var expandableShell = new ExpandableShell<int>(initialShell);
+			var area = new ExpandableArea<int>(initialShell);
 
 			var expansion = new[] { (new XZ(2, 0), 1) };
 
 			// ACT
-			expandableShell.Expand(expansion);
-			var newShell = expandableShell.CurrentShell();
+			area.Expand(expansion);
+			var newShell = area.CurrentShell();
 
 			// ASSERT
 			var expandedAreaPoints = new List<XZ>(areaPoints) { new XZ(2, 0) };
@@ -51,14 +51,14 @@ __b_____";
 			var origShell = ShellLogic.ComputeShells(origArea).Single();
 			var origPoints = origArea.AllPointsInArea().ToList();
 
-			var shellEx = new ExpandableShell<char>(origShell);
+			var area = new ExpandableArea<char>(origShell);
 			var pointsEx = TestUtil.CreateAreaFromAscii(ascii).AllPointsInArea().Except(origPoints).ToList();
 			Assert.AreEqual(8, pointsEx.Count);
-			var expansionId = shellEx.Expand(pointsEx.Select(xz => (xz, '.')).ToList());
-			var sampler = shellEx.GetSampler(expansionId, 'x');
+			var expansionId = area.Expand(pointsEx.Select(xz => (xz, '.')).ToList());
+			var sampler = area.GetSampler(expansionId, 'x');
 
 			var expected = ShellLogic.ComputeShells(sampler.Project(a => a.Item1)).Single();
-			AssertShellsEqual(expected.ShellItems, shellEx.CurrentShell());
+			AssertShellsEqual(expected.ShellItems, area.CurrentShell());
 		}
 
 		[TestMethod]
@@ -70,12 +70,12 @@ __b_____";
 				new XZ(0, 0), new XZ(1, 0),
 				new XZ(0, 1), new XZ(1, 1)
 			};
-			var area = new TestArea(areaPoints);
-			var initialShells = ShellLogic.ComputeShells(area);
+			var origArea = new TestArea(areaPoints);
+			var initialShells = ShellLogic.ComputeShells(origArea);
 			Assert.AreEqual(1, initialShells.Count);
 			var initialShell = initialShells[0];
 
-			var expandableShell = new ExpandableShell<int>(initialShell);
+			var area = new ExpandableArea<int>(initialShell);
 
 			var expansion = new[] { (new XZ(2, 2), 1) };
 
@@ -83,7 +83,7 @@ __b_____";
 			bool gotExpectedException = false;
 			try
 			{
-				expandableShell.Expand(expansion);
+				area.Expand(expansion);
 			}
 			catch (Exception ex)
 			{
@@ -109,10 +109,10 @@ xxaxx";
 			var origShell = ShellLogic.ComputeShells(origArea).Single();
 			var origPoints = origArea.AllPointsInArea().ToList();
 
-			var shell = new ExpandableShell<int>(origShell);
+			var area = new ExpandableArea<int>(origShell);
 			var expansion = TestUtil.CreateAreaFromAscii(ascii.MultiReplace(["x"], "_")).AllPointsInArea();
-			shell.Expand(expansion.Select(xz => (xz, 67)));
-			var expandedShell = shell.CurrentShell();
+			area.Expand(expansion.Select(xz => (xz, 67)));
+			var expandedShell = area.CurrentShell();
 
 			const int sideLengthA = 5;
 			const int sideLengthB = 3;

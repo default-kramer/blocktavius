@@ -6,17 +6,22 @@ using System.Threading.Tasks;
 
 namespace Blocktavius.Core;
 
-readonly struct ExpansionId
-{
-	public required int Value { get; init; }
-
-	public ExpansionId Next() => new ExpansionId { Value = this.Value + 1 };
-
-	public static readonly ExpansionId Zero = new ExpansionId { Value = 0 };
-	public static readonly ExpansionId MaxValue = new ExpansionId { Value = int.MaxValue };
-}
-
-sealed class ExpandableShell<T>
+/// <summary>
+/// An area that can be expanded incrementally.
+/// Call <see cref="Expand"/> to add more XZs to the area.
+/// The returned <see cref="ExpansionId"/> can be used to access the state of the area
+/// immediately after that expansion, ignoring changes from any future expansions.
+///
+/// The initial shell must not be a hole.
+/// During expansion, it is possible that a hole will be created, but this class
+/// promises that <see cref="CurrentShell"/> will never return a hole; it will always
+/// find the outer shell after expansion.
+///
+/// One benefit of this class is faster shell computation compared to
+/// <see cref="ShellLogic.ComputeShells"/>, which can be very slow if it is run
+/// after every layer of a tall and/or large hill construction algorithm.
+/// </summary>
+sealed class ExpandableArea<T>
 {
 	readonly record struct Entry
 	{
@@ -31,8 +36,13 @@ sealed class ExpandableShell<T>
 	private ExpansionId currentExpansionId;
 	private IReadOnlyList<ShellItem> currentShell;
 
-	public ExpandableShell(Shell shell)
+	public ExpandableArea(Shell shell)
 	{
+		if (shell.IsHole)
+		{
+			throw new ArgumentException("Shell must not be a hole");
+		}
+
 		this.originalShell = shell;
 		this.expansions = new MutableList2D<Entry>(Entry.Nothing, shell.IslandArea.Bounds);
 		currentExpansionId = ExpansionId.Zero;
@@ -41,6 +51,10 @@ sealed class ExpandableShell<T>
 
 	public IReadOnlyList<ShellItem> CurrentShell() => currentShell;
 
+	/// <summary>
+	/// The given <paramref name="expansion"/> must not be part of the original area or any
+	/// previous expansion.
+	/// </summary>
 	public ExpansionId Expand(IEnumerable<(XZ xz, T value)> expansion)
 	{
 		if (!expansion.Any())
@@ -115,13 +129,27 @@ sealed class ExpandableShell<T>
 
 	public I2DSampler<bool> GetArea(ExpansionId expansionId) => GetSampler(expansionId, default!).Project(tuple => tuple.Item1);
 
+	/// <summary>
+	/// Returns a sampler which includes all expansions up to and including
+	/// the given <paramref name="expansionId"/>, but not beyond.
+	/// The <paramref name="originalAreaValue"/> defines that value that should be returned
+	/// for XZs which were part of the original area.
+	/// Other XZs will return the value that was provided during expansion.
+	/// XZs which are not part of the area identified by the given <paramref name="expansionId"/>
+	/// will return false for the first item of the tuple.
+	/// </summary>
 	public I2DSampler<(bool, T)> GetSampler(ExpansionId expansionId, T originalAreaValue)
 	{
+		if (expansionId.Value < ExpansionId.Zero.Value)
+		{
+			throw new ArgumentException("invalid expansion ID (negative)");
+		}
+
 		return new Sampler
 		{
 			CutoffExpansionId = expansionId,
 			OriginalAreaValue = originalAreaValue,
-			ShellEx = this,
+			Area = this,
 		};
 	}
 
@@ -129,18 +157,18 @@ sealed class ExpandableShell<T>
 	{
 		public required ExpansionId CutoffExpansionId { get; init; }
 		public required T OriginalAreaValue { get; init; }
-		public required ExpandableShell<T> ShellEx { get; init; }
+		public required ExpandableArea<T> Area { get; init; }
 
 		// This Bounds may be bigger than strictly necessary for this particular Expansion ID, but that's fine for now
-		public Rect Bounds => Rect.Union(ShellEx.originalShell.IslandArea.Bounds, ShellEx.expansions.Bounds);
+		public Rect Bounds => Rect.Union(Area.originalShell.IslandArea.Bounds, Area.expansions.Bounds);
 
 		public (bool, T) Sample(XZ xz)
 		{
-			if (ShellEx.originalShell.IslandArea.Sample(xz))
+			if (Area.originalShell.IslandArea.Sample(xz))
 			{
 				return (true, OriginalAreaValue);
 			}
-			var entry = ShellEx.expansions.Sample(xz);
+			var entry = Area.expansions.Sample(xz);
 			int id = entry.ExpansionId.Value;
 			if (id > ExpansionId.Zero.Value && id <= CutoffExpansionId.Value)
 			{
