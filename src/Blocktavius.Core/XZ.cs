@@ -8,7 +8,7 @@ namespace Blocktavius.Core;
 
 public record struct Point(XZ xz, int Y);
 
-public record struct XZ(int X, int Z)
+public record struct XZ(int X, int Z) : IComparable<XZ>
 {
 	public static XZ Zero => new XZ(0, 0);
 
@@ -55,5 +55,15 @@ public record struct XZ(int X, int Z)
 			current = current.Step(direction);
 			steps--;
 		}
+	}
+
+	public int CompareTo(XZ other)
+	{
+		int zComp = this.Z.CompareTo(other.Z);
+		if (zComp == 0)
+		{
+			return this.X.CompareTo(other.X);
+		}
+		return zComp;
 	}
 }

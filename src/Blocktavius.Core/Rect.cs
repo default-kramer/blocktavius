@@ -98,6 +98,14 @@ public record Rect(XZ start, XZ end)
 
 	public Rect Translate(XZ xz) => new Rect(this.start.Add(xz), this.end.Add(xz));
 
+	public BoundsFinder BoundsExpander()
+	{
+		var finder = new BoundsFinder();
+		finder.Include(this.start);
+		finder.Include(this.end.Add(-1, -1));
+		return finder;
+	}
+
 	public IEnumerable<XZ> Enumerate()
 	{
 		for (int z = start.Z; z < end.Z; z++)

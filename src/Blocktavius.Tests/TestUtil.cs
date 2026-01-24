@@ -33,6 +33,15 @@ static class TestUtil
 {
 	public static readonly string SnapshotRoot;
 
+	public static string MultiReplace(this string str, IReadOnlyList<string> oldValues, string newValue)
+	{
+		foreach (var oldValue in oldValues)
+		{
+			str = str.Replace(oldValue, newValue);
+		}
+		return str;
+	}
+
 	public static IArea CreateAreaFromAscii(string pattern)
 	{
 		var lines = pattern.Replace("\r\n", "\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
@@ -60,6 +69,11 @@ static class TestUtil
 			}
 		}
 		return new TestArea(points);
+	}
+
+	public static IEnumerable<XZ> AllPointsInArea(this IArea area)
+	{
+		return area.Bounds.Enumerate().Where(area.InArea);
 	}
 
 	static TestUtil()
