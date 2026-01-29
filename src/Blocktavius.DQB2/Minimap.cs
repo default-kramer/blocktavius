@@ -49,7 +49,7 @@ public class Minimap
 	//    It didn't really matter in the end, since no island would have tiles over there
 	//
 	// So I'll skip the top row also; better safe than sorry.
-	const bool skipTopRow = true;
+	const bool skipTopRow = false;
 	const int INTRO_SIZE = 0;
 	const int TILE_DATA_SIZE = 256 * 256 * 2;
 	const int OUTRO_SIZE = 4;
@@ -65,6 +65,13 @@ public class Minimap
 	public I2DSampler<MinimapTile> ReadMapCropped(int islandId, IStage cropper, IReadOnlySet<ChunkOffset> cropperExpansion)
 	{
 		var sampler = ReadMap(islandId);
+
+		// TEMP OUTRO DEBUGGING CODE:
+		var start = INTRO_SIZE + ISLAND_DATA_SIZE * islandId;
+		var end = start + TILE_DATA_SIZE;
+		var outroBytes = data.Slice(end, OUTRO_SIZE).ToArray();
+		var outroHex = Convert.ToHexString(outroBytes);
+		var debugString = $"Island {islandId}, outro {outroHex}";
 
 		// Minimap tile grid is 256x256; chunk grid is 64x64.
 		// This means there are 4x4 map tiles in each chunk.

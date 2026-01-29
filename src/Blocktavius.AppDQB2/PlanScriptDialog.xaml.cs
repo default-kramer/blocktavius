@@ -700,18 +700,28 @@ public partial class PlanScriptDialog : Window
 
 			const int islandId = 13;
 			const int start = INTRO_SIZE + ISLAND_DATA_SIZE * islandId;
-			var span = mapData.Slice(start, TILE_DATA_SIZE).Span;
+			var span = mapData.Slice(start, TILE_DATA_SIZE + OUTRO_SIZE).Span;
 
 			var tile = GetTileToCopy(span);
-			for (int z = 92; z < 96; z++)
+			// The chunk with NW corner at 800,800 is in-bounds on the IoA.
+			// Tile offsets for this chunk are 100,100 -> 104,104.
+			for (int z = 100; z < 104; z++)
 			{
-				for (int x = 92; x < 96; x++)
+				for (int x = 100; x < 104; x++)
 				{
 					int offset = GetOffset(x, z);
 					span[offset] = tile.Item1;
 					span[offset + 1] = tile.Item2;
 				}
 			}
+
+			// What happens if we use "outro" bytes from the IoA?
+			var existingOutro = Convert.ToHexString(span.Slice(TILE_DATA_SIZE, OUTRO_SIZE));
+			span[TILE_DATA_SIZE + 0] = 0x7E;
+			span[TILE_DATA_SIZE + 1] = 0x80;
+			span[TILE_DATA_SIZE + 2] = 0x01;
+			span[TILE_DATA_SIZE + 3] = 0x1E;
+			var replacedOutro = Convert.ToHexString(span.Slice(TILE_DATA_SIZE, OUTRO_SIZE));
 
 			Status = "Logic done, saving...";
 
