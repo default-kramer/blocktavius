@@ -22,6 +22,7 @@ sealed class ScriptSettingsVM : ScriptLeafNodeVM
 			{
 				ColumnCleanupMode = mode,
 				SeaLevel = RepairSeaSettings.SeaLevel,
+				LiquidFamily = RepairSeaSettings.GetLiquid(),
 			});
 			return StageMutation.Combine(mutations);
 		}
@@ -83,6 +84,31 @@ sealed class ScriptSettingsVM : ScriptLeafNodeVM
 31 - IoA (home), Furrowfield, Angler's Isle, Soggy Skerry, Blossom Bay, Rimey Reef, Laguna Parfuma, Unholy Holm, Defiled Isle
 65 - Khrumbul-Dun, Sunny Sands
 74 - Coral Cay";
+
+		private LiquidFamilyIndex _seaType = LiquidFamilyIndex.Seawater;
+		[ItemsSource(typeof(SeaTypeItemsSource))]
+		[DisplayName("Sea Type")]
+		public LiquidFamilyIndex SeaType
+		{
+			get => _seaType;
+			set => ChangeProperty(ref _seaType, value);
+		}
+
+		public DQB2.RepairSea.ILiquid GetLiquid()
+		{
+			if (SeaType == LiquidFamilyIndex.None)
+			{
+				return DQB2.RepairSea.NoLiquid.Instance;
+			}
+			else if (LiquidFamily.TryGetByIndex(SeaType, out var family))
+			{
+				return family;
+			}
+			else
+			{
+				return LiquidFamily.Seawater;
+			}
+		}
 	}
 
 	sealed class SeaLevelItemsSource : IItemsSource
@@ -95,6 +121,24 @@ sealed class ScriptSettingsVM : ScriptLeafNodeVM
 			items.Add(31, "31");
 			items.Add(65, "65");
 			items.Add(74, "74");
+			return items;
+		}
+	}
+
+	sealed class SeaTypeItemsSource : IItemsSource
+	{
+		public ItemCollection GetValues()
+		{
+			var items = new ItemCollection();
+			items.Add(LiquidFamilyIndex.Seawater, "Seawater");
+			items.Add(LiquidFamilyIndex.None, "None (remove sea)");
+			items.Add(LiquidFamilyIndex.ClearWater, "Clear Water");
+			items.Add(LiquidFamilyIndex.HotWater, "Hot Water");
+			items.Add(LiquidFamilyIndex.Poison, "Poison");
+			items.Add(LiquidFamilyIndex.Lava, "Lava");
+			items.Add(LiquidFamilyIndex.BottomlessSwamp, "Bottmless Swamp");
+			items.Add(LiquidFamilyIndex.MuddyWater, "Muddy Water");
+			items.Add(LiquidFamilyIndex.Plasma, "Plasma");
 			return items;
 		}
 	}
