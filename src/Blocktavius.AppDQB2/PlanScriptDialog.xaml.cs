@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -244,7 +245,8 @@ public partial class PlanScriptDialog : Window
 
 			TryPlanSimpleCopy(sourceSlot, "AUTOCMNDAT.BIN", mode == InclusionMode.Automatic);
 			TryPlanSimpleCopy(sourceSlot, "AUTOSTGDAT.BIN", mode == InclusionMode.Automatic);
-			TryPlanSimpleCopy(sourceSlot, "CMNDAT.BIN", mode == InclusionMode.Automatic || mode == InclusionMode.JustCmndat, forceBackup: true);
+			//TryPlanSimpleCopy(sourceSlot, "CMNDAT.BIN", mode == InclusionMode.Automatic || mode == InclusionMode.JustCmndat, forceBackup: true);
+			TryPlanHackyCmndatEdit(sourceSlot);
 
 			var sortedStages = sourceSlot.Stages
 				.OrderBy(stage => stage == Project.GetSelectedSourceStage ? 0 : 1)
@@ -308,6 +310,20 @@ public partial class PlanScriptDialog : Window
 					SourceFile = sourceFile,
 					ShouldCopy = shouldCopy,
 					ShortName = name,
+				});
+				return true;
+			}
+			return false;
+		}
+
+		private bool TryPlanHackyCmndatEdit(SlotVM sourceSlot)
+		{
+			var sourceFile = new FileInfo(sourceSlot.GetFullPath("CMNDAT.BIN"));
+			if (sourceFile.Exists)
+			{
+				PlanItems.Add(new CmndatHackPlan
+				{
+					BackupDir = this.backupLocation,
 				});
 				return true;
 			}
@@ -626,6 +642,113 @@ public partial class PlanScriptDialog : Window
 
 			StatusToolTip = errorDetails.ToString();
 			Status = (StatusToolTip == "") ? "Done" : "Error";
+		}
+	}
+
+	class CmndatHackPlan : PlanItemVM, IPlanItemVM
+	{
+		public bool WillBeBackedUp => BackupDir != null;
+
+		public bool WillBeModified => true;
+
+		public bool WillBeCopied => true;
+
+		public string ShortName => "CMNDAT.BIN";
+
+		const int headerLength = 0x2A444;
+
+		public async Task Execute(ExecutionContext context)
+		{
+			Status = "workinonit...";
+
+			var srcPath = context.FromSlot.GetFullPath("CMNDAT.BIN");
+
+			using var cmndatStream = new FileStream(srcPath, FileMode.Open, FileAccess.Read);
+
+			var header = new byte[headerLength];
+			await cmndatStream.ReadExactlyAsync(header, offset: 0, count: headerLength);
+
+			using var zlib = new System.IO.Compression.ZLibStream(cmndatStream, System.IO.Compression.CompressionMode.Decompress);
+
+			const int decompressedLength = 5627194; // hypothesis: The decompressed buffer will always have this length
+			using var decompressedStream = new MemoryStream(decompressedLength);
+			await zlib.CopyToAsync(decompressedStream);
+			await zlib.FlushAsync();
+			await decompressedStream.FlushAsync();
+
+			if (decompressedStream.Length != decompressedLength && System.Diagnostics.Debugger.IsAttached)
+			{
+				System.Diagnostics.Debugger.Break(); // decompressedLength hypothesis invalidated?
+			}
+
+			Memory<byte> data;
+			if (decompressedStream.TryGetBuffer(out var buffer))
+			{
+				data = buffer.AsMemory();
+			}
+			else
+			{
+				data = new Memory<byte>(decompressedStream.ToArray());
+			}
+
+			var mapData = data.Slice(2401803); // skip to start of first island's minimap data
+
+			const int INTRO_SIZE = 0;
+			const int TILE_DATA_SIZE = 256 * 256 * 2;
+			const int OUTRO_SIZE = 4;
+			const int ISLAND_DATA_SIZE = INTRO_SIZE + TILE_DATA_SIZE + OUTRO_SIZE;
+
+			const int islandId = 13;
+			const int start = INTRO_SIZE + ISLAND_DATA_SIZE * islandId;
+			var span = mapData.Slice(start, TILE_DATA_SIZE).Span;
+
+			var tile = GetTileToCopy(span);
+			for (int z = 93; z < 95; z++) // 92 thru 96 is the actual range, but in case I'm off by 1...
+			{
+				for (int x = 93; x < 95; x++)
+				{
+					int offset = GetOffset(x, z);
+					span[offset] = tile.Item1;
+					span[offset + 1] = tile.Item2;
+				}
+			}
+
+			Status = "Logic done, saving...";
+
+			await WriteCmndatFile(header, data, context.ToSlot.GetFullPath("CMNDAT.BIN"));
+
+			Status = "Minimap modified!";
+		}
+
+		private (byte, byte) GetTileToCopy(ReadOnlySpan<byte> span)
+		{
+			// grab whatever tile is in the center of the minimap
+			const int x = 1024 / 8;
+			const int z = 1024 / 8;
+			int offset = GetOffset(x, z);
+			return (span[offset], span[offset + 1]);
+		}
+
+		private static int GetOffset(int x, int z) => z * 256 * 2 + x * 2;
+
+		private static async Task WriteCmndatFile(byte[] origHeader, Memory<byte> uncompressedContent, string dstPath)
+		{
+			using var cmndatStream = new FileStream(dstPath, FileMode.Create, FileAccess.Write);
+			await cmndatStream.WriteAsync(origHeader);
+
+			using var compressedBody = new MemoryStream();
+			using (var zlib = new ZLibStream(compressedBody, CompressionMode.Compress, leaveOpen: true))
+			{
+				await zlib.WriteAsync(uncompressedContent);
+				await zlib.FlushAsync();
+				compressedBody.Flush();
+			}
+
+			compressedBody.Seek(0, SeekOrigin.Begin);
+			await compressedBody.CopyToAsync(cmndatStream);
+
+			await cmndatStream.FlushAsync();
+			cmndatStream.Close();
 		}
 	}
 
