@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Blocktavius.DQB2;
 
-sealed class MaskedBlockLookup<T> : IReadOnlyDictionary<ushort, T?>
+public sealed class MaskedBlockLookup<T> : IReadOnlyDictionary<ushort, T?>
 {
 	private const int count = Block.CanonicalBlockCount;
 	const ushort mask = Block.Mask_CanonicalBlockId;

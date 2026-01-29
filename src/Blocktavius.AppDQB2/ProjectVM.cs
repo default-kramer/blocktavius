@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Blocktavius.AppDQB2.Persistence;
 
 namespace Blocktavius.AppDQB2;
 
@@ -59,6 +60,7 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 	// commands
 	public I.Project.CommandEditChunkGrid CommandEditChunkGrid { get; }
 	public ICommand CommandAddScript { get; }
+	public ICommand CommandAddSnippet { get; }
 
 	// wrapper properties
 	private ProfileSettings getProfile => xProfile.Value;
@@ -113,8 +115,16 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 		CommandExportChunkMask = new RelayCommand(_ => chunkGridLayer.ChunkGridImage != null, ExportChunkMask);
 		CommandExportMinimap = new RelayCommand(_ => minimapLayer?.MinimapImage != null, ExportMinimap);
 		CommandAddScript = new RelayCommand(_ => true, AddScript);
+		CommandAddSnippet = new RelayCommand(_ => true, AddSnippet);
 
 		ForceUpdateProfile(profile);
+	}
+
+	private void AddSnippet(object? _)
+	{
+		var newResource = new Resources.ExtractedSnippetResourceVM();
+		newResource.Name = $"New Snippet {ExtractedSnippets.Count + 1}";
+		ExtractedSnippets.Add(newResource);
 	}
 
 	private void ExportChunkMask(object? arg) => ExportImage(chunkGridLayer.ChunkGridImage, "exported-chunk-mask.png", 1.0);
@@ -248,6 +258,11 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 
 	public ObservableCollection<ScriptVM> Scripts { get; } = new();
 
+	public ObservableCollection<Resources.ExtractedSnippetResourceVM> ExtractedSnippets { get; } = new();
+
+	public IReadOnlyList<IAreaVM> AvailableAreas
+		=> Layers.Select(layer => layer.SelfAsAreaVM).WhereNotNull().ToList();
+
 	private ScriptVM? _selectedScript;
 	public ScriptVM? SelectedScript
 	{
@@ -302,7 +317,7 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 			return null;
 		}
 
-		var context = new StageRebuildContext(workingStage);
+		var context = new StageRebuildContext(workingStage, stageLoader);
 		var mutation = this.SelectedScript?.BuildMutation(context);
 		if (mutation != null)
 		{
@@ -393,6 +408,7 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 			ChunkGridVisible = chunkGridLayer.IsVisible,
 			Scripts = this.Scripts.Select(s => s.ToPersistModelConcrete()).ToList(),
 			SelectedScriptIndex = SelectedScript == null ? null : Scripts.IndexOf(SelectedScript),
+			ExtractedSnippets = this.ExtractedSnippets.Select(s => s.ToPersistModel()).ToList(),
 		};
 	}
 
@@ -455,7 +471,20 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 		Layers.Add(chunkGridLayer);
 		SelectedLayer = Layers.FirstOrDefault();
 
-		var scriptContext = new Persistence.ScriptDeserializationContext
+		var resourceContext = new Persistence.ResourceDeserializationContext
+		{
+			AreaManager = this,
+			Slots = getSourceSlots,
+		};
+
+		ExtractedSnippets.Clear();
+		foreach (var snippet in project.ExtractedSnippets.EmptyIfNull())
+		{
+			var snippetVM = Resources.ExtractedSnippetResourceVM.Load(snippet, resourceContext);
+			ExtractedSnippets.Add(snippetVM);
+		}
+
+		var scriptContext = new Persistence.ScriptDeserializationContext(ExtractedSnippets)
 		{
 			AreaManager = this,
 			BlockManager = this,
@@ -468,6 +497,9 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 			Scripts.Add(scriptVM);
 		}
 		SelectedScript = Scripts.ElementAtOrDefault(project.SelectedScriptIndex.GetValueOrDefault(-1));
+
+
+
 
 		changeset.Complete();
 	}
@@ -489,6 +521,7 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 		}
 		return Blockdata.AllBlockVMs.FirstOrDefault(x => x.PersistentId == persistentId);
 	}
+
 
 	static partial class MyProperty
 	{
