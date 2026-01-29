@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Blocktavius.DQB2;
 
-public sealed class LiquidFamily
+public sealed class LiquidFamily : RepairSea.ILiquid
 {
 	private LiquidFamily() { }
 
@@ -20,6 +20,11 @@ public sealed class LiquidFamily
 	public static bool TryGet(ushort blockId, out LiquidFamily liquidFamily)
 	{
 		var fam = blockId.GetLiquidFamilyIndex();
+		return TryGetByIndex(fam, out liquidFamily);
+	}
+
+	public static bool TryGetByIndex(LiquidFamilyIndex fam, out LiquidFamily liquidFamily)
+	{
 		switch (fam)
 		{
 			case LiquidFamilyIndex.ClearWater:
@@ -93,4 +98,9 @@ public sealed class LiquidFamily
 	public static readonly LiquidFamily Seawater = Create(LiquidFamilyIndex.Seawater, 341, 349, 389);
 
 	public static readonly LiquidFamily Plasma = Create(LiquidFamilyIndex.Plasma, 398, 399, 400);
+
+	Block RepairSea.ILiquid.ChangePropShell(ref Block.Prop prop, LiquidAmountIndex amount)
+	{
+		return prop.SetLiquid(this.LiquidFamilyId, amount);
+	}
 }

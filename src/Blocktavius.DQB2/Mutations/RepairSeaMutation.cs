@@ -11,7 +11,7 @@ public sealed class RepairSeaMutation : StageMutation
 {
 	public required ColumnCleanupMode ColumnCleanupMode { get; init; }
 	public required int SeaLevel { get; init; }
-	public LiquidFamily LiquidFamily { get; init; } = LiquidFamily.Seawater;
+	public ILiquid LiquidFamily { get; init; } = DQB2.LiquidFamily.Seawater;
 
 	internal override void Apply(IMutableStage stage)
 	{

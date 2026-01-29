@@ -11,7 +11,7 @@ sealed class RepairSeaOperation
 {
 	public sealed class Params
 	{
-		public required LiquidFamily LiquidFamily { get; init; }
+		public required ILiquid LiquidFamily { get; init; }
 		public required int SeaLevel { get; init; }
 		public required LiquidAmountIndex SeaSurfaceType { get; init; }
 		public required IPolicy Policy { get; init; }
@@ -23,7 +23,7 @@ sealed class RepairSeaOperation
 	private readonly ushort topLayerBlockId;
 	private readonly IMutableStage stage;
 	private readonly int seaLevel;
-	private readonly LiquidFamily liquidFamily;
+	private readonly ILiquid liquidFamily;
 	private readonly LiquidAmountIndex topLayerAmount;
 	private readonly IPolicy policy;
 
@@ -176,7 +176,7 @@ sealed class RepairSeaOperation
 								if (block.IsProp(out var prop))
 								{
 									var amount = isTopLayer ? topLayerAmount : LiquidAmountIndex.Subsurface;
-									var newBlock = prop.SetLiquid(liquidFamily.LiquidFamilyId, amount);
+									var newBlock = liquidFamily.ChangePropShell(ref prop, amount);
 									chunk.ReplaceProp(point, newBlock);
 								}
 								else

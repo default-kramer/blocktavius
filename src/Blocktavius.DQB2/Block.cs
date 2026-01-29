@@ -232,6 +232,12 @@ public readonly partial struct Block : IEquatable<Block>, IComparable<Block>
 			int newId = RecomputeProp(Block.PropShellIndex, liquid, immersion);
 			return Block.PreserveChisel(newId);
 		}
+
+		public Block ClearLiquid()
+		{
+			int newId = RecomputeProp(Block.PropShellIndex, LiquidFamilyIndex.None, ImmersionIndex.None);
+			return Block.PreserveChisel(newId);
+		}
 	}
 
 	public static IEnumerable<Block> IterateSimpleBlocks()
