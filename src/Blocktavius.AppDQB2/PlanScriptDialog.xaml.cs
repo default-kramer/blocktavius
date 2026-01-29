@@ -715,6 +715,7 @@ public partial class PlanScriptDialog : Window
 				}
 			}
 
+			/*
 			// What happens if we use "outro" bytes from the IoA?
 			var existingOutro = Convert.ToHexString(span.Slice(TILE_DATA_SIZE, OUTRO_SIZE));
 			span[TILE_DATA_SIZE + 0] = 0x7E;
@@ -722,6 +723,7 @@ public partial class PlanScriptDialog : Window
 			span[TILE_DATA_SIZE + 2] = 0x01;
 			span[TILE_DATA_SIZE + 3] = 0x1E;
 			var replacedOutro = Convert.ToHexString(span.Slice(TILE_DATA_SIZE, OUTRO_SIZE));
+			*/
 
 			Status = "Logic done, saving...";
 

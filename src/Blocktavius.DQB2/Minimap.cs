@@ -49,7 +49,7 @@ public class Minimap
 	//    It didn't really matter in the end, since no island would have tiles over there
 	//
 	// So I'll skip the top row also; better safe than sorry.
-	const bool skipTopRow = false;
+	const bool skipTopRow = true;
 	const int INTRO_SIZE = 0;
 	const int TILE_DATA_SIZE = 256 * 256 * 2;
 	const int OUTRO_SIZE = 4;
