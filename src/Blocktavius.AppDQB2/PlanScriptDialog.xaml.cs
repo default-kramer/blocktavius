@@ -703,9 +703,9 @@ public partial class PlanScriptDialog : Window
 			var span = mapData.Slice(start, TILE_DATA_SIZE).Span;
 
 			var tile = GetTileToCopy(span);
-			for (int z = 93; z < 95; z++) // 92 thru 96 is the actual range, but in case I'm off by 1...
+			for (int z = 92; z < 96; z++)
 			{
-				for (int x = 93; x < 95; x++)
+				for (int x = 92; x < 96; x++)
 				{
 					int offset = GetOffset(x, z);
 					span[offset] = tile.Item1;
