@@ -47,6 +47,8 @@ public interface IMutableStage : IStage
 
 	void ExpandChunks(IReadOnlySet<ChunkOffset> includeChunks);
 
+	void RemoveChunksWhenPropless(IEnumerable<ChunkOffset> offsetsToRemove);
+
 	void PerformColumnCleanup(ColumnCleanupMode mode);
 }
 
@@ -171,6 +173,40 @@ sealed class MutableStage : IMutableStage
 	public void ExpandChunks(IReadOnlySet<ChunkOffset> includeChunks)
 	{
 		this.chunkGrid = chunkGrid.Expand(includeChunks, offset => new MutableEmptyChunk(offset));
+	}
+
+	public void RemoveChunksWhenPropless(IEnumerable<ChunkOffset> offsetsToRemove)
+	{
+		HashSet<ChunkOffset> validatedOffsets = new();
+
+		foreach (var offset in offsetsToRemove)
+		{
+			if (TryReadChunk(offset, out var chunk) && !HasProp(chunk))
+			{
+				validatedOffsets.Add(offset);
+			}
+		}
+
+		if (validatedOffsets.Any())
+		{
+			this.chunkGrid = chunkGrid.RemoveChunks(validatedOffsets);
+		}
+	}
+
+	private static bool HasProp(IChunk chunk)
+	{
+		foreach (var xz in chunk.Offset.Bounds.Enumerate())
+		{
+			for (int y = 0; y < DQB2Constants.MaxElevation; y++)
+			{
+				var block = chunk.GetBlock(new Point(xz, y));
+				if (Block.Lookup(block).IsProp())
+				{
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	public void PerformColumnCleanup(ColumnCleanupMode mode)
