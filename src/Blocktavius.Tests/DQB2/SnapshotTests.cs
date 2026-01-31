@@ -95,6 +95,8 @@ public class SnapshotTests
 		};
 		stage.Mutate(mutation);
 
+		Assert.AreEqual(origChunkCount - removedChunks, stage.ChunksInUse.Count);
+
 		var snapshot = await RecomputeSnapshot(stage);
 		AssertSnapshot($"RemoveChunks_{name}", snapshot, "RemoveChunks");
 	}
