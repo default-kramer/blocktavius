@@ -56,6 +56,8 @@ interface IDynamicScriptNodeVM
 	IStageMutator? SelfAsMutator { get; }
 
 	IPersistentScriptNode ToPersistModel();
+
+	bool CanBeDisabled => true;
 }
 
 abstract class ScriptNodeVM : ViewModelBaseWithCustomTypeDescriptor
@@ -150,11 +152,7 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 
 		CommandAddNode = new RelayCommand(_ => SelectedNodeKind != null, DoCommandAddNode);
 
-		Nodes.Add(new ChildNodeWrapper(this)
-		{
-			Child = Settings,
-			DynamicChild = null,
-		});
+		Nodes.Add(ChildNodeWrapper.Create(this, Settings));
 	}
 
 	private NodeKindVM? _selectedNodeKind;
@@ -185,13 +183,17 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 
 	public string? GetScriptName() => Settings.ScriptName;
 
+	private void AddChild(IDynamicScriptNodeVM child, Persistence.V1.ScriptNodeWrapperV1 wrapper)
+	{
+		var item = ChildNodeWrapper.Create(this, child);
+		item.Enabled51 = wrapper.Enabled;
+		Nodes.Add(item);
+	}
+
 	private void AddChild(IDynamicScriptNodeVM child)
 	{
-		Nodes.Add(new ChildNodeWrapper(this)
-		{
-			Child = child.SelfAsVM,
-			DynamicChild = child,
-		});
+		var item = ChildNodeWrapper.Create(this, child);
+		Nodes.Add(item);
 	}
 
 
@@ -266,16 +268,59 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 	{
 		private readonly ScriptVM parent;
 		private readonly ObservableCollection<ChildNodeWrapper> nodes;
-		public ChildNodeWrapper(ScriptVM parent)
+
+		private ChildNodeWrapper(ScriptVM parent, ScriptNodeVM child, IDynamicScriptNodeVM? dynamicChild)
 		{
 			this.parent = parent;
 			this.nodes = parent.Nodes;
 			CollectionChangedEventManager.AddListener(nodes, this);
+			Child = child;
+			DynamicChild = dynamicChild;
+
+			var mutator = dynamicChild?.SelfAsMutator;
+			if (mutator != null)
+			{
+				Mutator = new WrappedMutator
+				{
+					Decorated = mutator,
+					Wrapper = this,
+				};
+			}
 		}
 
-		public required ScriptNodeVM Child { get; init; }
-		public required IDynamicScriptNodeVM? DynamicChild { get; init; }
-		public IStageMutator? Mutator => DynamicChild?.SelfAsMutator;
+		public static ChildNodeWrapper Create(ScriptVM parent, ScriptSettingsVM settings)
+		{
+			return new ChildNodeWrapper(parent, settings, null);
+		}
+
+		public static ChildNodeWrapper Create(ScriptVM parent, IDynamicScriptNodeVM child)
+		{
+			return new ChildNodeWrapper(parent, child.SelfAsVM, child);
+		}
+
+		sealed class WrappedMutator : IStageMutator
+		{
+			public required IStageMutator Decorated { get; init; }
+			public required ChildNodeWrapper Wrapper { get; init; }
+
+			public StageMutation? BuildMutation(StageRebuildContext context)
+			{
+				return Wrapper.Enabled51 ? Decorated.BuildMutation(context) : null;
+			}
+		}
+
+		public ScriptNodeVM Child { get; }
+		public IDynamicScriptNodeVM? DynamicChild { get; }
+		public IStageMutator? Mutator { get; }
+
+		private bool _enabled = true;
+		public bool Enabled51
+		{
+			get => _enabled;
+			set => ChangeProperty(ref _enabled, value);
+		}
+
+		public Visibility ShowEnabled61 => (DynamicChild?.CanBeDisabled ?? false) ? Visibility.Visible : Visibility.Collapsed;
 
 		private ICommand _commandMoveUp = NullCommand.Instance;
 		public ICommand CommandMoveUp
@@ -340,6 +385,19 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 				}
 			});
 		}
+
+		public Persistence.V1.ScriptNodeWrapperV1? ToPersistModel()
+		{
+			if (DynamicChild == null)
+			{
+				return null;
+			}
+			return new Persistence.V1.ScriptNodeWrapperV1
+			{
+				Enabled = this.Enabled51,
+				ScriptNode = DynamicChild.ToPersistModel(),
+			};
+		}
 	}
 
 	public Persistence.V1.ScriptV1 ToPersistModelConcrete()
@@ -347,7 +405,7 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 		return new Persistence.V1.ScriptV1
 		{
 			ScriptName = Settings.ScriptName,
-			ScriptNodes = this.Nodes.Select(n => n.DynamicChild).WhereNotNull().Select(dc => dc.ToPersistModel()).ToList(),
+			ScriptNodes2 = this.Nodes.Select(n => n.ToPersistModel()).WhereNotNull().ToList(),
 		};
 	}
 
@@ -356,13 +414,13 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 		var me = new ScriptVM();
 		me.Settings.ScriptName = script.ScriptName;
 
-		foreach (var node in script.ScriptNodes.EmptyIfNull())
+		foreach (var node in script.GetScriptNodes())
 		{
-			if (node.TryDeserializeV1(out var nodeVM, context))
+			if (node.ScriptNode.TryDeserializeV1(out var nodeVM, context))
 			{
 				if (nodeVM is IDynamicScriptNodeVM vm)
 				{
-					me.AddChild(vm);
+					me.AddChild(vm, node);
 				}
 				else
 				{
