@@ -14,6 +14,8 @@ public static class CornerPusherHill
 		public required PRNG Prng { get; init; }
 		public required int MinElevation { get; init; }
 		public required int MaxElevation { get; init; }
+		public int MaxConsecutiveMisses { get; init; } = 11;
+		public int DiscardLayers { get; init; } = 0;
 	}
 
 	public static I2DSampler<int> BuildHill(Settings settings, Shell shell)
@@ -22,7 +24,7 @@ public static class CornerPusherHill
 		{
 			throw new ArgumentException("Shell must not be a hole");
 		}
-		return BuildHill(settings, Layer.FirstLayer(shell, settings.MaxElevation), shell.IslandArea.AsArea());
+		return BuildHill(settings, Layer.FirstLayer(shell, settings.MaxElevation, settings), shell.IslandArea.AsArea());
 	}
 
 	private static I2DSampler<int> BuildHill(Settings settings, Layer firstLayer, IArea origArea)
@@ -30,7 +32,10 @@ public static class CornerPusherHill
 		var layers = new Stack<Layer>();
 		layers.Push(firstLayer);
 
+		int discardLayers = settings.DiscardLayers;
 		int needLayers = settings.MaxElevation - settings.MinElevation + 1;
+		needLayers += discardLayers;
+
 		while (layers.Count < needLayers)
 		{
 			layers.Push(layers.Peek().NextLayer(settings.Prng));
@@ -42,7 +47,7 @@ public static class CornerPusherHill
 		area.Expand(finalExpansion);
 
 		return area.GetSampler(ExpansionId.MaxValue, settings.MaxElevation)
-			.Project(tuple => tuple.Item1 ? tuple.Item2 : -1);
+			.Project(tuple => tuple.Item1 ? Math.Min(settings.MaxElevation, tuple.Item2 + discardLayers) : -1);
 	}
 
 	sealed class Layer
@@ -69,6 +74,7 @@ public static class CornerPusherHill
 		public readonly ExpandableArea<int> area;
 		public readonly ShellItemRing shellItems;
 		public readonly int elevation;
+		public readonly Settings settings;
 
 		private static void UpdateMisses(Dictionary<XZ, PendingShellItem> pendingItems, IEnumerable<ShellItem> shellItems, int elevation)
 		{
@@ -92,30 +98,32 @@ public static class CornerPusherHill
 			this.pendingExpansion = prev.pendingExpansion;
 			this.shellItems = new ShellItemRing(area.CurrentShell());
 			this.elevation = prev.elevation - 1;
+			this.settings = prev.settings;
 
 			UpdateMisses(pendingExpansion, shellItems, elevation);
 		}
 
-		private Layer(Shell shell, int elevation)
+		private Layer(Shell shell, int elevation, Settings settings)
 		{
 			this.area = new ExpandableArea<int>(shell);
 			this.shellItems = new ShellItemRing(shell.ShellItems);
 			this.pendingExpansion = new();
 			this.elevation = elevation;
+			this.settings = settings;
 
 			UpdateMisses(pendingExpansion, shellItems, elevation);
 		}
 
-		public static Layer FirstLayer(Shell shell, int elevation)
+		public static Layer FirstLayer(Shell shell, int elevation, Settings settings)
 		{
-			return new Layer(shell, elevation);
+			return new Layer(shell, elevation, settings);
 		}
 
 		public Layer NextLayer(PRNG prng)
 		{
 			var prevLayer = this.shellItems;
 
-			const int maxConsecutiveMisses = 11;
+			int maxConsecutiveMisses = settings.MaxConsecutiveMisses;
 
 			List<(XZ, int)> expansion = new();
 

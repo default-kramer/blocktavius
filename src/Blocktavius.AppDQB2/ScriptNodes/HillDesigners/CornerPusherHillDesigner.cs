@@ -16,14 +16,38 @@ sealed class CornerPusherHillDesigner : ShellBasedHillDesigner
 	[PersistentHillDesigner(Discriminator = "CornerPusherHill-4527")]
 	sealed record PersistModel : IPersistentHillDesigner
 	{
+		public required int? MaxConsecutiveMisses { get; init; }
+		public required int? DiscardLayers { get; init; }
+
 		public bool TryDeserializeV1(ScriptDeserializationContext context, out IHillDesigner designer)
 		{
-			designer = new CornerPusherHillDesigner();
+			var me = new CornerPusherHillDesigner();
+			me.MaxConsecutiveMisses = this.MaxConsecutiveMisses ?? me.MaxConsecutiveMisses;
+			me.DiscardLayers = this.DiscardLayers ?? me.DiscardLayers;
+			designer = me;
 			return true;
 		}
 	}
 
-	public override IPersistentHillDesigner ToPersistModel() => new PersistModel();
+	public override IPersistentHillDesigner ToPersistModel() => new PersistModel()
+	{
+		MaxConsecutiveMisses = this.MaxConsecutiveMisses,
+		DiscardLayers = this.DiscardLayers,
+	};
+
+	private int _maxConsecutiveMisses = 11;
+	public int MaxConsecutiveMisses
+	{
+		get => _maxConsecutiveMisses;
+		set => ChangeProperty(ref _maxConsecutiveMisses, value);
+	}
+
+	private int _discardLayers = 8;
+	public int DiscardLayers
+	{
+		get => _discardLayers;
+		set => ChangeProperty(ref _discardLayers, value);
+	}
 
 	protected override StageMutation? CreateMutation(HillDesignContext context, Shell shell)
 	{
@@ -32,8 +56,10 @@ sealed class CornerPusherHillDesigner : ShellBasedHillDesigner
 		var settings = new CornerPusherHill.Settings
 		{
 			Prng = context.Prng.AdvanceAndClone(),
-			MinElevation = 30,
+			MinElevation = 1,
 			MaxElevation = context.Elevation,
+			MaxConsecutiveMisses = this.MaxConsecutiveMisses,
+			DiscardLayers = this.DiscardLayers,
 		};
 		var sampler = CornerPusherHill.BuildHill(settings, shell);
 		return StageMutation.CreateHills(sampler, context.FillBlockId);
