@@ -104,6 +104,8 @@ static class TestUtil
 		/// </summary>
 		public static readonly Lazy<ICloneableStage> Stage01 = LazyLoad("01/STGDAT01.BIN");
 
+		public static readonly Lazy<ICloneableStage> Stage02 = LazyLoad("02/STGDAT16.BIN");
+
 		private static Lazy<ICloneableStage> LazyLoad(string path)
 		{
 			path = Path.Combine(SnapshotRoot, "DQB2_Saves", path);
