@@ -24,9 +24,9 @@ public class SnapshotTests
 		return sb.ToString();
 	}
 
-	private void AssertSnapshot(string snapshotName, string content)
+	private void AssertSnapshot(string snapshotName, string content, params string[] path)
 	{
-		var snapshotDir = Path.Combine(TestUtil.SnapshotRoot, "RepairSea");
+		var snapshotDir = Path.Combine([TestUtil.SnapshotRoot, .. path]);
 		Directory.CreateDirectory(snapshotDir);
 		var snapshotPath = Path.Combine(snapshotDir, $"{snapshotName}.txt");
 
@@ -59,7 +59,6 @@ public class SnapshotTests
 	[DynamicData(nameof(AllLiquidFamilies), DynamicDataSourceType.Method)]
 	public async Task RepairSeaMutation_AllLiquids(LiquidFamily liquidFamily, string name)
 	{
-		var stagePath = Path.Combine(TestUtil.SnapshotRoot, "DQB2_Saves", "01", "STGDAT01.BIN");
 		var stage = TestUtil.Stages.Stage01.Value.Clone();
 
 		var mutation = new RepairSeaMutation
@@ -71,6 +70,34 @@ public class SnapshotTests
 		stage.Mutate(mutation);
 
 		var snapshot = await RecomputeSnapshot(stage);
-		AssertSnapshot($"RepairSeaMutation_{name}", snapshot);
+		AssertSnapshot($"RepairSeaMutation_{name}", snapshot, "RepairSea");
+	}
+
+	/// <summary>
+	/// Jungle wall is the interesting one here.
+	/// There are 3 candidate chunks.
+	/// One should not be removed because it has a prop.
+	/// The other two should be removed; one is chiseled and the other is not.
+	/// </summary>
+	[DataTestMethod]
+	[DataRow(3, "GrassyEarth", 0)]
+	[DataRow(821, "JungleWall", 2)]
+	public async Task RemoveChunks(int flagBlock, string name, int removedChunks)
+	{
+		const int origChunkCount = 154;
+
+		var stage = TestUtil.Stages.Stage02.Value.Clone();
+		Assert.AreEqual(origChunkCount, stage.ChunksInUse.Count);
+
+		var mutation = new RemoveChunksMutation()
+		{
+			FlagBlockId = (ushort)flagBlock,
+		};
+		stage.Mutate(mutation);
+
+		Assert.AreEqual(origChunkCount - removedChunks, stage.ChunksInUse.Count);
+
+		var snapshot = await RecomputeSnapshot(stage);
+		AssertSnapshot($"RemoveChunks_{name}", snapshot, "RemoveChunks");
 	}
 }

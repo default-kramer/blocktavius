@@ -93,6 +93,24 @@ class ChunkGrid<TChunk> where TChunk : class
 		}
 		return new ChunkGrid<TChunk>(newGrid);
 	}
+
+	/// <summary>
+	/// CALLER MUST VERIFY that this won't delete any props or anything else that might be bad.
+	/// </summary>
+	internal ChunkGrid<TChunk> RemoveChunks(IReadOnlySet<ChunkOffset> offsetsToRemove)
+	{
+		var newGrid = new MutableChunkGrid<TChunk>();
+		foreach (var offset in this.chunksInUse)
+		{
+			if (!offsetsToRemove.Contains(offset))
+			{
+				var chunk = GetChunkOrNull(offset)
+					?? throw new Exception("Assert fail - chunksInUse contained a null chunk");
+				newGrid.SetUsed(offset, chunk);
+			}
+		}
+		return new ChunkGrid<TChunk>(newGrid);
+	}
 }
 
 class MutableChunkGrid<TChunk> where TChunk : class
