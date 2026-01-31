@@ -151,6 +151,8 @@ public readonly partial struct Block : IEquatable<Block>, IComparable<Block>
 	/// </summary>
 	public ushort BlockIdCanonical => (ushort)(val & Mask_CanonicalBlockId);
 
+	internal static int MakeCanonical(ushort blockId) => blockId & Mask_CanonicalBlockId;
+
 	public PropShellIndex PropShellIndex => (PropShellIndex)((val & Mask_PropShell) >> Shift_PropShell);
 	public LiquidFamilyIndex LiquidFamilyIndex => (LiquidFamilyIndex)((val & Mask_LiquidFamily) >> Shift_LiquidFamily);
 	public ImmersionIndex ImmersionIndex => (ImmersionIndex)((val & Mask_Immersion) >> Shift_Immersion);
