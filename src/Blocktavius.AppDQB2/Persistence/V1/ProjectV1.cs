@@ -125,11 +125,43 @@ sealed record ScriptV1
 	public required string? ScriptName { get; init; }
 
 	private IContentEqualityList<IPersistentScriptNode>? _scriptNodes = null;
-	public required IReadOnlyList<IPersistentScriptNode>? ScriptNodes
+	[Obsolete($"Replaced by {nameof(ScriptNodes2)}")]
+	public IReadOnlyList<IPersistentScriptNode>? ScriptNodes
 	{
 		get => _scriptNodes;
 		init => _scriptNodes = value?.ToContentEqualityList();
 	}
+
+	private IContentEqualityList<ScriptNodeWrapperV1>? _scriptNodes2 = null;
+	public required IReadOnlyList<ScriptNodeWrapperV1>? ScriptNodes2
+	{
+		get => _scriptNodes2;
+		init => _scriptNodes2 = value?.ToContentEqualityList();
+	}
+
+	public IReadOnlyList<ScriptNodeWrapperV1> GetScriptNodes()
+	{
+		if (_scriptNodes?.Count > 0)
+		{
+			// upgrade older model
+			return _scriptNodes.Select(node => new ScriptNodeWrapperV1
+			{
+				Enabled = true,
+				ScriptNode = node,
+			}).ToList();
+		}
+		else if (_scriptNodes2 != null)
+		{
+			return _scriptNodes2;
+		}
+		return [];
+	}
+}
+
+sealed record ScriptNodeWrapperV1
+{
+	public required IPersistentScriptNode ScriptNode { get; init; }
+	public required bool Enabled { get; init; }
 }
 
 sealed record RectV1
