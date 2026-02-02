@@ -14,8 +14,28 @@ public static class CornerPusherHill
 		public required PRNG Prng { get; init; }
 		public required int MinElevation { get; init; }
 		public required int MaxElevation { get; init; }
+
+		/// <summary>
+		/// Larger values produce steeper hills.
+		/// </summary>
 		public int MaxConsecutiveMisses { get; init; } = 11;
-		public int DiscardLayers { get; init; } = 0;
+
+		/// <summary>
+		/// This plus <see cref="MaxInitialMissPercent"/> defines the range for the
+		/// randomized initial miss count that will be assigned to each initial shell XZ.
+		/// Value is clamped to the range [0, 1].
+		/// Percentage is relative to <see cref="MaxConsecutiveMisses"/>.
+		/// Without this, the first few layers will be boring until the miss counts increase enough.
+		/// </summary>
+		/// <remarks>
+		/// A negative value preserves some legacy behavior.
+		/// </remarks>
+		public decimal MinInitialMissPercent { get; init; } = 0.45m;
+
+		/// <summary>
+		/// See <see cref="MinInitialMissPercent"/>.
+		/// </summary>
+		public decimal MaxInitialMissPercent { get; init; } = 1.0m;
 	}
 
 	public static I2DSampler<int> BuildHill(Settings settings, Shell shell)
@@ -32,10 +52,7 @@ public static class CornerPusherHill
 		var layers = new Stack<Layer>();
 		layers.Push(firstLayer);
 
-		int discardLayers = settings.DiscardLayers;
 		int needLayers = settings.MaxElevation - settings.MinElevation + 1;
-		needLayers += discardLayers;
-
 		while (layers.Count < needLayers)
 		{
 			layers.Push(layers.Peek().NextLayer(settings.Prng));
@@ -47,7 +64,7 @@ public static class CornerPusherHill
 		area.Expand(finalExpansion);
 
 		return area.GetSampler(ExpansionId.MaxValue, settings.MaxElevation)
-			.Project(tuple => tuple.Item1 ? Math.Min(settings.MaxElevation, tuple.Item2 + discardLayers) : -1);
+			.Project(tuple => tuple.Item1 ? tuple.Item2 : -1);
 	}
 
 	sealed class Layer
@@ -116,7 +133,28 @@ public static class CornerPusherHill
 
 		public static Layer FirstLayer(Shell shell, int elevation, Settings settings)
 		{
-			return new Layer(shell, elevation, settings);
+			var layer = new Layer(shell, elevation, settings);
+
+			// Overwrite legacy initial miss counts if percentage range is valid.
+			decimal minPercent = Math.Clamp(settings.MinInitialMissPercent, 0m, 1m);
+			decimal maxPercent = Math.Clamp(settings.MaxInitialMissPercent, 0m, 1m);
+			int minMisses = Convert.ToInt32(minPercent * settings.MaxConsecutiveMisses);
+			int maxMisses = Convert.ToInt32(maxPercent * settings.MaxConsecutiveMisses);
+			bool reseed = (minMisses > 0 || maxMisses > 0)
+				&& maxMisses >= minMisses
+				&& settings.MinInitialMissPercent >= 0
+				&& settings.MaxInitialMissPercent >= 0;
+
+			if (reseed)
+			{
+				var prng = settings.Prng.Clone();
+				foreach (var kvp in layer.pendingExpansion)
+				{
+					kvp.Value.MissCount = prng.NextInt32(minMisses, maxMisses + 1);
+				}
+			}
+
+			return layer;
 		}
 
 		public Layer NextLayer(PRNG prng)

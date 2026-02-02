@@ -53,6 +53,8 @@ namespace Blocktavius.Tests
 				MaxElevation = 40,
 				MinElevation = 5,
 				Prng = prng,
+				MinInitialMissPercent = -1,
+				MaxInitialMissPercent = -1,
 			};
 
 			var hill = CornerPusherHill.BuildHill(settings, ShellLogic.ComputeShells(region).Single());
