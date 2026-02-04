@@ -321,13 +321,46 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 
 	private static void DropTheHammer(IMutableStage stage)
 	{
+		/*
+(define (chisel->mask chisel)
+  (case chisel
+    [(none) 0]
+    ; * 1/3/5/7 - diagonal chisel N/E/S/W, matches (blueprint.chisel_status << 4)
+    ; * 2/4/6/8 - diagonal chisel SW/SE/NW/NE
+    ; * 9/a/b/c - concave chisel NW/SW/SE/NE
+    [(flat-lo) #xe000]
+    [(flat-hi) #xf000]))
+		*/
+
 		var prng = PRNG.Deserialize("1-2-3-67-67-67");
 
 		var hill = WIP.Blah(prng.AdvanceAndClone());
-		var mut = new PutHillMutation()
+		var hill2 = hill.Project(item =>
 		{
-			Block = 21,
-			Sampler = hill.TranslateTo(new XZ(1093, 1118)),
+			ushort blockId;
+			if (item.Kind == WIP.HillItemKind.Plateau)
+			{
+				blockId = 4;
+			}
+			else if (item.Kind == WIP.HillItemKind.Chisel)
+			{
+				blockId = 21 | 0xe000;
+			}
+			else if (item.Kind == WIP.HillItemKind.Cliff)
+			{
+				blockId = 21;
+			}
+			else
+			{
+				blockId = 0;
+				return (-1, blockId);
+			}
+			return (item.Elevation, blockId);
+		});
+
+		var mut = new PutHillMutation2()
+		{
+			Sampler = hill2.TranslateTo(new XZ(1093, 1118)),
 			YFloor = 1,
 		};
 

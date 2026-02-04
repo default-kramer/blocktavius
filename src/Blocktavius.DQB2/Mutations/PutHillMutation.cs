@@ -33,3 +33,31 @@ public sealed class PutHillMutation : StageMutation
 		}
 	}
 }
+
+public sealed class PutHillMutation2 : StageMutation
+{
+	public required I2DSampler<(int, ushort)> Sampler { get; init; }
+	public int? YFloor { get; init; } = null;
+
+	internal override void Apply(IMutableStage stage)
+	{
+		int yFloor = this.YFloor ?? 1;
+
+		foreach (var chunk in Enumerate(Sampler.Bounds, stage))
+		{
+			foreach (var xz in chunk.Offset.Bounds.Intersection(Sampler.Bounds).Enumerate())
+			{
+				var (elevation, block) = Sampler.Sample(xz);
+				if (elevation > 0)
+				{
+					var unchiseled = (ushort)Block.MakeCanonical(block);
+					for (int y = yFloor; y < elevation; y++)
+					{
+						chunk.SetBlock(new Point(xz, y), unchiseled);
+					}
+					chunk.SetBlock(new Point(xz, elevation), block);
+				}
+			}
+		}
+	}
+}
