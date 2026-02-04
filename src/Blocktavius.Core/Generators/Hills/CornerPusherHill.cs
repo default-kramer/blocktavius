@@ -44,10 +44,21 @@ public static class CornerPusherHill
 		{
 			throw new ArgumentException("Shell must not be a hole");
 		}
-		return BuildHill(settings, Layer.FirstLayer(shell, settings.MaxElevation, settings), shell.IslandArea.AsArea());
+
+		var area = new ExpandableArea<int>(shell);
+		BuildHill(settings, area);
+
+		return area.GetSampler(ExpansionId.MaxValue, settings.MaxElevation)
+			.Project(tuple => tuple.Item1 ? tuple.Item2 : -1);
 	}
 
-	private static I2DSampler<int> BuildHill(Settings settings, Layer firstLayer, IArea origArea)
+	internal static void BuildHill(Settings settings, ExpandableArea<int> area)
+	{
+		var layer = Layer.FirstLayer(area, settings);
+		BuildHill(settings, layer);
+	}
+
+	private static void BuildHill(Settings settings, Layer firstLayer)
 	{
 		var layers = new Stack<Layer>();
 		layers.Push(firstLayer);
@@ -62,9 +73,6 @@ public static class CornerPusherHill
 		var area = finalLayer.area;
 		var finalExpansion = finalLayer.pendingExpansion.Select(kvp => (kvp.Key, kvp.Value.Elevation)).ToList();
 		area.Expand(finalExpansion);
-
-		return area.GetSampler(ExpansionId.MaxValue, settings.MaxElevation)
-			.Project(tuple => tuple.Item1 ? tuple.Item2 : -1);
 	}
 
 	sealed class Layer
@@ -120,20 +128,20 @@ public static class CornerPusherHill
 			UpdateMisses(pendingExpansion, shellItems, elevation);
 		}
 
-		private Layer(Shell shell, int elevation, Settings settings)
+		private Layer(ExpandableArea<int> area, Settings settings)
 		{
-			this.area = new ExpandableArea<int>(shell);
-			this.shellItems = new ShellItemRing(shell.ShellItems);
+			this.area = area;
+			this.shellItems = new ShellItemRing(area.CurrentShell());
 			this.pendingExpansion = new();
-			this.elevation = elevation;
+			this.elevation = settings.MaxElevation;
 			this.settings = settings;
 
 			UpdateMisses(pendingExpansion, shellItems, elevation);
 		}
 
-		public static Layer FirstLayer(Shell shell, int elevation, Settings settings)
+		public static Layer FirstLayer(ExpandableArea<int> area, Settings settings)
 		{
-			var layer = new Layer(shell, elevation, settings);
+			var layer = new Layer(area, settings);
 
 			// Overwrite legacy initial miss counts if percentage range is valid.
 			decimal minPercent = Math.Clamp(settings.MinInitialMissPercent, 0m, 1m);

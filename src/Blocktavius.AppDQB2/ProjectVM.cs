@@ -3,6 +3,7 @@ using Blocktavius.AppDQB2.Persistence.V1;
 using Blocktavius.AppDQB2.Services;
 using Blocktavius.Core;
 using Blocktavius.DQB2;
+using Blocktavius.DQB2.Mutations;
 using GongSolutions.Wpf.DragDrop;
 using System;
 using System.Collections.Generic;
@@ -302,6 +303,12 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 			return null;
 		}
 
+		if (this.SelectedScript == Scripts.FirstOrDefault()) // NOMERGE!!
+		{
+			DropTheHammer(workingStage);
+			return workingStage;
+		}
+
 		var context = new StageRebuildContext(workingStage);
 		var mutation = this.SelectedScript?.BuildMutation(context);
 		if (mutation != null)
@@ -310,6 +317,21 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 		}
 
 		return workingStage;
+	}
+
+	private static void DropTheHammer(IMutableStage stage)
+	{
+		var prng = PRNG.Deserialize("1-2-3-67-67-67");
+
+		var hill = WIP.Blah(prng.AdvanceAndClone());
+		var mut = new PutHillMutation()
+		{
+			Block = 21,
+			Sampler = hill.TranslateTo(new XZ(1093, 1118)),
+			YFloor = 1,
+		};
+
+		stage.Mutate(mut);
 	}
 
 	public void OnImagesSelected(ImageChooserDialog.VM result)
