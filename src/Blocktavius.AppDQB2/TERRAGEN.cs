@@ -34,8 +34,8 @@ static class TERRAGEN
 		stage.Mutate(MakeGround(availableSpace, groundMinY));
 
 		List<ITerraformComponent> components = new();
-
-		components.AddRange(HillRequests().Select(r => new HillComponent { HillRequest = r }));
+		components.Add(new LakeComponent { HillRequest = HillRequests().First() });
+		components.AddRange(HillRequests().Skip(1).Select(r => new HillComponent { HillRequest = r }));
 
 		var arranged = Arrange(components, availableSpace, prng);
 
@@ -91,7 +91,7 @@ static class TERRAGEN
 
 		public Rect SeedSize => HillRequest.SeedSize;
 
-		public void Mutate(TerraformMutationContext context)
+		public virtual void Mutate(TerraformMutationContext context)
 		{
 			var hill = WIP.Blah(context.PRNG.AdvanceAndClone(), this.HillRequest);
 			var hill2 = hill.Project(item =>
@@ -127,9 +127,51 @@ static class TERRAGEN
 		}
 	}
 
+	class LakeComponent : HillComponent
+	{
+		public override void Mutate(TerraformMutationContext context)
+		{
+			base.Mutate(context);
+
+			int plateauElevation = HillRequest.Elevation;
+			const int depth = 8;
+
+			var center = context.ArrangedPosition.start.Add(context.ArrangedPosition.Size.Unscale(new XZ(2, 2)));
+			var lakeRequest = new WIP.HillRequest
+			{
+				Elevation = plateauElevation,
+				SeedSize = new Rect(center.Add(-3, -3), center.Add(3, 3)),
+				ExpansionRatio = 3m,
+			};
+
+			var sampler = WIP.Blah(context.PRNG, lakeRequest);
+			var lakebed = sampler.Project(item =>
+			{
+				if (item.Elevation < 1) { return -1; }
+				int elevation = plateauElevation - depth + (plateauElevation - item.Elevation);
+				if (elevation >= plateauElevation) { return -1; }
+				return elevation;
+			});
+
+			var mut = new PutLakeMutation()
+			{
+				LakebedElevation = lakebed,
+				Liquid = LiquidFamily.ClearWater,
+				TopLayerAmount = LiquidAmountIndex.SurfaceLow,
+				TopLayerY = plateauElevation,
+			};
+
+			context.Stage.Mutate(mut);
+		}
+	}
+
 	private static IEnumerable<WIP.HillRequest> HillRequests()
 	{
 		// random rotation should be applied here, or at least before Arrange()
+
+		// First one will be a lake:
+		yield return new WIP.HillRequest { Elevation = 18, SeedSize = new Rect(XZ.Zero, XZ.Zero.Add(150, 150)) };
+
 		yield return new WIP.HillRequest { Elevation = 50, SeedSize = new Rect(XZ.Zero, XZ.Zero.Add(120, 80)) };
 		yield return new WIP.HillRequest { Elevation = 48, SeedSize = new Rect(XZ.Zero, XZ.Zero.Add(80, 120)) };
 		yield return new WIP.HillRequest { Elevation = 40, SeedSize = new Rect(XZ.Zero, XZ.Zero.Add(60, 45)) };
@@ -138,7 +180,7 @@ static class TERRAGEN
 		yield return new WIP.HillRequest { Elevation = 26, SeedSize = new Rect(XZ.Zero, XZ.Zero.Add(100, 100)) };
 		yield return new WIP.HillRequest { Elevation = 24, SeedSize = new Rect(XZ.Zero, XZ.Zero.Add(70, 140)) };
 		yield return new WIP.HillRequest { Elevation = 20, SeedSize = new Rect(XZ.Zero, XZ.Zero.Add(150, 150)) };
-		yield return new WIP.HillRequest { Elevation = 18, SeedSize = new Rect(XZ.Zero, XZ.Zero.Add(150, 150)) };
+		//yield return new WIP.HillRequest { Elevation = 18, SeedSize = new Rect(XZ.Zero, XZ.Zero.Add(150, 150)) };
 	}
 
 	private static List<(Rect translatedPosition, TComponent request)> Arrange<TComponent>(IEnumerable<TComponent> requests, Rect fullSpace, PRNG prng)
