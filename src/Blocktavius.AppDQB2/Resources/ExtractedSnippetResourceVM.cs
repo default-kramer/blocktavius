@@ -121,7 +121,7 @@ sealed class ExtractedSnippetResourceVM : ViewModelBase, ISnippetVM
 			return null;
 		}
 
-		var loadResult = context.StageLoader.LoadStage(SourceStage.StgdatFile).GetAwaiter().GetResult();
+		var loadResult = Task.Run(async () => await context.StageLoader.LoadStage(SourceStage.StgdatFile)).GetAwaiter().GetResult();
 		if (loadResult?.Stage == null)
 		{
 			return null;
