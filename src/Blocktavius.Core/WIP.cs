@@ -9,13 +9,20 @@ namespace Blocktavius.Core;
 
 public static class WIP
 {
-	public static I2DSampler<HillItem> Blah(PRNG prng)
+	public sealed record HillRequest
 	{
-		const int maxElevation = 30;
+		public required int Elevation { get; init; }
+		public required Rect SeedSize { get; init; }
+		public decimal ExpansionRatio { get; init; } = 1.4m;
 
-		var plateauItem = new HillItem { Elevation = maxElevation, Kind = HillItemKind.Plateau };
+		internal HillItem PlateauItem => new HillItem { Elevation = this.Elevation, Kind = HillItemKind.Plateau };
+	}
 
-		var area = BuildPlateau(prng, plateauItem);
+	public static I2DSampler<HillItem> Blah(PRNG prng, HillRequest request)
+	{
+		int maxElevation = request.Elevation;
+
+		var area = BuildPlateau(prng, request);
 		AddChisel(area, maxElevation);
 
 		var settings = new CornerPusherHill.Settings()
@@ -26,7 +33,7 @@ public static class WIP
 		};
 		CornerPusherHill.BuildHill(settings, area, y => new HillItem { Elevation = y, Kind = HillItemKind.Cliff });
 
-		return area.GetSampler(ExpansionId.MaxValue, plateauItem)
+		return area.GetSampler(ExpansionId.MaxValue, request.PlateauItem)
 			.Project(t => t.Item1 ? t.Item2 : HillItem.Nothing);
 	}
 
@@ -46,18 +53,22 @@ public static class WIP
 		public static readonly HillItem Nothing = new() { Elevation = -1, Kind = HillItemKind.None };
 	}
 
-	private static ExpandableArea<HillItem> BuildPlateau(PRNG prng, HillItem fillValue)
+	private static ExpandableArea<HillItem> BuildPlateau(PRNG prng, HillRequest request)
 	{
+		var fillValue = request.PlateauItem;
+
 		//var initArea = new Rect(XZ.Zero, XZ.Zero.Add(1, 1)).AsArea();
-		var initArea = new Rect(XZ.Zero, XZ.Zero.Add(20, 50)).AsArea();
+		//var initArea = new Rect(XZ.Zero, XZ.Zero.Add(20, 50)).AsArea();
+		var initArea = request.SeedSize.AsArea();
 		var initShell = ShellLogic.ComputeShells(initArea).Single();
 
 		var area = new ExpandableArea<HillItem>(initShell);
 		var shell = area.CurrentShell();
 		//while (shell.Count < 600)
 
-		var size = initArea.Bounds.start;
-		while (size.X + size.Z + Math.Min(size.X, size.Z) < 200)
+		int targetSize = Convert.ToInt32(request.ExpansionRatio * GetSize(request.SeedSize));
+		var size = initArea.Bounds;
+		while (GetSize(size) < targetSize)
 		{
 			int i = prng.NextInt32(shell.Count);
 			var item = shell[i];
@@ -66,12 +77,14 @@ public static class WIP
 				area.Expand([(shell[i].XZ, fillValue)]);
 				shell = area.CurrentShell();
 				// NOMERGE - this should be CurrentBounds or something:
-				size = area.GetSampler(ExpansionId.MaxValue, fillValue).Bounds.Size;
+				size = area.GetSampler(ExpansionId.MaxValue, fillValue).Bounds;
 			}
 		}
 
 		return area;
 	}
+
+	private static int GetSize(Rect rect) => rect.Size.X * rect.Size.Z;
 
 	private static void AddChisel(ExpandableArea<HillItem> area, int elevation)
 	{

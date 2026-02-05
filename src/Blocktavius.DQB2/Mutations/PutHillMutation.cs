@@ -61,3 +61,33 @@ public sealed class PutHillMutation2 : StageMutation
 		}
 	}
 }
+
+public sealed class ClearEverythingMutation : StageMutation
+{
+	public int StartY { get; init; } = 1;
+
+	internal override void Apply(IMutableStage stage)
+	{
+		int startY = this.StartY;
+
+		foreach (var offset in stage.ChunksInUse)
+		{
+			if (!stage.TryGetChunk(offset, out var chunk))
+			{
+				continue;
+			}
+
+			foreach (var xz in chunk.Offset.Bounds.Enumerate())
+			{
+				if (chunk.GetBlock(new Point(xz, 0)) == 0) // TODO this is unsound, I think
+				{
+					continue;
+				}
+				for (int y = StartY; y < DQB2Constants.MaxElevation; y++)
+				{
+					chunk.SetBlock(new Point(xz, y), 0);
+				}
+			}
+		}
+	}
+}
