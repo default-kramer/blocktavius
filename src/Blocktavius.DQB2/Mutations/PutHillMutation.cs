@@ -12,10 +12,12 @@ public sealed class PutHillMutation : StageMutation
 	public required I2DSampler<int> Sampler { get; init; }
 	public required ushort Block { get; init; }
 	public int? YFloor { get; init; } = null;
+	public bool RespectExistingBedrock { get; init; } = false;
 
 	internal override void Apply(IMutableStage stage)
 	{
 		int yFloor = this.YFloor ?? 1;
+		bool checkBedrock = RespectExistingBedrock;
 
 		foreach (var chunk in Enumerate(Sampler.Bounds, stage))
 		{
@@ -24,6 +26,10 @@ public sealed class PutHillMutation : StageMutation
 				var elevation = Sampler.Sample(xz);
 				if (elevation > 0)
 				{
+					if (checkBedrock && chunk.GetBlock(new Point(xz, 0)) == 0)
+					{
+						continue;
+					}
 					for (int y = yFloor; y <= elevation; y++)
 					{
 						chunk.SetBlock(new Point(xz, y), Block);
@@ -65,6 +71,7 @@ public sealed class PutHillMutation2 : StageMutation
 public sealed class ClearEverythingMutation : StageMutation
 {
 	public int StartY { get; init; } = 1;
+	public Rect? Where { get; init; } = null;
 
 	internal override void Apply(IMutableStage stage)
 	{
@@ -77,7 +84,9 @@ public sealed class ClearEverythingMutation : StageMutation
 				continue;
 			}
 
-			foreach (var xz in chunk.Offset.Bounds.Enumerate())
+			var where = this.Where ?? offset.Bounds;
+
+			foreach (var xz in chunk.Offset.Bounds.Intersection(where).Enumerate())
 			{
 				if (chunk.GetBlock(new Point(xz, 0)) == 0) // TODO this is unsound, I think
 				{
@@ -130,6 +139,11 @@ public sealed class PutLakeMutation : StageMutation
 					for (int y = TopLayerY - 1; y > lakebed; y--)
 					{
 						chunk.SetBlock(new Point(xz, y), subsurfaceId);
+					}
+
+					for (int y = lakebed; y > 0; y--)
+					{
+						chunk.SetBlock(new Point(xz, y), 21);
 					}
 				}
 			}

@@ -11,6 +11,33 @@ namespace Blocktavius.AppDQB2;
 
 static class TERRAGEN
 {
+	private static Rect InferAvailableSpace(IStage stage)
+	{
+		var offsets = stage.ChunksInUse.ToList();
+
+		// drop dock offsets (trailing horizontal rows having count < 3)
+		while (offsets.Count > 0)
+		{
+			var last = offsets.Last();
+			if (offsets.Where(o => o.OffsetZ == last.OffsetZ).Count() < 3)
+			{
+				offsets.RemoveAt(offsets.Count - 1);
+			}
+			else
+			{
+				break;
+			}
+		}
+
+		var totalBounds = new Rect.BoundsFinder();
+		foreach (var offset in offsets)
+		{
+			totalBounds.Include(offset.RawUnscaledOffset);
+		}
+		var bounds = totalBounds.CurrentBounds() ?? Rect.Zero;
+		return new Rect(bounds.start.Scale(32), bounds.end.Scale(32));
+	}
+
 	public static void DropTheHammer(IMutableStage stage)
 	{
 		/*
@@ -24,10 +51,10 @@ static class TERRAGEN
     [(flat-hi) #xf000]))
 		*/
 
-		var availableSpace = new Rect(new XZ(900, 900), new XZ(1200, 1200));
+		var availableSpace = InferAvailableSpace(stage);
 
-		const int groundMinY = 13;
-		stage.Mutate(new ClearEverythingMutation() { StartY = groundMinY });
+		const int groundMinY = 7;
+		stage.Mutate(new ClearEverythingMutation() { StartY = groundMinY, Where = availableSpace });
 
 		var prng = PRNG.Deserialize("1-2-3-67-67-67");
 
@@ -49,6 +76,12 @@ static class TERRAGEN
 			};
 			component.Mutate(context);
 		}
+
+		stage.Mutate(new RepairSeaMutation()
+		{
+			ColumnCleanupMode = ColumnCleanupMode.ExpandBedrock,
+			SeaLevel = 11,
+		});
 	}
 
 	private static PutHillMutation MakeGround(Rect rect, int y)
@@ -56,9 +89,10 @@ static class TERRAGEN
 		var sampler = new ConstantSampler<int> { Bounds = rect, Value = y };
 		return new PutHillMutation()
 		{
-			Block = 3,
+			Block = 146, // seaside sand
 			Sampler = sampler,
 			YFloor = 1,
+			RespectExistingBedrock = true,
 		};
 	}
 
@@ -105,6 +139,12 @@ static class TERRAGEN
 
 		public virtual void Mutate(TerraformMutationContext context)
 		{
+			// chalk=8, chunky chalk=9, clodstone=21 (or 115?)
+			// dolomite light=130, dark=131, chert=149 (or 174?), chunky chert=153
+			// umber=209, lumpy umber=241
+			// umber sandstone! = 210
+			const ushort wallBlockId = 241;
+
 			var hill = WIP.Blah(context.PRNG.AdvanceAndClone(), this.HillRequest);
 			var hill2 = hill.Project(item =>
 			{
@@ -115,11 +155,11 @@ static class TERRAGEN
 				}
 				else if (item.Kind == WIP.HillItemKind.Chisel)
 				{
-					blockId = 21 | 0xe000;
+					blockId = wallBlockId | 0xe000;
 				}
 				else if (item.Kind == WIP.HillItemKind.Cliff)
 				{
-					blockId = 21;
+					blockId = wallBlockId;
 				}
 				else
 				{
@@ -188,7 +228,7 @@ static class TERRAGEN
 		// First one will be a lake:
 		yield return new WIP.HillRequest { Elevation = 18, SeedSize = new Rect(XZ.Zero, XZ.Zero.Add(150, 150)) };
 
-		///* TEMP SPEEDUP
+		//* TEMP SPEEDUP
 		yield return new WIP.HillRequest { Elevation = 50, SeedSize = new Rect(XZ.Zero, XZ.Zero.Add(120, 80)) };
 		yield return new WIP.HillRequest { Elevation = 48, SeedSize = new Rect(XZ.Zero, XZ.Zero.Add(80, 120)) };
 		yield return new WIP.HillRequest { Elevation = 40, SeedSize = new Rect(XZ.Zero, XZ.Zero.Add(60, 45)) };
