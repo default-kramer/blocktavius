@@ -201,7 +201,7 @@ public static class CornerPusherHill
 					runLength = CalculatePushRunLength(currentIndex);
 					for (int i = 0; i < runLength; i++)
 					{
-						var item = shellRing[currentIndex % shellRing.Count];
+						var item = shellRing[currentIndex];
 						currentIndex++;
 						int elev = pendingExpansion[item.XZ].Elevation;
 						expansion.Add((item.XZ, elev));
