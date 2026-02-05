@@ -14,6 +14,7 @@ public static class WIP
 		public required int Elevation { get; init; }
 		public required Rect SeedSize { get; init; }
 		public decimal ExpansionRatio { get; init; } = 1.4m;
+		public int Steepness { get; init; } = 11; // default steepness from CornerPusher
 
 		internal HillItem PlateauItem => new HillItem { Elevation = this.Elevation, Kind = HillItemKind.Plateau };
 	}
@@ -24,12 +25,14 @@ public static class WIP
 
 		var area = BuildPlateau(prng, request);
 		AddChisel(area, maxElevation);
+		PatchHoles(area, request);
 
 		var settings = new CornerPusherHill.Settings()
 		{
 			Prng = prng.Clone(),
 			MinElevation = 1,
 			MaxElevation = maxElevation - 1,
+			MaxConsecutiveMisses = request.Steepness,
 		};
 		CornerPusherHill.BuildHill(settings, area, y => new HillItem { Elevation = y, Kind = HillItemKind.Cliff });
 
@@ -91,5 +94,39 @@ public static class WIP
 		var shell = area.CurrentShell();
 		var value = new HillItem { Elevation = elevation, Kind = HillItemKind.Chisel };
 		area.Expand(shell.Select(item => (item.XZ, value)));
+	}
+
+	private static void PatchHoles(ExpandableArea<HillItem> area, HillRequest request)
+	{
+		HashSet<XZ> holes = new();
+
+		var sampler = area.GetSampler(ExpansionId.MaxValue, request.PlateauItem);
+		foreach (var xz in sampler.Bounds.Enumerate())
+		{
+			// At this point, any XZ that is empty and next to a plateau item must be a hole,
+			// because we have surrounded the plateau with the chisel layer.
+			bool isEmpty = !sampler.Sample(xz).Item1;
+			bool hasPlateauNeighbor = xz.CardinalNeighbors()
+				.Any(neighbor => sampler.Sample(neighbor).Item2.Kind == HillItemKind.Plateau);
+
+			if (isEmpty && hasPlateauNeighbor)
+			{
+				// flood fill
+				var queue = new Queue<XZ>();
+				queue.Enqueue(xz);
+				while (queue.TryDequeue(out var floodXZ) && holes.Add(floodXZ))
+				{
+					foreach (var neighbor in floodXZ.CardinalNeighbors())
+					{
+						if (!sampler.Sample(neighbor).Item1)
+						{
+							queue.Enqueue(neighbor);
+						}
+					}
+				}
+			}
+		}
+
+		area.Expand(holes.Select(xz => (xz, request.PlateauItem)));
 	}
 }
