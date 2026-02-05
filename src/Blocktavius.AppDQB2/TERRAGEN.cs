@@ -85,6 +85,18 @@ static class TERRAGEN
 		void Mutate(TerraformMutationContext context);
 	}
 
+	static I2DSampler<T> TranslateToCenter<T>(this I2DSampler<T> sampler, Rect target)
+	{
+		var center = target.start.Add(target.Size.Unscale(new XZ(2, 2)));
+		return TranslateToCenter(sampler, center);
+	}
+
+	static I2DSampler<T> TranslateToCenter<T>(I2DSampler<T> sampler, XZ target)
+	{
+		var corner = target.Add(sampler.Bounds.Size.Unscale(new XZ(-2, -2)));
+		return sampler.TranslateTo(corner);
+	}
+
 	class HillComponent : ITerraformComponent
 	{
 		public required WIP.HillRequest HillRequest { get; init; }
@@ -117,9 +129,11 @@ static class TERRAGEN
 				return (item.Elevation, blockId);
 			});
 
+			hill2 = hill2.TranslateToCenter(context.ArrangedPosition);
+
 			var mut = new PutHillMutation2()
 			{
-				Sampler = hill2.TranslateTo(context.ArrangedPosition.start),
+				Sampler = hill2,
 				YFloor = 1,
 			};
 
@@ -136,15 +150,17 @@ static class TERRAGEN
 			int plateauElevation = HillRequest.Elevation;
 			const int depth = 8;
 
-			var center = context.ArrangedPosition.start.Add(context.ArrangedPosition.Size.Unscale(new XZ(2, 2)));
 			var lakeRequest = new WIP.HillRequest
 			{
 				Elevation = plateauElevation,
-				SeedSize = new Rect(center.Add(-3, -3), center.Add(3, 3)),
-				ExpansionRatio = 3m,
+				SeedSize = new Rect(XZ.Zero, XZ.Zero.Add(6, 6)),
+				ExpansionRatio = 8m,
+				Steepness = 5,
 			};
 
 			var sampler = WIP.Blah(context.PRNG, lakeRequest);
+			sampler = sampler.TranslateToCenter(context.ArrangedPosition);
+
 			var lakebed = sampler.Project(item =>
 			{
 				if (item.Elevation < 1) { return -1; }
@@ -172,6 +188,7 @@ static class TERRAGEN
 		// First one will be a lake:
 		yield return new WIP.HillRequest { Elevation = 18, SeedSize = new Rect(XZ.Zero, XZ.Zero.Add(150, 150)) };
 
+		///* TEMP SPEEDUP
 		yield return new WIP.HillRequest { Elevation = 50, SeedSize = new Rect(XZ.Zero, XZ.Zero.Add(120, 80)) };
 		yield return new WIP.HillRequest { Elevation = 48, SeedSize = new Rect(XZ.Zero, XZ.Zero.Add(80, 120)) };
 		yield return new WIP.HillRequest { Elevation = 40, SeedSize = new Rect(XZ.Zero, XZ.Zero.Add(60, 45)) };
@@ -181,6 +198,7 @@ static class TERRAGEN
 		yield return new WIP.HillRequest { Elevation = 24, SeedSize = new Rect(XZ.Zero, XZ.Zero.Add(70, 140)) };
 		yield return new WIP.HillRequest { Elevation = 20, SeedSize = new Rect(XZ.Zero, XZ.Zero.Add(150, 150)) };
 		//yield return new WIP.HillRequest { Elevation = 18, SeedSize = new Rect(XZ.Zero, XZ.Zero.Add(150, 150)) };
+		//*/
 	}
 
 	private static List<(Rect translatedPosition, TComponent request)> Arrange<TComponent>(IEnumerable<TComponent> requests, Rect fullSpace, PRNG prng)
