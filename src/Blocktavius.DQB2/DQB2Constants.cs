@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Blocktavius.Core;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -27,4 +28,16 @@ public static class DQB2Constants
 	internal static Block ToBlock(this ushort block) => Block.Lookup(block);
 
 	internal static LiquidFamilyIndex GetLiquidFamilyIndex(this ushort blockId) => blockId.ToBlock().LiquidFamilyIndex;
+
+	/// <summary>
+	/// Returns true if the chunk has a nonzero/nonempty block at Y=0 for the given <paramref name="xz"/>.
+	/// </summary>
+	/// <remarks>
+	/// The nonzero block is probably bedrock, but any nonzero block is sufficient.
+	/// </remarks>
+	internal static bool HasFoundationAt(this IChunk chunk, XZ xz)
+	{
+		var blockId = chunk.GetBlock(new Point(xz, 0));
+		return Block.MakeCanonical(blockId) != 0;
+	}
 }
