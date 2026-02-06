@@ -302,6 +302,12 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 			return null;
 		}
 
+		if (this.SelectedScript == Scripts.FirstOrDefault()) // NOMERGE!!
+		{
+			TERRAGEN.DropTheHammer(workingStage);
+			return workingStage;
+		}
+
 		var context = new StageRebuildContext(workingStage);
 		var mutation = this.SelectedScript?.BuildMutation(context);
 		if (mutation != null)
