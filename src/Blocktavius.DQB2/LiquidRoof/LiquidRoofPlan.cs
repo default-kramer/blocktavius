@@ -11,7 +11,6 @@ namespace Blocktavius.DQB2.LiquidRoof;
 /// A clever minimap update trick, thanks to Sapphire.
 /// Creates a liquid roof; touching it with a block in-game will cause the liquid to
 /// be removed and the minimap to be updated.
-/// NOMERGE - Write a snapshot test before merging this.
 /// </summary>
 /// <remarks>
 /// Separated into a "plan" and "apply" phases.

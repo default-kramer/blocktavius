@@ -1,9 +1,11 @@
 using Blocktavius.DQB2;
+using Blocktavius.DQB2.LiquidRoof;
 using Blocktavius.DQB2.Mutations;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Blocktavius.Tests.DQB2;
 
@@ -99,5 +101,17 @@ public class SnapshotTests
 
 		var snapshot = await RecomputeSnapshot(stage);
 		AssertSnapshot($"RemoveChunks_{name}", snapshot, "RemoveChunks");
+	}
+
+	[TestMethod]
+	public async Task LiquidRoofTest()
+	{
+		// I didn't actually test Liquid Roof against this particular stage.
+		// (I tested against other stages and am simply using an existing stage to lock the behavior.)
+		var stage = TestUtil.Stages.Stage01.Value.Clone();
+		var plan = LiquidRoofPlan.Create(stage);
+		stage.Mutate(plan.GetMutation());
+		var snapshot = await RecomputeSnapshot(stage);
+		AssertSnapshot("LiquidRoof_Stage01", snapshot, "LiquidRoof");
 	}
 }
