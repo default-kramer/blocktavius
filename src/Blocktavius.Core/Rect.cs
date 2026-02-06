@@ -117,6 +117,16 @@ public record Rect(XZ start, XZ end)
 		}
 	}
 
+	public IEnumerable<XZ> EnumerateFiltered(I2DSampler<bool> filter)
+	{
+		return Enumerate().Where(filter.InArea);
+	}
+
+	public IEnumerable<XZ> Enumerate(I2DSampler<bool>? filter)
+	{
+		return filter == null ? Enumerate() : EnumerateFiltered(filter);
+	}
+
 	public static Rect GetBounds(IEnumerable<XZ> xzs)
 	{
 		int xMin = int.MaxValue;
@@ -152,6 +162,8 @@ public record Rect(XZ start, XZ end)
 		return new Rect(new XZ(x0, z0), new XZ(x1, z1));
 	}
 
+	public bool Intersects(Rect other) => !Intersection(other).IsZero;
+
 	public sealed class BoundsFinder
 	{
 		private int xMin = int.MaxValue;
@@ -159,12 +171,19 @@ public record Rect(XZ start, XZ end)
 		private int xMax = int.MinValue;
 		private int zMax = int.MinValue;
 
-		public void Include(XZ xz)
+		public BoundsFinder Include(XZ xz)
 		{
 			xMin = Math.Min(xMin, xz.X);
 			zMin = Math.Min(zMin, xz.Z);
 			xMax = Math.Max(xMax, xz.X);
 			zMax = Math.Max(zMax, xz.Z);
+			return this;
+		}
+
+		public BoundsFinder IncludeAll(IEnumerable<XZ> xzs)
+		{
+			foreach (var xz in xzs) { Include(xz); }
+			return this;
 		}
 
 		public Rect? CurrentBounds()
