@@ -1,5 +1,6 @@
 ﻿using Blocktavius.Core;
 using Blocktavius.DQB2;
+using Blocktavius.DQB2.LiquidRoof;
 using Blocktavius.DQB2.Mutations;
 using System;
 using System.Collections.Generic;
@@ -82,6 +83,9 @@ static class TERRAGEN
 			ColumnCleanupMode = ColumnCleanupMode.ExpandBedrock,
 			SeaLevel = 11,
 		});
+
+		var minimapUpdater = LiquidRoofPlan.Create(stage);
+		stage.Mutate(minimapUpdater.GetMutation());
 	}
 
 	private static PutHillMutation MakeGround(Rect rect, int y)

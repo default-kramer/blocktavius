@@ -159,12 +159,19 @@ public record Rect(XZ start, XZ end)
 		private int xMax = int.MinValue;
 		private int zMax = int.MinValue;
 
-		public void Include(XZ xz)
+		public BoundsFinder Include(XZ xz)
 		{
 			xMin = Math.Min(xMin, xz.X);
 			zMin = Math.Min(zMin, xz.Z);
 			xMax = Math.Max(xMax, xz.X);
 			zMax = Math.Max(zMax, xz.Z);
+			return this;
+		}
+
+		public BoundsFinder IncludeAll(IEnumerable<XZ> xzs)
+		{
+			foreach (var xz in xzs) { Include(xz); }
+			return this;
 		}
 
 		public Rect? CurrentBounds()
