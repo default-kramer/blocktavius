@@ -12,7 +12,7 @@ namespace Blocktavius.AppDQB2;
 
 static class TERRAGEN
 {
-	private static Rect InferAvailableSpace(IStage stage)
+	private static (Rect, IReadOnlyList<ChunkOffset>) InferAvailableSpace(IStage stage)
 	{
 		var offsets = stage.ChunksInUse.ToList();
 
@@ -36,37 +36,53 @@ static class TERRAGEN
 			totalBounds.Include(offset.RawUnscaledOffset);
 		}
 		var bounds = totalBounds.CurrentBounds() ?? Rect.Zero;
-		return new Rect(bounds.start.Scale(32), bounds.end.Scale(32));
+		return (new Rect(bounds.start.Scale(32), bounds.end.Scale(32)), offsets);
 	}
 
-	public static void DropTheHammer(IMutableStage stage)
+	/// <summary>
+	/// Surrounds the given <paramref name="offsets"/> with extra chunks
+	/// </summary>
+	private static IReadOnlySet<ChunkOffset> ExpandChunks(IEnumerable<ChunkOffset> offsets)
 	{
-		/*
-(define (chisel->mask chisel)
-  (case chisel
-    [(none) 0]
-    ; * 1/3/5/7 - diagonal chisel N/E/S/W, matches (blueprint.chisel_status << 4)
-    ; * 2/4/6/8 - diagonal chisel SW/SE/NW/NE
-    ; * 9/a/b/c - concave chisel NW/SW/SE/NE
-    [(flat-lo) #xe000]
-    [(flat-hi) #xf000]))
-		*/
+		var expansion = new HashSet<ChunkOffset>();
+		foreach (var offset in offsets)
+		{
+			foreach (var dir in Direction.CardinalDirections().Concat(Direction.OrdinalDirections()))
+			{
+				var neighbor = offset.RawUnscaledOffset.Step(dir);
+				expansion.Add(new ChunkOffset(neighbor.X, neighbor.Z));
+			}
+		}
+		return expansion;
+	}
 
-		var availableSpace = InferAvailableSpace(stage);
+	public static void DropTheHammer(IMutableStage stage, bool preview)
+	{
+		var (availableSpace, nonDockChunks) = InferAvailableSpace(stage);
+		stage.ExpandChunks(ExpandChunks(nonDockChunks));
 
 		const int groundMinY = 7;
 		stage.Mutate(new ClearEverythingMutation() { StartY = groundMinY, Where = availableSpace });
 
-		var prng = PRNG.Deserialize("1-2-3-67-67-67");
+		var prng = PRNG.Deserialize("1-2-5-67-67-67");
 
 		stage.Mutate(MakeGround(availableSpace, groundMinY));
 
 		List<ITerraformComponent> components = new();
-		components.Add(new LakeComponent { HillRequest = HillRequests().First() });
-		components.AddRange(HillRequests().Skip(1).Select(r => new HillComponent { HillRequest = r }));
+		components.Add(new LakeComponent
+		{
+			HillRequest = HillRequests().First(),
+			Enforest = false
+		});
+		components.AddRange(HillRequests().Skip(1).Index().Select(i => new HillComponent
+		{
+			HillRequest = i.Item,
+			Enforest = i.Index == 0,
+		}));
 
 		var arranged = Arrange(components, availableSpace, prng);
 
+		arranged.Reverse(); // reorder: lowest elevation to highest
 		foreach (var (position, component) in arranged)
 		{
 			var context = new TerraformMutationContext
@@ -84,8 +100,15 @@ static class TERRAGEN
 			SeaLevel = 11,
 		});
 
-		var minimapUpdater = LiquidRoofPlan.Create(stage);
-		stage.Mutate(minimapUpdater.GetMutation());
+		if (!preview)
+		{
+			var roofOptions = new LiquidRoofOptions
+			{
+				FilterArea = availableSpace.AsArea().AsSampler(),
+			};
+			var minimapUpdater = LiquidRoofPlan.Create(stage, roofOptions);
+			stage.Mutate(minimapUpdater.GetMutation());
+		}
 	}
 
 	private static PutHillMutation MakeGround(Rect rect, int y)
@@ -141,6 +164,16 @@ static class TERRAGEN
 
 		public Rect SeedSize => HillRequest.SeedSize;
 
+		public required bool Enforest { get; init; }
+
+		protected virtual IEnumerable<I2DSampler<bool>> GetForestAreas(PRNG prng, I2DSampler<bool> origPlateau)
+		{
+			if (Enforest)
+			{
+				yield return origPlateau;
+			}
+		}
+
 		public virtual void Mutate(TerraformMutationContext context)
 		{
 			// chalk=8, chunky chalk=9, clodstone=21 (or 115?)
@@ -149,7 +182,9 @@ static class TERRAGEN
 			// umber sandstone! = 210
 			const ushort wallBlockId = 241;
 
-			var hill = WIP.Blah(context.PRNG.AdvanceAndClone(), this.HillRequest);
+			var prng = context.PRNG.AdvanceAndClone();
+
+			var hill = WIP.Blah(prng, this.HillRequest, out var plateauArea);
 			var hill2 = hill.Project(item =>
 			{
 				ushort blockId;
@@ -173,7 +208,9 @@ static class TERRAGEN
 				return (item.Elevation, blockId);
 			});
 
+			var origStart = hill2.Bounds.start;
 			hill2 = hill2.TranslateToCenter(context.ArrangedPosition);
+			var translateAmount = hill2.Bounds.start.Subtract(origStart);
 
 			var mut = new PutHillMutation2()
 			{
@@ -182,11 +219,113 @@ static class TERRAGEN
 			};
 
 			context.Stage.Mutate(mut);
+
+			var forestAreas = GetForestAreas(prng, plateauArea).ToList();
+			foreach (var forestArea in forestAreas)
+			{
+				AddForest(forestArea.Translate(translateAmount), context.Stage, prng);
+			}
+		}
+
+		private void AddForest(I2DSampler<bool> area, IMutableStage stage, PRNG prng)
+		{
+			MutableArray2D<bool> hasTree = new MutableArray2D<bool>(area.Bounds, false);
+			List<XZ> centers = new(); // centers of trees
+			double skipChance = 0.15; // chance of skipping the tree, while reserving its space and counting it as success
+			int skippedTreeCount = 0; // count of skipped trees
+
+			int xStart = area.Bounds.start.X;
+			int xEnd = area.Bounds.end.X;
+			int zStart = area.Bounds.start.Z;
+			int zEnd = area.Bounds.end.Z;
+
+			int targetCount = (area.Bounds.Size.X * area.Bounds.Size.Z) / 85;
+			int consecutiveFailures = 0;
+			while (centers.Count + skippedTreeCount < targetCount && consecutiveFailures < targetCount * 2)
+			{
+				var x = prng.NextInt32(xStart, xEnd);
+				var z = prng.NextInt32(zStart, zEnd);
+				var center = new XZ(x, z);
+
+				var locs = TreeLocs(center);
+				if (!locs.All(area.InArea))
+				{
+					continue;
+				}
+
+				var paddedLocs = locs.Concat(PadLocs(center));
+				if (paddedLocs.Any(hasTree.InArea))
+				{
+					consecutiveFailures++;
+					continue;
+				}
+
+				// reserve space no matter what...
+				consecutiveFailures = 0;
+				foreach (var xz in locs)
+				{
+					hasTree.Put(xz, true);
+				}
+				// ... but maybe skip this tree
+				if (prng.NextDouble() > skipChance)
+				{
+					centers.Add(center);
+				}
+				else
+				{
+					skippedTreeCount++;
+				}
+			}
+
+			foreach (var center in centers)
+			{
+				stage.Mutate(new PutTreeMutation()
+				{
+					Center = center,
+					Elevation = this.HillRequest.Elevation + 1,
+					Prng = prng,
+				});
+			}
+		}
+
+		private static IEnumerable<XZ> TreeLocs(XZ center)
+		{
+			yield return center;
+			foreach (var dir in Direction.CardinalDirections())
+			{
+				for (int i = 1; i <= 2; i++)
+				{
+					yield return center.Step(dir, i);
+				}
+			}
+
+			foreach (var dir in Direction.OrdinalDirections())
+			{
+				yield return center.Step(dir);
+			}
+		}
+
+		private static IEnumerable<XZ> PadLocs(XZ center)
+		{
+			foreach (var dir in Direction.CardinalDirections())
+			{
+				yield return center.Step(dir, 3);
+				yield return center.Step(dir, 3).Step(dir.TurnLeft90, 1);
+				yield return center.Step(dir, 2).Step(dir.TurnRight90, 1);
+				yield return center.Step(dir, 2).Step(dir.TurnRight90, 2);
+				yield return center.Step(dir, 1).Step(dir.TurnRight90, 2);
+				yield return center.Step(dir, 1).Step(dir.TurnRight90, 3);
+			}
 		}
 	}
 
 	class LakeComponent : HillComponent
 	{
+		protected override IEnumerable<I2DSampler<bool>> GetForestAreas(PRNG prng, I2DSampler<bool> origPlateau)
+		{
+			return [];
+		}
+
 		public override void Mutate(TerraformMutationContext context)
 		{
 			base.Mutate(context);
@@ -198,11 +337,11 @@ static class TERRAGEN
 			{
 				Elevation = plateauElevation,
 				SeedSize = new Rect(XZ.Zero, XZ.Zero.Add(6, 6)),
-				ExpansionRatio = 8m,
+				ExpansionRatio = 20m,
 				Steepness = 5,
 			};
 
-			var sampler = WIP.Blah(context.PRNG, lakeRequest);
+			var sampler = WIP.Blah(context.PRNG, lakeRequest, out _);
 			sampler = sampler.TranslateToCenter(context.ArrangedPosition);
 
 			var lakebed = sampler.Project(item =>

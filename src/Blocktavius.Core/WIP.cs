@@ -19,11 +19,14 @@ public static class WIP
 		internal HillItem PlateauItem => new HillItem { Elevation = this.Elevation, Kind = HillItemKind.Plateau };
 	}
 
-	public static I2DSampler<HillItem> Blah(PRNG prng, HillRequest request)
+	public static I2DSampler<HillItem> Blah(PRNG prng, HillRequest request, out I2DSampler<bool> PlateauArea)
 	{
 		int maxElevation = request.Elevation;
 
 		var area = BuildPlateau(prng, request);
+
+		PlateauArea = area.GetArea(area.CurrentExpansionId());
+
 		AddChisel(area, maxElevation);
 		PatchHoles(area, request);
 

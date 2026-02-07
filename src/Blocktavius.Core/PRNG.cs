@@ -167,6 +167,8 @@ public sealed class PRNG
 		return start + NextInt32(end - start);
 	}
 
+	public bool NextBool() => NextInt32(2) == 0;
+
 	public T RandomChoice<T>(params T[] items)
 	{
 		int index = NextInt32(items.Length);

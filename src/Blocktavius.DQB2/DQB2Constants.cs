@@ -40,4 +40,20 @@ public static class DQB2Constants
 		var blockId = chunk.GetBlock(new Point(xz, 0));
 		return Block.MakeCanonical(blockId) != 0;
 	}
+
+	internal static Chisel GetDiagonalChisel(this Direction dir)
+	{
+		return dir.Index switch
+		{
+			Direction.IndexConstants.North => Chisel.DiagonalNorth,
+			Direction.IndexConstants.East => Chisel.DiagonalEast,
+			Direction.IndexConstants.South => Chisel.DiagonalSouth,
+			Direction.IndexConstants.West => Chisel.DiagonalWest,
+			Direction.IndexConstants.NorthEast => Chisel.DiagonalNorthEast,
+			Direction.IndexConstants.SouthEast => Chisel.DiagonalSouthEast,
+			Direction.IndexConstants.SouthWest => Chisel.DiagonalSouthWest,
+			Direction.IndexConstants.NorthWest => Chisel.DiagonalNorthWest,
+			_ => Chisel.None,
+		};
+	}
 }

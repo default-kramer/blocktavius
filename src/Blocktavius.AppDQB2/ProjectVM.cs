@@ -294,7 +294,7 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 		return stage;
 	}
 
-	public async Task<IStage?> TryRebuildStage()
+	public async Task<IStage?> TryRebuildStage(bool preview)
 	{
 		var workingStage = await TryLoadMutableStage(expandChunks: true);
 		if (workingStage == null)
@@ -304,7 +304,7 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 
 		if (this.SelectedScript == Scripts.FirstOrDefault()) // NOMERGE!!
 		{
-			TERRAGEN.DropTheHammer(workingStage);
+			TERRAGEN.DropTheHammer(workingStage, preview);
 			return workingStage;
 		}
 

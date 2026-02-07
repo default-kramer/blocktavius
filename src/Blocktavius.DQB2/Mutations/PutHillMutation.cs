@@ -150,3 +150,106 @@ public sealed class PutLakeMutation : StageMutation
 		}
 	}
 }
+
+public sealed class PutTreeMutation : StageMutation
+{
+	public required XZ Center { get; init; }
+	public required int Elevation { get; init; }
+	public required PRNG Prng { get; init; }
+
+	internal override void Apply(IMutableStage stage)
+	{
+		const ushort bark = 139; // "Bark"
+		const ushort leaves = 492; // "Teal Leaves"
+
+		bool layer3Leaves = Prng.NextBool();
+		bool tallCorner = Prng.NextBool();
+		bool peak = Prng.NextBool();
+
+		// layer 1
+		int y = Elevation;
+		PutBlock(stage, Center, y, bark);
+		foreach (var dir in Direction.CardinalDirections())
+		{
+			PutBlock(stage, Center.Step(dir), y, SetChisel(bark, dir));
+		}
+
+		// layer 2
+		y++;
+		PutBlock(stage, Center, y, bark);
+
+		// layer 3
+		y++;
+		PutBlock(stage, Center, y, bark);
+		foreach (var dir in Direction.CardinalDirections())
+		{
+			PutBlock(stage, Center.Step(dir), y, SetChisel(leaves, Chisel.TopHalf));
+			PutBlock(stage, Center.Step(dir, 2), y, leaves);
+		}
+		if (layer3Leaves)
+		{
+			foreach (var dir in Direction.OrdinalDirections())
+			{
+				PutBlock(stage, Center.Step(dir), y, SetChisel(leaves, Chisel.TopHalf));
+			}
+		}
+
+		// layer 4
+		y++;
+		PutBlock(stage, Center, y, bark);
+		foreach (var dir in Direction.CardinalDirections())
+		{
+			PutBlock(stage, Center.Step(dir), y, leaves);
+		}
+		foreach (var dir in Direction.OrdinalDirections())
+		{
+			ushort block = tallCorner ? leaves : SetChisel(leaves, dir);
+			PutBlock(stage, Center.Step(dir), y, block);
+		}
+
+		// layer 5
+		y++;
+		PutBlock(stage, Center, y, bark);
+		foreach (var dir in Direction.CardinalDirections())
+		{
+			PutBlock(stage, Center.Step(dir), y, leaves);
+		}
+		if (tallCorner)
+		{
+			foreach (var dir in Direction.OrdinalDirections())
+			{
+				PutBlock(stage, Center.Step(dir), y, SetChisel(leaves, dir));
+			}
+		}
+
+		// layer 6
+		y++;
+		PutBlock(stage, Center, y, leaves);
+		foreach (var dir in Direction.CardinalDirections())
+		{
+			PutBlock(stage, Center.Step(dir), y, SetChisel(leaves, dir));
+		}
+
+		// layer 7
+		y++;
+		if (peak)
+		{
+			PutBlock(stage, Center, y, SetChisel(leaves, Chisel.BottomHalf));
+		}
+	}
+
+	private void PutBlock(IMutableStage stage, XZ xz, int y, ushort block)
+	{
+		if (stage.TryGetChunk(ChunkOffset.FromXZ(xz), out var chunk))
+		{
+			chunk.SetBlock(new Point(xz, y), block);
+		}
+	}
+
+	private static ushort SetChisel(ushort block, Direction dir) => SetChisel(block, dir.Turn180.GetDiagonalChisel());
+
+	private static ushort SetChisel(ushort block, Chisel chisel)
+	{
+		return Block.Lookup(block).SetChisel(chisel).BlockIdComplete;
+	}
+}
