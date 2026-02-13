@@ -30,7 +30,7 @@ namespace Blocktavius.AppDQB2
 			var vm = (this.DataContext as MainWindowVM)?.CurrentContent as ProjectVM;
 			if (EyeOfRubissDriver != null && vm != null)
 			{
-				var scriptedStage = await vm.TryRebuildStage();
+				var scriptedStage = await vm.TryRebuildStage(preview: true);
 				if (scriptedStage != null)
 				{
 					await EyeOfRubissDriver.WriteStageAsync(scriptedStage);

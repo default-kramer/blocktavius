@@ -294,12 +294,18 @@ sealed partial class ProjectVM : ViewModelBaseWithCustomTypeDescriptor, IBlockLi
 		return stage;
 	}
 
-	public async Task<IStage?> TryRebuildStage()
+	public async Task<IStage?> TryRebuildStage(bool preview)
 	{
 		var workingStage = await TryLoadMutableStage(expandChunks: true);
 		if (workingStage == null)
 		{
 			return null;
+		}
+
+		if (this.SelectedScript == Scripts.FirstOrDefault()) // NOMERGE!!
+		{
+			TERRAGEN.DropTheHammer(workingStage, preview);
+			return workingStage;
 		}
 
 		var context = new StageRebuildContext(workingStage);
