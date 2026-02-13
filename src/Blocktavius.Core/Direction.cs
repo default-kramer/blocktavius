@@ -25,8 +25,24 @@ public enum OrdinalDirection
 
 public sealed class Direction
 {
+	private const int indexAdjust = -1;
+
+	public static class IndexConstants
+	{
+		public const int North = (int)CardinalDirection.North + indexAdjust;
+		public const int East = (int)CardinalDirection.East + indexAdjust;
+		public const int South = (int)CardinalDirection.South + indexAdjust;
+		public const int West = (int)CardinalDirection.West + indexAdjust;
+
+		public const int NorthEast = (int)OrdinalDirection.NorthEast + indexAdjust;
+		public const int SouthEast = (int)OrdinalDirection.SouthEast + indexAdjust;
+		public const int SouthWest = (int)OrdinalDirection.SouthWest + indexAdjust;
+		public const int NorthWest = (int)OrdinalDirection.NorthWest + indexAdjust;
+	}
+
 	private readonly int index;
 	private readonly string name;
+	public int Index => index;
 
 	private Direction(CardinalDirection cardinal)
 	{
@@ -51,8 +67,8 @@ public sealed class Direction
 	const int count = 8;
 	private static readonly IReadOnlyList<Direction> lookup;
 
-	private static int GetIndex(CardinalDirection direction) => (int)direction - 1;
-	private static int GetIndex(OrdinalDirection direction) => (int)direction - 1;
+	public static int GetIndex(CardinalDirection direction) => (int)direction + indexAdjust;
+	public static int GetIndex(OrdinalDirection direction) => (int)direction + indexAdjust;
 
 	static Direction()
 	{
@@ -86,6 +102,14 @@ public sealed class Direction
 		yield return East;
 		yield return South;
 		yield return West;
+	}
+
+	public static IEnumerable<Direction> OrdinalDirections()
+	{
+		yield return NorthEast;
+		yield return SouthEast;
+		yield return SouthWest;
+		yield return NorthWest;
 	}
 
 	private static Direction ParseAny<T>(int index, T direction)

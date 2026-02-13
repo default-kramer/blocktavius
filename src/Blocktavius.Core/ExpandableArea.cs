@@ -51,6 +51,8 @@ sealed class ExpandableArea<T>
 
 	public IReadOnlyList<ShellItem> CurrentShell() => currentShell;
 
+	public ExpansionId CurrentExpansionId() => currentExpansionId;
+
 	/// <summary>
 	/// The given <paramref name="expansion"/> must not be part of the original area or any
 	/// previous expansion.

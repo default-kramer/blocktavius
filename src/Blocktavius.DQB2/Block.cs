@@ -122,6 +122,7 @@ public readonly partial struct Block : IEquatable<Block>, IComparable<Block>
 	const int Shift_LiquidFamily = 20;
 	const int Shift_Immersion = 24;
 
+	const int Mask_Chisel = 0xF000;
 	internal const int Mask_CanonicalBlockId = 0x7FF;
 	internal const int CanonicalBlockCount = 0x800;
 
@@ -132,6 +133,11 @@ public readonly partial struct Block : IEquatable<Block>, IComparable<Block>
 
 
 	private readonly int val;
+
+	private Block(int val)
+	{
+		this.val = val;
+	}
 
 	private Block(ushort blockId, PackedBlockInfo blockInfo)
 	{
@@ -164,6 +170,15 @@ public readonly partial struct Block : IEquatable<Block>, IComparable<Block>
 	}
 
 	public bool IsEmptyBlock => BlockIdCanonical == 0;
+
+	public Chisel Chisel => (Chisel)(this.val & Mask_Chisel);
+
+	public Block SetChisel(Chisel chisel)
+	{
+		int val = this.val & ~Mask_Chisel;
+		val |= (int)chisel & Mask_Chisel;
+		return new Block(val);
+	}
 
 	/// <summary>
 	/// DOES NOT VALIDATE THE ARGS.
