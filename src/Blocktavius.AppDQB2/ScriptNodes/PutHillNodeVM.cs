@@ -22,7 +22,7 @@ sealed class PutHillNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutato
 		public required IPersistentHillDesigner? HillDesigner { get; init; }
 		public required string? AreaPersistId { get; init; }
 		public required string? BlockPersistId { get; init; }
-		public required bool? LockRandomSeed { get; init; }
+		public required string? LockedRandomSeed { get; init; }
 
 		public bool TryDeserializeV1(out ScriptNodeVM node, ScriptDeserializationContext context)
 		{
@@ -36,6 +36,11 @@ sealed class PutHillNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutato
 			}
 			me.Area = context.AreaManager.FindArea(this.AreaPersistId);
 			me.Block = context.BlockManager.FindBlock(this.BlockPersistId);
+			if (this.LockedRandomSeed != null)
+			{
+				me.prngSeed = this.LockedRandomSeed;
+				me.LockRandomSeed = true;
+			}
 			node = me;
 			return true;
 		}
@@ -49,7 +54,7 @@ sealed class PutHillNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutato
 			HillDesigner = this.HillDesigner?.ToPersistModel(),
 			AreaPersistId = this.Area?.PersistentId,
 			BlockPersistId = this.Block?.PersistentId,
-			LockRandomSeed = this.LockRandomSeed,
+			LockedRandomSeed = this.LockRandomSeed ? this.prngSeed : null,
 		};
 	}
 
