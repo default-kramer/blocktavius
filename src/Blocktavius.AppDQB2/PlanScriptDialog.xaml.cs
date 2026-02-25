@@ -171,7 +171,7 @@ public partial class PlanScriptDialog : Window
 			ScriptName = project.SelectedScript.GetScriptName() ?? "<Untitled Script>";
 			Title = $"Plan and Run -- {ScriptName}";
 
-			rebuildTask = project.TryRebuildStage();
+			rebuildTask = project.TryRebuildStage(preview: false);
 
 			if (project.BackupsEnabled(out var backupDir))
 			{
