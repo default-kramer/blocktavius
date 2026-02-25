@@ -408,6 +408,10 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 		{
 			ScriptName = Settings.ScriptName,
 			ScriptNodes2 = this.Nodes.Select(n => n.ToPersistModel()).WhereNotNull().ToList(),
+			ExpandBedrock = Settings.ExpandBedrock,
+			RepairSeaEnabled = Settings.RepairSeaSettings.Enabled,
+			RepairSeaLevel = Settings.RepairSeaSettings.SeaLevel,
+			RepairSeaType = (int)Settings.RepairSeaSettings.SeaType,
 		};
 	}
 
@@ -415,6 +419,8 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 	{
 		var me = new ScriptVM();
 		me.Settings.ScriptName = script.ScriptName;
+		me.Settings.ExpandBedrock = script.ExpandBedrock ?? false;
+		me.Settings.RepairSeaSettings.Load(script);
 
 		foreach (var node in script.GetScriptNodes())
 		{

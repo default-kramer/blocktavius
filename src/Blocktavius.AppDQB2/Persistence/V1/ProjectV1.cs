@@ -139,6 +139,12 @@ sealed record ScriptV1
 		init => _scriptNodes2 = value?.ToContentEqualityList();
 	}
 
+	public required bool? ExpandBedrock { get; init; }
+
+	public required bool? RepairSeaEnabled { get; init; }
+	public required int? RepairSeaLevel { get; init; }
+	public required int? RepairSeaType { get; init; }
+
 	public IReadOnlyList<ScriptNodeWrapperV1> GetScriptNodes()
 	{
 		if (_scriptNodes?.Count > 0)

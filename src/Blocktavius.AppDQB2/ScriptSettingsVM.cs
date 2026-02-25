@@ -109,6 +109,17 @@ sealed class ScriptSettingsVM : ScriptLeafNodeVM
 				return LiquidFamily.Seawater;
 			}
 		}
+
+		internal void Load(Persistence.V1.ScriptV1 script)
+		{
+			LiquidFamilyIndex fam = (LiquidFamilyIndex)(script.RepairSeaType ?? -1);
+			if (SeaTypeItemsSource.SupportedValues().Contains(fam))
+			{
+				SeaType = fam;
+			}
+			SeaLevel = script.RepairSeaLevel ?? SeaLevel;
+			Enabled = script.RepairSeaEnabled ?? Enabled;
+		}
 	}
 
 	sealed class SeaLevelItemsSource : IItemsSource
@@ -130,16 +141,29 @@ sealed class ScriptSettingsVM : ScriptLeafNodeVM
 		public ItemCollection GetValues()
 		{
 			var items = new ItemCollection();
-			items.Add(LiquidFamilyIndex.Seawater, "Seawater");
-			items.Add(LiquidFamilyIndex.None, "None (remove sea)");
-			items.Add(LiquidFamilyIndex.ClearWater, "Clear Water");
-			items.Add(LiquidFamilyIndex.HotWater, "Hot Water");
-			items.Add(LiquidFamilyIndex.Poison, "Poison");
-			items.Add(LiquidFamilyIndex.Lava, "Lava");
-			items.Add(LiquidFamilyIndex.BottomlessSwamp, "Bottmless Swamp");
-			items.Add(LiquidFamilyIndex.MuddyWater, "Muddy Water");
-			items.Add(LiquidFamilyIndex.Plasma, "Plasma");
+			foreach (var t in Data())
+			{
+				items.Add(t.Item1, t.Item2);
+			}
 			return items;
+		}
+
+		public static IEnumerable<LiquidFamilyIndex> SupportedValues()
+		{
+			return Data().Select(x => x.Item1);
+		}
+
+		private static IEnumerable<(LiquidFamilyIndex, string)> Data()
+		{
+			yield return (LiquidFamilyIndex.Seawater, "Seawater");
+			yield return (LiquidFamilyIndex.None, "None (remove sea)");
+			yield return (LiquidFamilyIndex.ClearWater, "Clear Water");
+			yield return (LiquidFamilyIndex.HotWater, "Hot Water");
+			yield return (LiquidFamilyIndex.Poison, "Poison");
+			yield return (LiquidFamilyIndex.Lava, "Lava");
+			yield return (LiquidFamilyIndex.BottomlessSwamp, "Bottmless Swamp");
+			yield return (LiquidFamilyIndex.MuddyWater, "Muddy Water");
+			yield return (LiquidFamilyIndex.Plasma, "Plasma");
 		}
 	}
 }
