@@ -66,6 +66,19 @@ public class Minimap
 	{
 		var sampler = ReadMap(islandId);
 
+		// TEMP INTRO/OUTRO DEBUGGING CODE:
+		var start = INTRO_SIZE + ISLAND_DATA_SIZE * islandId;
+		string introHex = "[nope]";
+		if (start > 0)
+		{
+			var introBytes = data.Slice(start - OUTRO_SIZE, OUTRO_SIZE).ToArray();
+			introHex = Convert.ToHexString(introBytes);
+		}
+		var end = start + TILE_DATA_SIZE;
+		var outroBytes = data.Slice(end, OUTRO_SIZE).ToArray();
+		var outroHex = Convert.ToHexString(outroBytes);
+		var debugString = $"Island {islandId}, intro {introHex}, outro {outroHex}";
+
 		// Minimap tile grid is 256x256; chunk grid is 64x64.
 		// This means there are 4x4 map tiles in each chunk.
 		const int scale = 4;
