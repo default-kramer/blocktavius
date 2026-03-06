@@ -33,3 +33,37 @@ public sealed class PutHillMutation : StageMutation
 		}
 	}
 }
+
+public sealed class PutInvertedHillMutation : StageMutation
+{
+	public required I2DSampler<int> Sampler { get; init; }
+	public required ushort Block { get; init; }
+
+	/// <summary>
+	/// Max value that the <see cref="Sampler"/> will return
+	/// </summary>
+	public required int MaxElevation { get; init; }
+
+	public required int YFloor { get; init; }
+
+	internal override void Apply(IMutableStage stage)
+	{
+		int start = YFloor + MaxElevation;
+
+		foreach (var chunk in Enumerate(Sampler.Bounds, stage))
+		{
+			foreach (var xz in chunk.Offset.Bounds.Intersection(Sampler.Bounds).Enumerate())
+			{
+				var elevation = Sampler.Sample(xz);
+				if (elevation > 0)
+				{
+					int end = start - elevation;
+					for (int y = start; y >= end; y--)
+					{
+						chunk.SetBlock(new Point(xz, y), Block);
+					}
+				}
+			}
+		}
+	}
+}

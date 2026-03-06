@@ -17,11 +17,13 @@ sealed class CornerPusherHillDesigner : ShellBasedHillDesigner
 	sealed record PersistModel : IPersistentHillDesigner
 	{
 		public required int? MaxConsecutiveMisses { get; init; }
+		public required int? OverhangAmount { get; init; }
 
 		public bool TryDeserializeV1(ScriptDeserializationContext context, out IHillDesigner designer)
 		{
 			var me = new CornerPusherHillDesigner();
 			me.MaxConsecutiveMisses = this.MaxConsecutiveMisses ?? me.MaxConsecutiveMisses;
+			me.OverhangAmount = this.OverhangAmount ?? me.OverhangAmount;
 			designer = me;
 			return true;
 		}
@@ -30,6 +32,7 @@ sealed class CornerPusherHillDesigner : ShellBasedHillDesigner
 	public override IPersistentHillDesigner ToPersistModel() => new PersistModel()
 	{
 		MaxConsecutiveMisses = this.MaxConsecutiveMisses,
+		OverhangAmount = this.OverhangAmount,
 	};
 
 	private int _maxConsecutiveMisses = 11;
@@ -39,18 +42,52 @@ sealed class CornerPusherHillDesigner : ShellBasedHillDesigner
 		set => ChangeProperty(ref _maxConsecutiveMisses, value);
 	}
 
+	private int _overhangAmount = -1;
+	public int OverhangAmount
+	{
+		get => _overhangAmount;
+		set => ChangeProperty(ref _overhangAmount, value);
+	}
+
 	protected override StageMutation? CreateMutation(HillDesignContext context, Shell shell)
 	{
 		if (shell.IsHole) { return null; }
 
-		var settings = new CornerPusherHill.Settings
+		int overhang = Math.Clamp(OverhangAmount, 0, context.Elevation);
+
+		var mainSettings = new CornerPusherHill.Settings
 		{
 			Prng = context.Prng.AdvanceAndClone(),
 			MinElevation = 1,
-			MaxElevation = context.Elevation,
+			MaxElevation = context.Elevation - overhang,
 			MaxConsecutiveMisses = this.MaxConsecutiveMisses,
 		};
-		var sampler = CornerPusherHill.BuildHill(settings, shell);
-		return StageMutation.CreateHills(sampler, context.FillBlockId);
+		var mainSampler = CornerPusherHill.BuildHill(mainSettings, shell);
+		var mainMutation = StageMutation.CreateHills(mainSampler, context.FillBlockId);
+
+		if (OverhangAmount < 1)
+		{
+			return mainMutation;
+		}
+
+		const int OverhangFixup = 1; // aesthetics, compensates for top layer quirkiness
+									 // (That quirkiness is desirable for the non-overhang case.)
+
+		int overhangFloor = Math.Max(1, mainSettings.MaxElevation - OverhangFixup);
+		var overhangSettings = mainSettings with
+		{
+			Prng = context.Prng.AdvanceAndClone(),
+			MaxElevation = context.Elevation - overhangFloor,
+		};
+		var overhangSampler = CornerPusherHill.BuildHill(overhangSettings, shell);
+		var overhangMutation = new DQB2.Mutations.PutInvertedHillMutation
+		{
+			Block = context.FillBlockId,
+			MaxElevation = overhangSettings.MaxElevation,
+			Sampler = overhangSampler,
+			YFloor = overhangFloor,
+		};
+
+		return StageMutation.Combine([mainMutation, overhangMutation]);
 	}
 }
