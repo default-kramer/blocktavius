@@ -697,9 +697,7 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 
 	/// <summary>
 	/// Holds the state needed to generate a single run.
-	/// If we succeed, we recurse.
-	/// If we cannot, we backtrack to an earlier state and rely on the mutable state
-	/// of the shared PRNG to explore other possible recursions.
+	/// Uses exhaustive backtracking instead of random sampling with arbitrary retry limits.
 	/// </summary>
 	record struct LayerGenerator(Shared shared, int xStart, int y)
 	{
@@ -710,65 +708,74 @@ public sealed class AdamantCliffBuilder : AdditiveHillBuilder.ICliffBuilder
 				return true;
 			}
 
-			var runLengths = shared.legalRunLengths;
+			// Get all valid run lengths that can end at valid positions
+			// Copy to local variables to avoid struct member access in lambda
+			var backstop = shared.backstop;
+			var currentXStart = xStart;
+			var validRunLengths = shared.legalRunLengths
+				.Where(len => backstop.CanEndRunAt(currentXStart + len))
+				.ToList();
 
-			for (int i = 0; i < 5; i++)
+			if (validRunLengths.Count == 0)
 			{
-				if (!ChooseRandomRunLength(ref runLengths, out int runLength))
-				{
-					return false; // no valid run lengths remain
-				}
-				if (GenerateRunRecursive(runLength))
-				{
-					return true;
-				}
+				return false;
 			}
 
-			return false;
-		}
+			// Shuffle to maintain randomness in appearance while still being exhaustive
+			shared.prng.Shuffle(validRunLengths);
 
-		private bool ChooseRandomRunLength(ref IImmutableSet<int> runLengths, out int runLength)
-		{
-			while (runLengths.Any())
+			// Try each valid run length exhaustively
+			foreach (var runLength in validRunLengths)
 			{
-				runLength = shared.prng.RandomChoice(runLengths.ToArray());
-				if (shared.backstop.CanEndRunAt(xStart + runLength))
+				// For the first position, there's no Y adjustment
+				if (xStart == 0)
 				{
-					return true;
+					if (TryGenerateRunWithY(runLength, this.y))
+					{
+						return true;
+					}
 				}
 				else
 				{
-					runLengths = runLengths.Remove(runLength);
+					// Try both Y+1 and Y-1 systematically instead of randomly
+					int[] yChoices = shared.prng.NextInt32(2) == 0
+						? new[] { this.y + 1, this.y - 1 }
+						: new[] { this.y - 1, this.y + 1 };
+
+					foreach (var yChoice in yChoices)
+					{
+						if (TryGenerateRunWithY(runLength, yChoice))
+						{
+							return true;
+						}
+					}
 				}
 			}
 
-			runLength = int.MinValue;
 			return false;
 		}
 
-		private bool GenerateRunRecursive(int runLength)
+		private bool TryGenerateRunWithY(int runLength, int y)
 		{
-			int y = this.y;
-			if (xStart > 0)
-			{
-				y += shared.prng.RandomChoice(-1, 1);
-			}
-
 			var buffer = shared.GetWritableBuffer(xStart, runLength);
+			int currentY = y;
+
+			// Try to generate all cells for this run
 			for (int i = 0; i < runLength; i++)
 			{
 				int x = xStart + i;
-				if (shared.backstop.GetCellForNextLayer(shared.config, x, ref y, shared.LayerId, out var cell))
+				if (shared.backstop.GetCellForNextLayer(shared.config, x, ref currentY, shared.LayerId, out var cell))
 				{
 					buffer[i] = cell;
 				}
 				else
 				{
-					return false;
+					return false; // This run doesn't work with this Y
 				}
 			}
 
-			var next = new LayerGenerator(shared, xStart + runLength, y);
+			// Successfully generated this run, try to generate the rest
+			var next = new LayerGenerator(shared, xStart + runLength, currentY);
 			return next.Execute();
 		}
 	}
