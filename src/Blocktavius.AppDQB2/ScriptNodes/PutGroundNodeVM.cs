@@ -33,14 +33,11 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 			me.YMin = this.YMin.GetValueOrDefault(me.YMin);
 			me.YRange = this.YRange.GetValueOrDefault(me.YRange);
 			me.YFloor = this.YFloor ?? me.YFloor;
-			me.Area = context.AreaManager.FindArea(this.AreaPersistId);
+			me.AreaDefiner.Area = context.AreaManager.FindArea(this.AreaPersistId);
 			me.Block = context.BlockManager.FindBlock(this.BlockPersistId);
 			if (CustomRectArea != null)
 			{
-				me.RectAreaBeginX = CustomRectArea.X0;
-				me.RectAreaBeginZ = CustomRectArea.Z0;
-				me.RectAreaEndX = CustomRectArea.X1;
-				me.RectAreaEndZ = CustomRectArea.Z1;
+				me.AreaDefiner.Load(CustomRectArea);
 			}
 			node = me;
 			return true;
@@ -55,7 +52,7 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 			YMin = this.YMin,
 			YRange = this.YRange,
 			YFloor = this.YFloor,
-			AreaPersistId = this.Area?.PersistentId,
+			AreaPersistId = this.AreaDefiner.Area?.PersistentId,
 			BlockPersistId = this.Block?.PersistentId,
 			CustomRectArea = this.RebuildCustomRect(),
 		};
@@ -69,79 +66,10 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 		RebuildLongStatus();
 	}
 
-	private IAreaVM? area;
-	[Category("Area")]
-	[ItemsSource(typeof(Global.AreasItemsSource))]
-	public IAreaVM? Area
-	{
-		get => area;
-		set
-		{
-			if (ChangeProperty(ref area, value) && value != null)
-			{
-				RectAreaBeginX = null;
-				RectAreaBeginZ = null;
-				RectAreaEndX = null;
-				RectAreaEndZ = null;
-			}
-		}
-	}
+	[FlattenProperties]
+	public AreaDefinerVM AreaDefiner { get; } = new();
 
-	private int? _beginX;
-	[Category("Area")]
-	public int? RectAreaBeginX
-	{
-		get => _beginX;
-		set
-		{
-			if (ChangeProperty(ref _beginX, value) && value.HasValue)
-			{
-				Area = null;
-			}
-		}
-	}
-
-	private int? _beginZ;
-	[Category("Area")]
-	public int? RectAreaBeginZ
-	{
-		get => _beginZ;
-		set
-		{
-			if (ChangeProperty(ref _beginZ, value) && value.HasValue)
-			{
-				Area = null;
-			}
-		}
-	}
-
-	private int? _endX;
-	[Category("Area")]
-	public int? RectAreaEndX
-	{
-		get => _endX;
-		set
-		{
-			if (ChangeProperty(ref _endX, value) && value.HasValue)
-			{
-				Area = null;
-			}
-		}
-	}
-
-	private int? _endZ;
-	[Category("Area")]
-	public int? RectAreaEndZ
-	{
-		get => _endZ;
-		set
-		{
-			if (ChangeProperty(ref _endZ, value) && value.HasValue)
-			{
-				Area = null;
-			}
-		}
-	}
+	private IAreaVM? Area => AreaDefiner.Area;
 
 	private IBlockProviderVM? blockProvider = Blockdata.AnArbitraryBlockVM;
 	[Editor(typeof(PropGridEditors.BlockProviderEditor), typeof(PropGridEditors.BlockProviderEditor))]
@@ -215,20 +143,7 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 		LongStatus = rtb.Build();
 	}
 
-	private RectV1? RebuildCustomRect()
-	{
-		if (RectAreaBeginX.HasValue && RectAreaBeginZ.HasValue && RectAreaEndX.HasValue && RectAreaEndZ.HasValue)
-		{
-			return new RectV1()
-			{
-				X0 = RectAreaBeginX.Value,
-				Z0 = RectAreaBeginZ.Value,
-				X1 = RectAreaEndX.Value,
-				Z1 = RectAreaEndZ.Value,
-			};
-		}
-		return null;
-	}
+	private RectV1? RebuildCustomRect() => AreaDefiner.RebuildCustomRect();
 
 	public StageMutation? BuildMutation(StageRebuildContext context)
 	{
@@ -238,7 +153,7 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 		}
 
 		List<IArea> areas = new();
-		var customRect = RebuildCustomRect()?.ToCoreRect();
+		var customRect = RebuildCustomRect()?.ToCoreRectInclusive();
 		if (Area != null)
 		{
 			if (Area.IsArea(context.ImageCoordTranslation, out var areaWrapper))
@@ -253,8 +168,7 @@ sealed class PutGroundNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMuta
 		}
 		else if (customRect != null)
 		{
-			// make end inclusive
-			areas.Add(new Rect(customRect.start, customRect.end.Add(1, 1)).AsArea());
+			areas.Add(customRect.AsArea());
 		}
 
 		if (areas.Count == 0)
