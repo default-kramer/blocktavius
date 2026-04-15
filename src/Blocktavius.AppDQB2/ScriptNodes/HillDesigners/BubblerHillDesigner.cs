@@ -43,8 +43,31 @@ sealed class BubblerHillDesigner : RegionBasedHillDesigner
 		};
 	}
 
+	private static StageMutation TODO(HillDesignContext context)
+	{
+		var prng = context.Prng.AdvanceAndClone();
+
+		var jauntSettings = new JauntSettings()
+		{
+			LaneChangeDirectionProvider = RandomValues.InfiniteDeck(true, true, true, false, false, false),
+			MaxLaneCount = 6,
+			TotalLength = 100,
+			RunLengthProvider = RandomValues.FromRange(1, 5),
+		};
+		var jaunt = Jaunt.Create(prng, jauntSettings);
+		var cliff = FacileCliffBuilder.TODO(jaunt, new FacileCliffBuilder.Config { BaseHeight = context.Elevation });
+		cliff = cliff.TranslateTo(new XZ(900, 1075));
+		cliff = cliff.Project(i => i == context.Elevation ? context.Elevation + 12 : i);
+		return StageMutation.CreateHills(cliff, context.FillBlockId);
+	}
+
 	protected override StageMutation? CreateMutation(HillDesignContext context, Region region)
 	{
+		if (1.ToString() == "1")
+		{
+			return TODO(context);
+		}
+
 		var settings = new BUBBLER.Settings
 		{
 			Prng = context.Prng.AdvanceAndClone(),

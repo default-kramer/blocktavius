@@ -16,6 +16,8 @@ readonly record struct Range(int xMin, int xMax) // inclusive
 
 	public int Width => (xMax + 1) - xMin;
 
+	public IEnumerable<int> xValues => Enumerable.Range(xMin, Width);
+
 	public static Range NoConstraints => new Range(int.MinValue, int.MaxValue);
 
 	public Range Intersect(int xMin, int xMax)
