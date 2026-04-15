@@ -15,38 +15,62 @@ public static class FacileCliffBuilder
 {
 	public sealed record Config
 	{
+		public required PRNG Prng { get; init; }
+
 		public required int BaseHeight { get; init; }
+
+		public required int OverhangDepth { get; init; }
+		public required int OverhangHeight { get; init; }
 	}
 
 	public sealed class Result
 	{
+		public required I2DSampler<int> BaseCliff { get; init; }
 
+		public required I2DSampler<int> OverhangSampler { get; init; }
 	}
 
-	public static I2DSampler<int> TODO(Jaunt jaunt, Config config)
+	public static Result TODO(Jaunt jaunt, Config config)
 	{
-		return GenerateBase(jaunt, config);
+		var baseCliff = GenerateBase(jaunt, config);
+		var overhang = GenerateOverhang(jaunt, config);
+		return new Result
+		{
+			BaseCliff = baseCliff,
+			OverhangSampler = overhang,
+		};
 	}
 
-	private static I2DSampler<int> GenerateBase(Jaunt jaunt, Config config)
+	private static Rect GetJauntBounds(Jaunt jaunt, int extraZ)
 	{
 		int xStart = jaunt.Runs[0].start;
 		int xEnd = jaunt.Runs.Last().end;
 		int zStart = jaunt.Runs.Select(r => r.laneOffset).Min();
-		int zEnd = jaunt.Runs.Select(r => r.laneOffset).Max() + 1;
-		var bounds = new Rect(new XZ(xStart, zStart), new XZ(xEnd, zEnd));
-		var array = new MutableArray2D<int>(bounds, -1);
+		int zEnd = jaunt.Runs.Select(r => r.laneOffset).Max() + 1 + extraZ;
+		return new Rect(new XZ(xStart, zStart), new XZ(xEnd, zEnd));
+	}
 
+	private static void BackfillJaunt(MutableArray2D<int> array, Jaunt jaunt, int value)
+	{
+		int zStart = array.Bounds.start.Z;
 		foreach (var run in jaunt.Runs)
 		{
 			for (int x = run.start; x < run.end; x++)
 			{
 				for (int z = run.laneOffset; z >= zStart; z--)
 				{
-					array.Put(new XZ(x, z), config.BaseHeight);
+					array.Put(new XZ(x, z), value);
 				}
 			}
 		}
+	}
+
+	private static I2DSampler<int> GenerateBase(Jaunt jaunt, Config config)
+	{
+		var bounds = GetJauntBounds(jaunt, 0);
+		var array = new MutableArray2D<int>(bounds, -1);
+
+		BackfillJaunt(array, jaunt, config.BaseHeight);
 
 		// Could probably use Fencepost Shifting here... but let's keep it very simple for now:
 		var gaps = FindGaps(jaunt).OrderBy(x => x.LaneOffset).ToList();
@@ -141,5 +165,48 @@ public static class FacileCliffBuilder
 				};
 			}
 		}
+	}
+
+	/// <summary>
+	/// It is assumed this sampler will be inverted
+	/// </summary>
+	private static I2DSampler<int> GenerateOverhang(Jaunt jaunt, Config config)
+	{
+		var bounds = GetJauntBounds(jaunt, config.OverhangDepth);
+		var array = new MutableArray2D<int>(bounds, -1);
+
+		BackfillJaunt(array, jaunt, config.OverhangHeight);
+
+		int average = config.OverhangHeight / config.OverhangDepth;
+		var distribution = Util.Distribute(config.OverhangHeight, config.OverhangDepth);
+		var settings = new FencepostShifter.Settings
+		{
+			MaxFenceLength = average + 2,
+			MinFenceLength = 1,
+			MaxNudge = average,
+			TotalLength = config.OverhangHeight,
+		};
+
+		foreach (var run in jaunt.Runs)
+		{
+			for (int x = run.start; x < run.end; x++)
+			{
+				config.Prng.Shuffle(distribution);
+				var initialPosts = distribution.Scan(0, (sum, a) => sum + a).ToList();
+				initialPosts.RemoveAt(initialPosts.Count - 1); // TODO why was this not necessary before using Distribute() ?
+				var shifter = FencepostShifter.Create(initialPosts, settings);
+				var shiftedPosts = shifter.Shift(config.Prng);
+				shiftedPosts.Add(config.OverhangHeight); // TODO compensate for the previous TODO
+				int z = run.laneOffset;
+				foreach (var post in shiftedPosts)
+				{
+					int y = config.OverhangHeight - post;
+					z++;
+					array.Put(new XZ(x, z), y);
+				}
+			}
+		}
+
+		return array;
 	}
 }
