@@ -257,4 +257,42 @@ public static class Util
 		public Rect Bounds => Sampler.Bounds;
 		public bool InArea(XZ xz) => Sampler.Sample(xz);
 	}
+
+	/// <summary>
+	/// Returns a list containing <paramref name="count"/> integers such that their
+	/// sum is <paramref name="total"/> and they differ by at most 1.
+	/// For example, dividing 14 by 6 will produce [3,3,2,2,2,2]
+	/// </summary>
+	public static List<int> Distribute(int total, int count)
+	{
+		if (count < 1)
+		{
+			throw new ArgumentException(nameof(count));
+		}
+
+		var results = new List<int>(capacity: count);
+
+		while (total % count != 0)
+		{
+			int val = total / count + 1;
+			results.Add(val);
+			total -= val;
+			count--;
+		}
+
+		int rest = total / count;
+		results.AddRange(Enumerable.Repeat(rest, count));
+		return results;
+	}
+
+	public static IEnumerable<TAccumulate> Scan<TSource, TAccumulate>(this IEnumerable<TSource> source,
+		TAccumulate seed, Func<TAccumulate, TSource, TAccumulate> func)
+	{
+		var current = seed;
+		foreach (var item in source)
+		{
+			current = func(current, item);
+			yield return current;
+		}
+	}
 }

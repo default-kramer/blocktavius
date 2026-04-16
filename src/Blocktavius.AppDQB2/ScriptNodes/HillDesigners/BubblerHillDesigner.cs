@@ -43,8 +43,54 @@ sealed class BubblerHillDesigner : RegionBasedHillDesigner
 		};
 	}
 
+	private static StageMutation TODO(HillDesignContext context)
+	{
+		var prng = context.Prng.AdvanceAndClone();
+
+		var jauntSettings = new JauntSettings()
+		{
+			LaneChangeDirectionProvider = RandomValues.InfiniteDeck(true, true, true, false, false, false),
+			MaxLaneCount = 6,
+			TotalLength = 100,
+			RunLengthProvider = RandomValues.FromRange(2, 5),
+		};
+		var jaunt = Jaunt.Create(prng, jauntSettings);
+
+		const int middleHeight = 10;
+
+		var config = new FacileCliffBuilder.Config
+		{
+			BaseHeight = context.Elevation,
+			OverhangDepth = 6,
+			OverhangHeight = 13,
+			Prng = prng,
+		};
+		var result = FacileCliffBuilder.TODO(jaunt, config);
+
+		var toXZ = new XZ(900, 1075);
+
+		var cliff = result.BaseCliff.TranslateTo(toXZ)
+			.Project(i => i == config.BaseHeight ? config.BaseHeight + middleHeight : i);
+		var mCliff = StageMutation.CreateHills(cliff, context.FillBlockId);
+
+		var mOverhang = new DQB2.Mutations.PutInvertedHillMutation()
+		{
+			Block = context.FillBlockId,
+			YFloor = config.BaseHeight + middleHeight + 1,
+			MaxElevation = config.OverhangHeight,
+			Sampler = result.OverhangSampler.TranslateTo(toXZ),
+		};
+
+		return StageMutation.Combine([mCliff, mOverhang]);
+	}
+
 	protected override StageMutation? CreateMutation(HillDesignContext context, Region region)
 	{
+		if (1.ToString() == "1")
+		{
+			return TODO(context);
+		}
+
 		var settings = new BUBBLER.Settings
 		{
 			Prng = context.Prng.AdvanceAndClone(),
