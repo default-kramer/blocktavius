@@ -56,13 +56,13 @@ sealed class BubblerHillDesigner : RegionBasedHillDesigner
 		};
 		var jaunt = Jaunt.Create(prng, jauntSettings);
 
-		const int middleHeight = 12;
+		const int middleHeight = 10;
 
 		var config = new FacileCliffBuilder.Config
 		{
 			BaseHeight = context.Elevation,
 			OverhangDepth = 6,
-			OverhangHeight = 14,
+			OverhangHeight = 13,
 			Prng = prng,
 		};
 		var result = FacileCliffBuilder.TODO(jaunt, config);
