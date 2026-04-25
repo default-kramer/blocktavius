@@ -43,10 +43,32 @@ sealed class BubblerHillDesigner : RegionBasedHillDesigner
 		};
 	}
 
-	private static StageMutation TODO(HillDesignContext context)
+	sealed record ARGS
 	{
+		public required Point JauntPoint { get; init; }
+		public required CardinalDirection OutsideDir { get; init; }
+		public required XZ ADJUST { get; init; }
+	}
+
+	private static StageMutation? TODO(HillDesignContext context, ARGS args)
+	{
+		if (context.SourceStage == null)
+		{
+			return null;
+		}
+
+		// TODO user must specify these:
+		var jauntPoint = args.JauntPoint;
+		var outsideDir = args.OutsideDir;
+
+		if (!JauntExtractor.TryExtractJaunt(context.SourceStage, jauntPoint, outsideDir, out var jauntResult))
+		{
+			return null;
+		}
+
 		var prng = context.Prng.AdvanceAndClone();
 
+		/*
 		var jauntSettings = new JauntSettings()
 		{
 			LaneChangeDirectionProvider = RandomValues.InfiniteDeck(true, true, true, false, false, false),
@@ -55,21 +77,26 @@ sealed class BubblerHillDesigner : RegionBasedHillDesigner
 			RunLengthProvider = RandomValues.FromRange(2, 5),
 		};
 		var jaunt = Jaunt.Create(prng, jauntSettings);
+		*/
 
 		const int middleHeight = 10;
 
 		var config = new FacileCliffBuilder.Config
 		{
 			BaseHeight = context.Elevation,
-			OverhangDepth = 6,
+			OverhangDepth = 6, // AHA - this is key OverhangDepth - JauntBounds.Depth is how much we need to translate overhang by!
 			OverhangHeight = 13,
 			Prng = prng,
 		};
-		var result = FacileCliffBuilder.TODO(jaunt, config);
+		var result = FacileCliffBuilder.TODO(jauntResult, config);
 
-		var toXZ = new XZ(900, 1075);
+		var toXZ = jauntResult.Bounds.start.Add(0, 0);// new XZ(900, 1075);
 
-		var cliff = result.BaseCliff.TranslateTo(toXZ)
+		// The base cliff is EXPECTED to be deeper than the actual Jaunt!
+		// That's what overhang does, it pushes the base cliff deeper.
+		// Wait, should this 6 always match overhang depth exactly?
+		var cliff = result.BaseCliff.TranslateTo(toXZ.Add(args.ADJUST))
+			.Rotate(jauntResult.Rotation)
 			.Project(i => i == config.BaseHeight ? config.BaseHeight + middleHeight : i);
 		var mCliff = StageMutation.CreateHills(cliff, context.FillBlockId);
 
@@ -78,7 +105,7 @@ sealed class BubblerHillDesigner : RegionBasedHillDesigner
 			Block = context.FillBlockId,
 			YFloor = config.BaseHeight + middleHeight + 1,
 			MaxElevation = config.OverhangHeight,
-			Sampler = result.OverhangSampler.TranslateTo(toXZ),
+			Sampler = result.OverhangSampler.TranslateTo(toXZ.Add(args.ADJUST)).Rotate(jauntResult.Rotation),
 		};
 
 		return StageMutation.Combine([mCliff, mOverhang]);
@@ -88,7 +115,20 @@ sealed class BubblerHillDesigner : RegionBasedHillDesigner
 	{
 		if (1.ToString() == "1")
 		{
-			return TODO(context);
+			List<StageMutation?> mutations = new();
+			mutations.Add(TODO(context, new ARGS
+			{
+				JauntPoint = new Point(new XZ(930, 1039), 84),
+				OutsideDir = CardinalDirection.South,
+				ADJUST = new XZ(0, -5),
+			}));
+			mutations.Add(TODO(context, new ARGS
+			{
+				JauntPoint = new Point(new XZ(924, 1037), 84),
+				OutsideDir = CardinalDirection.South,
+				ADJUST = new XZ(0, -3), // TODO I think it's not -5 because minLaneOffset > 0 so the bounds aren't as expected
+			}));
+			return StageMutation.Combine(mutations.WhereNotNull().ToList());
 		}
 
 		var settings = new BUBBLER.Settings

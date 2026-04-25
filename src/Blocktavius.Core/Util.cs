@@ -295,4 +295,12 @@ public static class Util
 			yield return current;
 		}
 	}
+
+	public static void EnqueueAll<T>(this Queue<T> queue, IEnumerable<T> items)
+	{
+		foreach (var item in items)
+		{
+			queue.Enqueue(item);
+		}
+	}
 }

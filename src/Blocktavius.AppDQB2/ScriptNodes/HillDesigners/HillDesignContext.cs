@@ -19,4 +19,6 @@ public sealed record HillDesignContext
 	public required ushort FillBlockId { get; init; } // TODO make this an IBlockProvider or something...
 
 	public required XZ ImageCoordTranslation { get; init; } // TODO would be great to make this transparent...
+
+	public required IStage? SourceStage { get; init; }
 }

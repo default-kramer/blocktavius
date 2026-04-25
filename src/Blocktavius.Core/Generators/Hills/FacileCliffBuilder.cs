@@ -30,10 +30,15 @@ public static class FacileCliffBuilder
 		public required I2DSampler<int> OverhangSampler { get; init; }
 	}
 
-	public static Result TODO(Jaunt jaunt, Config config)
+	public static Result TODO(PositionedJaunt jaunt, Config config)
 	{
-		var baseCliff = GenerateBase(jaunt, config);
-		var overhang = GenerateOverhang(jaunt, config);
+		var baseCliff = GenerateBase(jaunt.Jaunt, config);
+		var overhang = GenerateOverhang(jaunt.Jaunt, config);
+
+		// TODO transforms go here:
+		// 1) align overhang to positioned jaunt
+		// 2) align base cliff to match overhang
+
 		return new Result
 		{
 			BaseCliff = baseCliff,

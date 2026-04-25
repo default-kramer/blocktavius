@@ -176,6 +176,7 @@ sealed class PutHillNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutato
 				ImageCoordTranslation = context.ImageCoordTranslation,
 				Prng = prng,
 				Elevation = elevation,
+				SourceStage = context.stage,
 			};
 			return hillDesigner.CreateMutation(hillContext);
 		}

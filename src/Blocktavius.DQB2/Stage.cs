@@ -37,6 +37,18 @@ public interface IStage
 		.WhereNotNull();
 
 	IStageSaver Saver { get; }
+
+	bool TryGetBlock(Point point, out ushort block)
+	{
+		var offset = ChunkOffset.FromXZ(point.xz);
+		if (!TryReadChunk(offset, out var chunk))
+		{
+			block = 0;
+			return false;
+		}
+		block = chunk.GetBlock(point);
+		return true;
+	}
 }
 
 public interface IMutableStage : IStage

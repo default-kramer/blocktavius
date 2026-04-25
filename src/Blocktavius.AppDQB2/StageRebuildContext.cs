@@ -13,7 +13,7 @@ namespace Blocktavius.AppDQB2;
 sealed class StageRebuildContext
 {
 	private readonly List<string> errors = new();
-	private readonly IMutableStage stage;
+	public readonly IMutableStage stage; // TODO
 	public XZ ImageCoordTranslation { get; }
 	public PRNG PRNG { get; init; } = PRNG.Create(new Random());
 

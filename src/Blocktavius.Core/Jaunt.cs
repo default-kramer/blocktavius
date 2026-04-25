@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static Blocktavius.Core.Generators.Hills.FacileCliffBuilder;
 
 namespace Blocktavius.Core;
 
@@ -45,11 +46,11 @@ public sealed class Jaunt
 	public int NumRuns => runs.Count;
 	public IReadOnlyList<Run> Runs => runs;
 
-	private Jaunt(IReadOnlyList<Run> runs)
+	private Jaunt(IReadOnlyList<Run> runs, bool validateZero)
 	{
 		this.runs = runs;
 		this.TotalLength = runs.Sum(r => r.length);
-		if (runs.Min(x => x.laneOffset) != 0)
+		if (validateZero && runs.Min(x => x.laneOffset) != 0)
 		{
 			throw new Exception("Assert fail - min lane offset should always be 0");
 		}
@@ -117,7 +118,7 @@ public sealed class Jaunt
 			runs[i] = run with { laneOffset = run.laneOffset - minLaneOffset };
 		}
 
-		return new Jaunt(runs);
+		return new Jaunt(runs, validateZero: true);
 	}
 
 	private static int RandomRunLength(PRNG prng, int remainingLength, IBoundedRandomValues<int> runLengthRand)
@@ -200,6 +201,102 @@ public sealed class Jaunt
 			});
 		}
 
-		return new Jaunt(runs);
+		return new Jaunt(runs, validateZero: true);
 	}
+
+	public static bool TryParse(I2DSampler<bool> sampler, CardinalDirection outsideDirection, out PositionedJaunt positionedJaunt)
+	{
+		int rotation = outsideDirection switch
+		{
+			CardinalDirection.South => 0,
+			CardinalDirection.East => 90,
+			CardinalDirection.North => 180,
+			CardinalDirection.West => 270,
+			_ => throw new ArgumentException(nameof(outsideDirection)),
+		};
+
+		if (Jaunt.TryParse(sampler.Rotate(rotation), out var jaunt))
+		{
+			positionedJaunt = new PositionedJaunt
+			{
+				Bounds = sampler.Bounds,
+				Jaunt = jaunt,
+				Rotation = (360 - rotation) % 360,
+				OutsideDirection = outsideDirection,
+			};
+			return true;
+		}
+		positionedJaunt = null!;
+		return false;
+	}
+
+	/// <summary>
+	/// Assumes the Jaunt runs from West to East (left to right).
+	/// </summary>
+	public static bool TryParse(I2DSampler<bool> sampler, out Jaunt jaunt)
+	{
+		int startX = sampler.Bounds.start.X;
+		int startZ = sampler.Bounds.start.Z;
+
+		// We consider only the southernmost Z for each X.
+		// Cast to `int?` so that FirstOrDefault returns null for "none found".
+		var zSouthToNorth = Enumerable.Range(sampler.Bounds.start.Z, sampler.Bounds.end.Z - sampler.Bounds.start.Z)
+			.Cast<int?>()
+			.ToList();
+		zSouthToNorth.Reverse();
+
+		Run? currentRun = null;
+		List<Run> runs = new();
+
+		for (int x = sampler.Bounds.start.X; x < sampler.Bounds.end.X; x++)
+		{
+			var currZ = zSouthToNorth.FirstOrDefault(z => sampler.Sample(new XZ(x, z!.Value)));
+			if (!currZ.HasValue)
+			{
+				jaunt = null!;
+				return false;
+			}
+
+			int laneOffset = currZ.Value - startZ;
+			if (currentRun.HasValue && laneOffset == currentRun.Value.laneOffset)
+			{
+				currentRun = currentRun.Value with { length = currentRun.Value.length + 1 };
+			}
+			else
+			{
+				if (currentRun.HasValue)
+				{
+					runs.Add(currentRun.Value);
+				}
+				currentRun = new Run(x - startX, 1, laneOffset);
+			}
+		}
+
+		if (currentRun.HasValue)
+		{
+			runs.Add(currentRun.Value);
+		}
+
+		// validate lane offset always changes by +1 or -1
+		for (int i = 1; i < runs.Count; i++)
+		{
+			int delta = runs[i].laneOffset - runs[i - 1].laneOffset;
+			if (delta != 1 && delta != -1)
+			{
+				jaunt = null!;
+				return false;
+			}
+		}
+
+		jaunt = new Jaunt(runs, validateZero: false);
+		return true;
+	}
+}
+
+public sealed record PositionedJaunt
+{
+	public required Jaunt Jaunt { get; init; }
+	public required Rect Bounds { get; init; }
+	public required int Rotation { get; init; }
+	public required CardinalDirection OutsideDirection { get; init; }
 }
