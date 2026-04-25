@@ -33,7 +33,7 @@ public static class FacileCliffBuilder
 	public static Result TODO(PositionedJaunt jaunt, Config config)
 	{
 		var baseCliff = GenerateBase(jaunt.Jaunt, config);
-		var overhang = GenerateOverhang(jaunt.Jaunt, config);
+		var overhang = GenerateOverhang2(jaunt.Jaunt, config);
 
 		// TODO transforms go here:
 		// 1) align overhang to positioned jaunt
@@ -204,6 +204,51 @@ public static class FacileCliffBuilder
 				shiftedPosts.Add(config.OverhangHeight); // TODO compensate for the previous TODO
 				int z = run.laneOffset;
 				foreach (var post in shiftedPosts)
+				{
+					int y = config.OverhangHeight - post;
+					z++;
+					array.Put(new XZ(x, z), y);
+				}
+			}
+		}
+
+		return array;
+	}
+
+	/// <summary>
+	/// Like <see cref="GenerateOverhang2(Jaunt, Config)"/> but fencepost shifting is now
+	/// relative to the previous column and MaxNudge is more meaningful.
+	/// </summary>
+	private static I2DSampler<int> GenerateOverhang2(Jaunt jaunt, Config config)
+	{
+		var bounds = GetJauntBounds(jaunt, config.OverhangDepth);
+		var array = new MutableArray2D<int>(bounds, -1);
+
+		BackfillJaunt(array, jaunt, config.OverhangHeight);
+
+		int average = config.OverhangHeight / config.OverhangDepth;
+		var distribution = Util.Distribute(config.OverhangHeight, config.OverhangDepth);
+		var settings = new FencepostShifter.Settings
+		{
+			MaxFenceLength = average + 2,
+			MinFenceLength = 1,
+			MaxNudge = 1,
+			TotalLength = config.OverhangHeight,
+		};
+
+		config.Prng.Shuffle(distribution);
+		var posts = distribution.Scan(0, (sum, a) => sum + a).ToList();
+		posts.RemoveAt(posts.Count - 1);
+
+		foreach (var run in jaunt.Runs)
+		{
+			for (int x = run.start; x < run.end; x++)
+			{
+				var shifter = FencepostShifter.Create(posts, settings);
+				//var shiftedPosts = shifter.Shift(config.Prng);
+				posts = shifter.Shift(config.Prng);
+				int z = run.laneOffset;
+				foreach (var post in posts.Concat([config.OverhangHeight]))
 				{
 					int y = config.OverhangHeight - post;
 					z++;

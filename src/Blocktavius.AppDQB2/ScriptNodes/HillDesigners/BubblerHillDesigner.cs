@@ -47,7 +47,8 @@ sealed class BubblerHillDesigner : RegionBasedHillDesigner
 	{
 		public required Point JauntPoint { get; init; }
 		public required CardinalDirection OutsideDir { get; init; }
-		public required XZ ADJUST { get; init; }
+		public required XZ BaseCliffAdjust { get; init; }
+		public required XZ OverhangAdjust { get; init; }
 	}
 
 	private static StageMutation? TODO(HillDesignContext context, ARGS args)
@@ -85,7 +86,7 @@ sealed class BubblerHillDesigner : RegionBasedHillDesigner
 		{
 			BaseHeight = context.Elevation,
 			OverhangDepth = 6, // AHA - this is key OverhangDepth - JauntBounds.Depth is how much we need to translate overhang by!
-			OverhangHeight = 13,
+			OverhangHeight = 14,
 			Prng = prng,
 		};
 		var result = FacileCliffBuilder.TODO(jauntResult, config);
@@ -95,7 +96,7 @@ sealed class BubblerHillDesigner : RegionBasedHillDesigner
 		// The base cliff is EXPECTED to be deeper than the actual Jaunt!
 		// That's what overhang does, it pushes the base cliff deeper.
 		// Wait, should this 6 always match overhang depth exactly?
-		var cliff = result.BaseCliff.TranslateTo(toXZ.Add(args.ADJUST))
+		var cliff = result.BaseCliff.TranslateTo(toXZ.Add(args.BaseCliffAdjust))
 			.Rotate(jauntResult.Rotation)
 			.Project(i => i == config.BaseHeight ? config.BaseHeight + middleHeight : i);
 		var mCliff = StageMutation.CreateHills(cliff, context.FillBlockId);
@@ -105,7 +106,7 @@ sealed class BubblerHillDesigner : RegionBasedHillDesigner
 			Block = context.FillBlockId,
 			YFloor = config.BaseHeight + middleHeight + 1,
 			MaxElevation = config.OverhangHeight,
-			Sampler = result.OverhangSampler.TranslateTo(toXZ.Add(args.ADJUST)).Rotate(jauntResult.Rotation),
+			Sampler = result.OverhangSampler.TranslateTo(toXZ.Add(args.OverhangAdjust)).Rotate(jauntResult.Rotation),
 		};
 
 		return StageMutation.Combine([mCliff, mOverhang]);
@@ -118,15 +119,11 @@ sealed class BubblerHillDesigner : RegionBasedHillDesigner
 			List<StageMutation?> mutations = new();
 			mutations.Add(TODO(context, new ARGS
 			{
-				JauntPoint = new Point(new XZ(930, 1039), 84),
-				OutsideDir = CardinalDirection.South,
-				ADJUST = new XZ(0, -5),
-			}));
-			mutations.Add(TODO(context, new ARGS
-			{
-				JauntPoint = new Point(new XZ(924, 1037), 84),
-				OutsideDir = CardinalDirection.South,
-				ADJUST = new XZ(0, -3), // TODO I think it's not -5 because minLaneOffset > 0 so the bounds aren't as expected
+				JauntPoint = new Point(new XZ(885, 1018), 85),
+				OutsideDir = CardinalDirection.West,
+				//ADJUST = new XZ(0, -5),
+				OverhangAdjust = new XZ(0, 0),
+				BaseCliffAdjust = new XZ(6, 0),
 			}));
 			return StageMutation.Combine(mutations.WhereNotNull().ToList());
 		}
