@@ -34,6 +34,8 @@ sealed class PutCliffNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutat
 			me.OutsideDirection = this.OutsideDirection;
 			if (this.CliffDesigner?.TryDeserializeV1(context, out var designer) ?? false)
 			{
+				// need to set SelectedCliffType *before* CliffDesigner!
+				me.SelectedCliffType = CliffType.FindTypeOf(designer);
 				me.CliffDesigner = designer;
 			}
 			node = me;
@@ -103,7 +105,7 @@ sealed class PutCliffNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutat
 	[Category(Common)]
 	[ItemsSource(typeof(CliffType.PropGridItemsSource))]
 	[RefreshProperties(RefreshProperties.All)]
-	public CliffType? SelectedHillType
+	public CliffType? SelectedCliffType
 	{
 		get => selectedCliffType;
 		set

@@ -85,17 +85,8 @@ sealed class FacileCliffDesigner : ViewModelBase, ICliffDesigner
 			Prng = context.Prng.AdvanceAndClone(),
 		};
 
-		var jauntResult = context.PositionedJaunt;
-		var result = FacileCliffBuilder.TODO(context.PositionedJaunt, config);
+		var (cliff, overhang) = TODO(context.PositionedJaunt, config, MiddleHeight);
 
-		var toXZ = jauntResult.Bounds.start;
-
-		// The base cliff is EXPECTED to be deeper than the actual Jaunt!
-		// That's what overhang does, it pushes the base cliff deeper.
-		// Wait, should this 6 always match overhang depth exactly?
-		var cliff = result.BaseCliff.TranslateTo(toXZ.Add(baseCliffAdjust))
-			.Rotate(jauntResult.Rotation)
-			.Project(i => i == config.BaseHeight ? config.BaseHeight + MiddleHeight : i);
 		var mCliff = StageMutation.CreateHills(cliff, fillBlockId);
 
 		var mOverhang = new DQB2.Mutations.PutInvertedHillMutation()
@@ -103,9 +94,49 @@ sealed class FacileCliffDesigner : ViewModelBase, ICliffDesigner
 			Block = fillBlockId,
 			YFloor = config.BaseHeight + MiddleHeight + 1,
 			MaxElevation = config.OverhangHeight,
-			Sampler = result.OverhangSampler.TranslateTo(toXZ.Add(overhangAdjust)).Rotate(jauntResult.Rotation),
+			Sampler = overhang,
 		};
 
 		return StageMutation.Combine([mCliff, mOverhang]);
+	}
+
+	private static (I2DSampler<int>, I2DSampler<int>) TODO(PositionedJaunt posJaunt, FacileCliffBuilder.Config config, int middleHeight)
+	{
+		var result = FacileCliffBuilder.TODO(posJaunt, config);
+
+		const int NOMERGE = 1; // OverhangDepth of 3 generates 2 steps, this seems wrong...
+
+		XZ baseCliffXZ;
+		XZ overhangXZ;
+
+		switch (posJaunt.OutsideDirection)
+		{
+			case CardinalDirection.North:
+				overhangXZ = posJaunt.Bounds.start.Add(0, -NOMERGE);
+				baseCliffXZ = overhangXZ.Add(0, config.OverhangDepth);
+				break;
+			case CardinalDirection.West:
+				overhangXZ = posJaunt.Bounds.start.Add(-NOMERGE, 0);
+				baseCliffXZ = overhangXZ.Add(config.OverhangDepth, 0);
+				break;
+			case CardinalDirection.South:
+				overhangXZ = posJaunt.Bounds.start.Add(0, NOMERGE - config.OverhangDepth);
+				baseCliffXZ = overhangXZ.Add(0, 0);
+				break;
+			case CardinalDirection.East:
+				overhangXZ = posJaunt.Bounds.start.Add(NOMERGE - config.OverhangDepth, 0);
+				baseCliffXZ = overhangXZ.Add(0, 0);
+				break;
+			default:
+				throw new Exception($"Assert fail - unrecognized cardinal dir {posJaunt.OutsideDirection}");
+		}
+
+		var baseCliff = result.BaseCliff.Rotate(posJaunt.Rotation)
+			.TranslateTo(baseCliffXZ)
+			.Project(i => i == config.BaseHeight ? config.BaseHeight + middleHeight : i);
+
+		var overhang = result.OverhangSampler.TranslateTo(overhangXZ).Rotate(posJaunt.Rotation);
+
+		return (baseCliff, overhang);
 	}
 }
