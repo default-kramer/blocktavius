@@ -45,11 +45,11 @@ public sealed class Jaunt
 	public int NumRuns => runs.Count;
 	public IReadOnlyList<Run> Runs => runs;
 
-	private Jaunt(IReadOnlyList<Run> runs, bool validateZero)
+	private Jaunt(IReadOnlyList<Run> runs)
 	{
 		this.runs = runs;
 		this.TotalLength = runs.Sum(r => r.length);
-		if (validateZero && runs.Min(x => x.laneOffset) != 0) // NOMERGE - should probably still normalize to 0, right?
+		if (runs.Min(x => x.laneOffset) != 0)
 		{
 			throw new Exception("Assert fail - min lane offset should always be 0");
 		}
@@ -117,7 +117,7 @@ public sealed class Jaunt
 			runs[i] = run with { laneOffset = run.laneOffset - minLaneOffset };
 		}
 
-		return new Jaunt(runs, validateZero: true);
+		return new Jaunt(runs);
 	}
 
 	private static int RandomRunLength(PRNG prng, int remainingLength, IBoundedRandomValues<int> runLengthRand)
@@ -200,7 +200,7 @@ public sealed class Jaunt
 			});
 		}
 
-		return new Jaunt(runs, validateZero: true);
+		return new Jaunt(runs);
 	}
 
 	public static bool TryParse(I2DSampler<bool> sampler, CardinalDirection outsideDirection, out PositionedJaunt positionedJaunt)
@@ -214,11 +214,21 @@ public sealed class Jaunt
 			_ => throw new ArgumentException(nameof(outsideDirection)),
 		};
 
-		if (Jaunt.TryParse(sampler.Rotate(rotation), out var jaunt))
+		if (Jaunt.TryParse(sampler.Rotate(rotation), out var jaunt, out int laneAdjustment))
 		{
+			var bounds = sampler.Bounds;
+			int adjust2 = laneAdjustment + jaunt.runs.Max(r => r.laneOffset) + 1;
+			var adjustedBounds = outsideDirection switch
+			{
+				CardinalDirection.South => new Rect(bounds.start.Add(0, laneAdjustment), bounds.end with { Z = bounds.start.Z + adjust2 }),
+				CardinalDirection.North => new Rect(bounds.start with { Z = bounds.end.Z - adjust2 }, bounds.end.Add(0, -laneAdjustment)),
+				CardinalDirection.East => new Rect(bounds.start.Add(laneAdjustment, 0), bounds.end with { X = bounds.start.X + adjust2 }),
+				CardinalDirection.West => new Rect(bounds.start with { X = bounds.end.X - adjust2 }, bounds.end.Add(-laneAdjustment, 0)),
+				_ => throw new ArgumentException(nameof(outsideDirection)),
+			};
 			positionedJaunt = new PositionedJaunt
 			{
-				Bounds = sampler.Bounds,
+				Bounds = adjustedBounds,
 				Jaunt = jaunt,
 				Rotation = (360 - rotation) % 360,
 				OutsideDirection = outsideDirection,
@@ -232,7 +242,7 @@ public sealed class Jaunt
 	/// <summary>
 	/// Assumes the Jaunt runs from West to East (left to right).
 	/// </summary>
-	private static bool TryParse(I2DSampler<bool> sampler, out Jaunt jaunt)
+	private static bool TryParse(I2DSampler<bool> sampler, out Jaunt jaunt, out int laneAdjustment)
 	{
 		int startX = sampler.Bounds.start.X;
 		int startZ = sampler.Bounds.start.Z;
@@ -253,6 +263,7 @@ public sealed class Jaunt
 			if (!currZ.HasValue)
 			{
 				jaunt = null!;
+				laneAdjustment = 0;
 				return false;
 			}
 
@@ -283,19 +294,34 @@ public sealed class Jaunt
 			if (delta != 1 && delta != -1)
 			{
 				jaunt = null!;
+				laneAdjustment = 0;
 				return false;
 			}
 		}
 
-		jaunt = new Jaunt(runs, validateZero: false);
+		int minOffset = runs.Min(r => r.laneOffset);
+		if (minOffset != 0)
+		{
+			runs = runs.Select(r => r with { laneOffset = r.laneOffset - minOffset }).ToList();
+		}
+		laneAdjustment = minOffset;
+		jaunt = new Jaunt(runs);
 		return true;
 	}
 }
 
 public sealed record PositionedJaunt
 {
+	/// <summary>
+	/// A normalized Jaunt (min lane offset = 0).
+	/// </summary>
 	public required Jaunt Jaunt { get; init; }
+
+	/// <summary>
+	/// Bounds into which the <see cref="Jaunt"/> should fit after applying <see cref="Rotation"/>.
+	/// </summary>
 	public required Rect Bounds { get; init; }
+
 	public required int Rotation { get; init; }
 	public required CardinalDirection OutsideDirection { get; init; }
 }
