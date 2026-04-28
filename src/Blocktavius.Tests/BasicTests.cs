@@ -63,4 +63,17 @@ public class BasicTests
 		Assert.IsFalse(bounds.Contains(new XZ(11, 20)));
 		Assert.IsFalse(bounds.Contains(new XZ(10, 21)));
 	}
+
+	[TestMethod]
+	public void distribute_tests()
+	{
+		var x = Util.Distribute(14, 6);
+		Assert.IsTrue(x.SequenceEqual([3, 3, 2, 2, 2, 2]));
+
+		x = Util.Distribute(15, 3);
+		Assert.IsTrue(x.SequenceEqual([5, 5, 5]));
+
+		x = Util.Distribute(4, 6);
+		Assert.IsTrue(x.SequenceEqual([1, 1, 1, 1, 0, 0]));
+	}
 }

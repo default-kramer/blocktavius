@@ -13,10 +13,20 @@ public static class FacileCliffBuilder
 	{
 		public required PRNG Prng { get; init; }
 
-		public required int BaseHeight { get; init; }
+		public required int BaseElevation { get; init; }
 
 		public required int OverhangDepth { get; init; }
 		public required int OverhangHeight { get; init; }
+
+		public Config Validate()
+		{
+			return this with
+			{
+				BaseElevation = Math.Max(0, this.BaseElevation),
+				OverhangDepth = Math.Clamp(this.OverhangDepth, 0, Math.Max(0, this.OverhangHeight - 1)),
+				OverhangHeight = Math.Max(0, this.OverhangHeight),
+			};
+		}
 	}
 
 	public sealed class Result
@@ -28,12 +38,10 @@ public static class FacileCliffBuilder
 
 	public static Result TODO(PositionedJaunt jaunt, Config config)
 	{
+		config = config.Validate();
+
 		var baseCliff = GenerateBase(jaunt.Jaunt, config);
 		var overhang = GenerateOverhang2(jaunt.Jaunt, config);
-
-		// TODO transforms go here:
-		// 1) align overhang to positioned jaunt
-		// 2) align base cliff to match overhang
 
 		return new Result
 		{
@@ -71,7 +79,7 @@ public static class FacileCliffBuilder
 		var bounds = GetJauntBounds(jaunt, 0);
 		var array = new MutableArray2D<int>(bounds, -1);
 
-		BackfillJaunt(array, jaunt, config.BaseHeight);
+		BackfillJaunt(array, jaunt, config.BaseElevation);
 
 		// Could probably use Fencepost Shifting here... but let's keep it very simple for now:
 		var gaps = FindGaps(jaunt).OrderBy(x => x.LaneOffset).ToList();
@@ -169,61 +177,24 @@ public static class FacileCliffBuilder
 	}
 
 	/// <summary>
-	/// It is assumed this sampler will be inverted
-	/// </summary>
-	private static I2DSampler<int> GenerateOverhang(Jaunt jaunt, Config config)
-	{
-		var bounds = GetJauntBounds(jaunt, config.OverhangDepth);
-		var array = new MutableArray2D<int>(bounds, -1);
-
-		BackfillJaunt(array, jaunt, config.OverhangHeight);
-
-		int average = config.OverhangHeight / config.OverhangDepth;
-		var distribution = Util.Distribute(config.OverhangHeight, config.OverhangDepth);
-		var settings = new FencepostShifter.Settings
-		{
-			MaxFenceLength = average + 2,
-			MinFenceLength = 1,
-			MaxNudge = average,
-			TotalLength = config.OverhangHeight,
-		};
-
-		foreach (var run in jaunt.Runs)
-		{
-			for (int x = run.start; x < run.end; x++)
-			{
-				config.Prng.Shuffle(distribution);
-				var initialPosts = distribution.Scan(0, (sum, a) => sum + a).ToList();
-				initialPosts.RemoveAt(initialPosts.Count - 1); // TODO why was this not necessary before using Distribute() ?
-				var shifter = FencepostShifter.Create(initialPosts, settings);
-				var shiftedPosts = shifter.Shift(config.Prng);
-				shiftedPosts.Add(config.OverhangHeight); // TODO compensate for the previous TODO
-				int z = run.laneOffset;
-				foreach (var post in shiftedPosts)
-				{
-					int y = config.OverhangHeight - post;
-					z++;
-					array.Put(new XZ(x, z), y);
-				}
-			}
-		}
-
-		return array;
-	}
-
-	/// <summary>
-	/// Like <see cref="GenerateOverhang2(Jaunt, Config)"/> but fencepost shifting is now
-	/// relative to the previous column and MaxNudge is more meaningful.
+	/// It is assumed this sampler will be inverted.
+	/// Uses fencepost shifting to generate, column by column, the outward steps
+	/// needed to achieve <see cref="Config.OverhangDepth"/> in the vertical space
+	/// allowed by <see cref="Config.OverhangHeight"/>.
 	/// </summary>
 	private static I2DSampler<int> GenerateOverhang2(Jaunt jaunt, Config config)
 	{
-		var bounds = GetJauntBounds(jaunt, config.OverhangDepth);
+		var bounds = GetJauntBounds(jaunt, config.OverhangDepth + 1);
 		var array = new MutableArray2D<int>(bounds, -1);
 
 		BackfillJaunt(array, jaunt, config.OverhangHeight);
 
+		if (config.OverhangDepth < 1)
+		{
+			return array;
+		}
+
 		int average = config.OverhangHeight / config.OverhangDepth;
-		var distribution = Util.Distribute(config.OverhangHeight, config.OverhangDepth);
 		var settings = new FencepostShifter.Settings
 		{
 			MaxFenceLength = average + 2,
@@ -232,16 +203,13 @@ public static class FacileCliffBuilder
 			TotalLength = config.OverhangHeight,
 		};
 
-		config.Prng.Shuffle(distribution);
-		var posts = distribution.Scan(0, (sum, a) => sum + a).ToList();
-		posts.RemoveAt(posts.Count - 1);
+		var posts = GenerateInitialOverhangFenceposts(config);
 
 		foreach (var run in jaunt.Runs)
 		{
 			for (int x = run.start; x < run.end; x++)
 			{
 				var shifter = FencepostShifter.Create(posts, settings);
-				//var shiftedPosts = shifter.Shift(config.Prng);
 				posts = shifter.Shift(config.Prng);
 				int z = run.laneOffset;
 				foreach (var post in posts.Concat([config.OverhangHeight]))
@@ -254,5 +222,24 @@ public static class FacileCliffBuilder
 		}
 
 		return array;
+	}
+
+	/// <summary>
+	/// For the overhang, we use the <see cref="FencepostShifter"/> idea to decide, for each
+	/// column, where each outward step should occur. We need <see cref="Config.OverhangDepth"/>
+	/// such steps distributed over <see cref="Config.OverhangHeight"/>.
+	/// For example, if depth=3 and height=10 our post list could be [4,6,9] meaning the first
+	/// outward step would occur at Y+4, the second at Y+6, and the third at Y+9.
+	/// </summary>
+	private static List<int> GenerateInitialOverhangFenceposts(Config config)
+	{
+		// The following technique guarantees that the last post will always equal
+		// OverhangHeight, which is not what we want here.
+		// So we generate one extra post...
+		var distribution = Util.Distribute(config.OverhangHeight, config.OverhangDepth + 1);
+		config.Prng.Shuffle(distribution);
+		var posts = distribution.Scan(0, (sum, a) => sum + a).ToList();
+		posts.RemoveAt(posts.Count - 1); // ... and now remove the extra post.
+		return posts;
 	}
 }

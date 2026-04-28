@@ -79,11 +79,12 @@ sealed class FacileCliffDesigner : ViewModelBase, ICliffDesigner
 
 		var config = new FacileCliffBuilder.Config
 		{
-			BaseHeight = this.BaseCliffElevation,
+			BaseElevation = this.BaseCliffElevation,
 			OverhangDepth = this.OverhangDepth,
 			OverhangHeight = this.OverhangHeight,
 			Prng = context.Prng.AdvanceAndClone(),
 		};
+		config = config.Validate();
 
 		var (cliff, overhang) = TODO(context.PositionedJaunt, config, MiddleHeight);
 
@@ -92,7 +93,7 @@ sealed class FacileCliffDesigner : ViewModelBase, ICliffDesigner
 		var mOverhang = new DQB2.Mutations.PutInvertedHillMutation()
 		{
 			Block = fillBlockId,
-			YFloor = config.BaseHeight + MiddleHeight + 1,
+			YFloor = config.BaseElevation + MiddleHeight + 1,
 			MaxElevation = config.OverhangHeight,
 			Sampler = overhang,
 		};
@@ -104,7 +105,9 @@ sealed class FacileCliffDesigner : ViewModelBase, ICliffDesigner
 	{
 		var result = FacileCliffBuilder.TODO(posJaunt, config);
 
-		const int NOMERGE = 1; // OverhangDepth of 3 generates 2 steps, this seems wrong...
+		// This is because the overhang has 1 extra depth (relative to the original PositionedJaunt)
+		// to ensure backfill is present even on the runs having laneOffset=0.
+		const int Spacer = 1;
 
 		XZ baseCliffXZ;
 		XZ overhangXZ;
@@ -112,20 +115,20 @@ sealed class FacileCliffDesigner : ViewModelBase, ICliffDesigner
 		switch (posJaunt.OutsideDirection)
 		{
 			case CardinalDirection.North:
-				overhangXZ = posJaunt.Bounds.start.Add(0, -NOMERGE);
-				baseCliffXZ = overhangXZ.Add(0, config.OverhangDepth);
+				overhangXZ = posJaunt.Bounds.start.Add(0, -Spacer);
+				baseCliffXZ = overhangXZ.Add(0, config.OverhangDepth + Spacer);
 				break;
 			case CardinalDirection.West:
-				overhangXZ = posJaunt.Bounds.start.Add(-NOMERGE, 0);
-				baseCliffXZ = overhangXZ.Add(config.OverhangDepth, 0);
+				overhangXZ = posJaunt.Bounds.start.Add(-Spacer, 0);
+				baseCliffXZ = overhangXZ.Add(config.OverhangDepth + Spacer, 0);
 				break;
 			case CardinalDirection.South:
-				overhangXZ = posJaunt.Bounds.start.Add(0, NOMERGE - config.OverhangDepth);
-				baseCliffXZ = overhangXZ.Add(0, 0);
+				overhangXZ = posJaunt.Bounds.start.Add(0, -config.OverhangDepth);
+				baseCliffXZ = overhangXZ;
 				break;
 			case CardinalDirection.East:
-				overhangXZ = posJaunt.Bounds.start.Add(NOMERGE - config.OverhangDepth, 0);
-				baseCliffXZ = overhangXZ.Add(0, 0);
+				overhangXZ = posJaunt.Bounds.start.Add(-config.OverhangDepth, 0);
+				baseCliffXZ = overhangXZ;
 				break;
 			default:
 				throw new Exception($"Assert fail - unrecognized cardinal dir {posJaunt.OutsideDirection}");
@@ -133,7 +136,7 @@ sealed class FacileCliffDesigner : ViewModelBase, ICliffDesigner
 
 		var baseCliff = result.BaseCliff.Rotate(posJaunt.Rotation)
 			.TranslateTo(baseCliffXZ)
-			.Project(i => i == config.BaseHeight ? config.BaseHeight + middleHeight : i);
+			.Project(i => i == config.BaseElevation ? config.BaseElevation + middleHeight : i);
 
 		var overhang = result.OverhangSampler.TranslateTo(overhangXZ).Rotate(posJaunt.Rotation);
 
