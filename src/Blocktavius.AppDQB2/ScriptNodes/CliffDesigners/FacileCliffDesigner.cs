@@ -103,7 +103,7 @@ sealed class FacileCliffDesigner : ViewModelBase, ICliffDesigner
 
 	private static (I2DSampler<int>, I2DSampler<int>) TODO(PositionedJaunt posJaunt, FacileCliffBuilder.Config config, int middleHeight)
 	{
-		var result = FacileCliffBuilder.TODO(posJaunt, config);
+		var result = FacileCliffBuilder.BuildCliff(posJaunt, config);
 
 		// This is because the overhang has 1 extra depth (relative to the original PositionedJaunt)
 		// to ensure backfill is present even on the runs having laneOffset=0.

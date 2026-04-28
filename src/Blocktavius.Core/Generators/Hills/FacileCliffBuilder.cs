@@ -7,15 +7,28 @@ using System.Threading.Tasks;
 
 namespace Blocktavius.Core.Generators.Hills;
 
+/// <summary>
+/// Given a Jaunt, creates a cliff with a face well-suited for further work by a human builder.
+/// </summary>
 public static class FacileCliffBuilder
 {
 	public sealed record Config
 	{
 		public required PRNG Prng { get; init; }
 
+		/// <summary>
+		/// Elevation of the <see cref="Result.BaseCliff"/>
+		/// </summary>
 		public required int BaseElevation { get; init; }
 
+		/// <summary>
+		/// Number of outward steps the overhang will take, relative to the original Jaunt.
+		/// </summary>
 		public required int OverhangDepth { get; init; }
+
+		/// <summary>
+		/// Elevation of the (inverted) <see cref="Result.OverhangSampler"/>.
+		/// </summary>
 		public required int OverhangHeight { get; init; }
 
 		public Config Validate()
@@ -33,10 +46,13 @@ public static class FacileCliffBuilder
 	{
 		public required I2DSampler<int> BaseCliff { get; init; }
 
+		/// <summary>
+		/// This sampler should be inverted to produce overhang.
+		/// </summary>
 		public required I2DSampler<int> OverhangSampler { get; init; }
 	}
 
-	public static Result TODO(PositionedJaunt jaunt, Config config)
+	public static Result BuildCliff(PositionedJaunt jaunt, Config config)
 	{
 		config = config.Validate();
 
@@ -128,7 +144,7 @@ public static class FacileCliffBuilder
 						LeftBookend = start,
 						RightBookend = run,
 						LaneOffset = run.laneOffset,
-						Range = new Range(start.end, run.start - 1), // TODO?
+						Range = new Range(start.end, run.start - 1),
 					};
 					stack.Pop();
 				}
@@ -145,7 +161,7 @@ public static class FacileCliffBuilder
 					LeftBookend = null,
 					RightBookend = run,
 					LaneOffset = run.laneOffset,
-					Range = new Range(xMin, run.start - 1), // TODO?
+					Range = new Range(xMin, run.start - 1),
 				};
 			}
 
