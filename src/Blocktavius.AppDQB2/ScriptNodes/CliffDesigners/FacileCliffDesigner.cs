@@ -75,7 +75,7 @@ sealed class FacileCliffDesigner : ViewModelBase, ICliffDesigner
 	{
 		var baseCliffAdjust = new XZ(0, 0);
 		var overhangAdjust = new XZ(0, 0);
-		ushort fillBlockId = 131;
+		ushort fillBlockId = context.FillBlockId;
 
 		var config = new FacileCliffBuilder.Config
 		{

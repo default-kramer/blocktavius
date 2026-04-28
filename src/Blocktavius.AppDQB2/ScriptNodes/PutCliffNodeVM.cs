@@ -18,6 +18,7 @@ sealed class PutCliffNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutat
 	[PersistentScriptNode(Discriminator = "PutCliff-6951")]
 	sealed record PersistModel : IPersistentScriptNode
 	{
+		public required string? BlockPersistId { get; init; }
 		public required int JauntX { get; init; }
 		public required int JauntZ { get; init; }
 		public required int JauntY { get; init; }
@@ -28,6 +29,7 @@ sealed class PutCliffNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutat
 		public bool TryDeserializeV1(out ScriptNodeVM node, ScriptDeserializationContext context)
 		{
 			var me = new PutCliffNodeVM();
+			me.Block = context.BlockManager.FindBlock(this.BlockPersistId);
 			me.JauntX = this.JauntX;
 			me.JauntZ = this.JauntZ;
 			me.JauntY = this.JauntY;
@@ -38,6 +40,11 @@ sealed class PutCliffNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutat
 				me.SelectedCliffType = CliffType.FindTypeOf(designer);
 				me.CliffDesigner = designer;
 			}
+			if (this.LockedRandomSeed != null)
+			{
+				me.prngSeed = this.LockedRandomSeed;
+				me.LockRandomSeed = true;
+			}
 			node = me;
 			return true;
 		}
@@ -47,11 +54,12 @@ sealed class PutCliffNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutat
 	{
 		return new PersistModel
 		{
+			BlockPersistId = this.Block?.PersistentId,
 			JauntX = this.JauntX,
 			JauntZ = this.JauntZ,
 			JauntY = this.JauntY,
 			OutsideDirection = this.OutsideDirection,
-			LockedRandomSeed = null, // TODO
+			LockedRandomSeed = this.LockRandomSeed ? this.prngSeed : null,
 			CliffDesigner = this.CliffDesigner?.ToPersistModel(),
 		};
 	}
@@ -60,6 +68,15 @@ sealed class PutCliffNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutat
 	IStageMutator? IDynamicScriptNodeVM.SelfAsMutator => this;
 
 	const string Common = "_Common";
+
+	private IBlockProviderVM? blockProvider = Blockdata.AnArbitraryBlockVM;
+	[Editor(typeof(PropGridEditors.BlockProviderEditor), typeof(PropGridEditors.BlockProviderEditor))]
+	[Category(Common)]
+	public IBlockProviderVM? Block
+	{
+		get => blockProvider;
+		set => ChangeProperty(ref blockProvider, value);
+	}
 
 	private int jauntX;
 	[Category(Common)]
@@ -124,6 +141,15 @@ sealed class PutCliffNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutat
 		private set => ChangeProperty(ref cliffDesigner, value);
 	}
 
+	private string? prngSeed = null;
+	private bool lockRandomSeed;
+	[Category(Common)]
+	public bool LockRandomSeed
+	{
+		get => lockRandomSeed;
+		set => ChangeProperty(ref lockRandomSeed, value);
+	}
+
 	protected override void AfterPropertyChanges()
 	{
 		RebuildLongStatus();
@@ -139,7 +165,7 @@ sealed class PutCliffNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutat
 
 	public StageMutation? BuildMutation(StageRebuildContext context)
 	{
-		if (cliffDesigner == null)
+		if (cliffDesigner == null || Block == null)
 		{
 			return null;
 		}
@@ -150,11 +176,27 @@ sealed class PutCliffNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutat
 			return null;
 		}
 
-		var ctx = new CliffDesignContext
+		PRNG prng;
+		if (LockRandomSeed && prngSeed != null)
 		{
-			PositionedJaunt = result,
-			Prng = PRNG.Create(new Random()), // TODO same seed-saver pattern from hills
-		};
-		return cliffDesigner.CreateMutation(ctx);
+			prng = PRNG.Deserialize(prngSeed);
+		}
+		else
+		{
+			prng = PRNG.Create(new Random());
+			prngSeed = prng.Serialize();
+		}
+
+		if (Block.UniformBlockId.HasValue)
+		{
+			var ctx = new CliffDesignContext
+			{
+				PositionedJaunt = result,
+				Prng = prng,
+				FillBlockId = Block.UniformBlockId.Value,
+			};
+			return cliffDesigner.CreateMutation(ctx);
+		}
+		return null;
 	}
 }

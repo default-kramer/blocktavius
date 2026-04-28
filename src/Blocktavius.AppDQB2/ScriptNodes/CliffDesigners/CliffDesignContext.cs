@@ -10,6 +10,6 @@ namespace Blocktavius.AppDQB2.ScriptNodes.CliffDesigners;
 public sealed record CliffDesignContext
 {
 	public required PositionedJaunt PositionedJaunt { get; init; }
-
 	public required PRNG Prng { get; init; }
+	public required ushort FillBlockId { get; init; }
 }
