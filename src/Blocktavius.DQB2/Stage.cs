@@ -24,6 +24,18 @@ public interface IStage
 
 	bool TryReadChunk(ChunkOffset offset, out IChunk chunk);
 
+	bool TryReadBlock(Point point, out ushort block)
+	{
+		var offset = ChunkOffset.FromXZ(point.xz);
+		if (!TryReadChunk(offset, out var chunk))
+		{
+			block = 0;
+			return false;
+		}
+		block = chunk.GetBlock(point);
+		return true;
+	}
+
 	/// <summary>
 	/// Here "original" approximately means "existed when the STGDAT file was loaded".
 	/// Differs from <see cref="ChunksInUse"/> only when the chunk grid is modified.
