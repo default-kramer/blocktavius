@@ -22,7 +22,7 @@ sealed class PutCliffNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutat
 		public required int JauntX { get; init; }
 		public required int JauntZ { get; init; }
 		public required int JauntY { get; init; }
-		public required CardinalDirection OutsideDirection { get; init; }
+		public required CardinalDirection? OutsideDirection { get; init; }
 		public required string? LockedRandomSeed { get; init; }
 		public required IPersistentCliffDesigner? CliffDesigner { get; init; }
 
@@ -64,6 +64,11 @@ sealed class PutCliffNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutat
 		};
 	}
 
+	public PutCliffNodeVM()
+	{
+		RebuildLongStatus();
+	}
+
 	ScriptNodeVM IDynamicScriptNodeVM.SelfAsVM => this;
 	IStageMutator? IDynamicScriptNodeVM.SelfAsMutator => this;
 
@@ -102,9 +107,9 @@ sealed class PutCliffNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutat
 		set => ChangeProperty(ref jauntY, value);
 	}
 
-	private CardinalDirection outsideDir;
+	private CardinalDirection? outsideDir;
 	[Category(Common)]
-	public CardinalDirection OutsideDirection
+	public CardinalDirection? OutsideDirection
 	{
 		get => outsideDir;
 		set => ChangeProperty(ref outsideDir, value);
@@ -159,19 +164,21 @@ sealed class PutCliffNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageMutat
 	{
 		var rtb = new BindableRichTextBuilder();
 		rtb.Append("Put Cliff:");
-		rtb.AppendLine().Append("  TODO:");
+		rtb.AppendLine().Append("  Kind: ").FallbackIfNull("None Selected", CliffDesigner?.GetType()?.Name);
+		rtb.AppendLine().Append("  Facing: ").FallbackIfNull("None Selected", OutsideDirection?.ToString())
+			.Append(", Block: ").FallbackIfNull("None Selected", Block?.DisplayName);
 		LongStatus = rtb.Build();
 	}
 
 	public StageMutation? BuildMutation(StageRebuildContext context)
 	{
-		if (cliffDesigner == null || Block == null)
+		if (cliffDesigner == null || Block == null || outsideDir == null)
 		{
 			return null;
 		}
 
 		var point = new Point(new XZ(JauntX, JauntZ), JauntY);
-		if (!context.TryParseJaunt(point, outsideDir, out var result))
+		if (!context.TryParseJaunt(point, outsideDir.Value, out var result))
 		{
 			return null;
 		}

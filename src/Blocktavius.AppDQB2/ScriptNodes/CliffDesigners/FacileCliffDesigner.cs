@@ -73,8 +73,6 @@ sealed class FacileCliffDesigner : ViewModelBase, ICliffDesigner
 
 	public StageMutation? CreateMutation(CliffDesignContext context)
 	{
-		var baseCliffAdjust = new XZ(0, 0);
-		var overhangAdjust = new XZ(0, 0);
 		ushort fillBlockId = context.FillBlockId;
 
 		var config = new FacileCliffBuilder.Config
@@ -86,7 +84,7 @@ sealed class FacileCliffDesigner : ViewModelBase, ICliffDesigner
 		};
 		config = config.Validate();
 
-		var (cliff, overhang) = TODO(context.PositionedJaunt, config, MiddleHeight);
+		var (cliff, overhang) = BuildAndTransformCliff(context.PositionedJaunt, config, MiddleHeight);
 
 		var mCliff = StageMutation.CreateHills(cliff, fillBlockId);
 
@@ -101,7 +99,7 @@ sealed class FacileCliffDesigner : ViewModelBase, ICliffDesigner
 		return StageMutation.Combine([mCliff, mOverhang]);
 	}
 
-	private static (I2DSampler<int>, I2DSampler<int>) TODO(PositionedJaunt posJaunt, FacileCliffBuilder.Config config, int middleHeight)
+	private static (I2DSampler<int>, I2DSampler<int>) BuildAndTransformCliff(PositionedJaunt posJaunt, FacileCliffBuilder.Config config, int middleHeight)
 	{
 		var result = FacileCliffBuilder.BuildCliff(posJaunt, config);
 
