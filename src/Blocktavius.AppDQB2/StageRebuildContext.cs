@@ -13,7 +13,7 @@ namespace Blocktavius.AppDQB2;
 sealed class StageRebuildContext
 {
 	private readonly List<string> errors = new();
-	private readonly IMutableStage stage;
+	private readonly IStage stage;
 	public XZ ImageCoordTranslation { get; }
 	public PRNG PRNG { get; init; } = PRNG.Create(new Random());
 
@@ -29,6 +29,11 @@ sealed class StageRebuildContext
 	public void AddError(string error)
 	{
 		this.errors.Add(error);
+	}
+
+	public bool TryParseJaunt(Point point, CardinalDirection outsideDir, out PositionedJaunt result)
+	{
+		return JauntParser.TryParseJaunt(stage, point, outsideDir, out result);
 	}
 
 	internal IStageLoader StageLoader { get; }

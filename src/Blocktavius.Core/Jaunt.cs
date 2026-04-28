@@ -202,4 +202,126 @@ public sealed class Jaunt
 
 		return new Jaunt(runs);
 	}
+
+	public static bool TryParse(I2DSampler<bool> sampler, CardinalDirection outsideDirection, out PositionedJaunt positionedJaunt)
+	{
+		int rotation = outsideDirection switch
+		{
+			CardinalDirection.South => 0,
+			CardinalDirection.East => 90,
+			CardinalDirection.North => 180,
+			CardinalDirection.West => 270,
+			_ => throw new ArgumentException(nameof(outsideDirection)),
+		};
+
+		if (Jaunt.TryParse(sampler.Rotate(rotation), out var jaunt, out int laneAdjustment))
+		{
+			var bounds = sampler.Bounds;
+			int adjust2 = laneAdjustment + jaunt.runs.Max(r => r.laneOffset) + 1;
+			var adjustedBounds = outsideDirection switch
+			{
+				CardinalDirection.South => new Rect(bounds.start.Add(0, laneAdjustment), bounds.end with { Z = bounds.start.Z + adjust2 }),
+				CardinalDirection.North => new Rect(bounds.start with { Z = bounds.end.Z - adjust2 }, bounds.end.Add(0, -laneAdjustment)),
+				CardinalDirection.East => new Rect(bounds.start.Add(laneAdjustment, 0), bounds.end with { X = bounds.start.X + adjust2 }),
+				CardinalDirection.West => new Rect(bounds.start with { X = bounds.end.X - adjust2 }, bounds.end.Add(-laneAdjustment, 0)),
+				_ => throw new ArgumentException(nameof(outsideDirection)),
+			};
+			positionedJaunt = new PositionedJaunt
+			{
+				Bounds = adjustedBounds,
+				Jaunt = jaunt,
+				Rotation = (360 - rotation) % 360,
+				OutsideDirection = outsideDirection,
+			};
+			return true;
+		}
+		positionedJaunt = null!;
+		return false;
+	}
+
+	/// <summary>
+	/// Assumes the Jaunt runs from West to East (left to right).
+	/// </summary>
+	private static bool TryParse(I2DSampler<bool> sampler, out Jaunt jaunt, out int laneAdjustment)
+	{
+		int startX = sampler.Bounds.start.X;
+		int startZ = sampler.Bounds.start.Z;
+
+		// We consider only the southernmost Z for each X.
+		// Cast to `int?` so that FirstOrDefault returns null for "none found".
+		var zSouthToNorth = Enumerable.Range(sampler.Bounds.start.Z, sampler.Bounds.end.Z - sampler.Bounds.start.Z)
+			.Cast<int?>()
+			.ToList();
+		zSouthToNorth.Reverse();
+
+		Run? currentRun = null;
+		List<Run> runs = new();
+
+		for (int x = sampler.Bounds.start.X; x < sampler.Bounds.end.X; x++)
+		{
+			var currZ = zSouthToNorth.FirstOrDefault(z => sampler.Sample(new XZ(x, z!.Value)));
+			if (!currZ.HasValue)
+			{
+				jaunt = null!;
+				laneAdjustment = 0;
+				return false;
+			}
+
+			int laneOffset = currZ.Value - startZ;
+			if (currentRun.HasValue && laneOffset == currentRun.Value.laneOffset)
+			{
+				currentRun = currentRun.Value with { length = currentRun.Value.length + 1 };
+			}
+			else
+			{
+				if (currentRun.HasValue)
+				{
+					runs.Add(currentRun.Value);
+				}
+				currentRun = new Run(x - startX, 1, laneOffset);
+			}
+		}
+
+		if (currentRun.HasValue)
+		{
+			runs.Add(currentRun.Value);
+		}
+
+		// validate lane offset always changes by +1 or -1
+		for (int i = 1; i < runs.Count; i++)
+		{
+			int delta = runs[i].laneOffset - runs[i - 1].laneOffset;
+			if (delta != 1 && delta != -1)
+			{
+				jaunt = null!;
+				laneAdjustment = 0;
+				return false;
+			}
+		}
+
+		int minOffset = runs.Min(r => r.laneOffset);
+		if (minOffset != 0)
+		{
+			runs = runs.Select(r => r with { laneOffset = r.laneOffset - minOffset }).ToList();
+		}
+		laneAdjustment = minOffset;
+		jaunt = new Jaunt(runs);
+		return true;
+	}
+}
+
+public sealed record PositionedJaunt
+{
+	/// <summary>
+	/// A normalized Jaunt (min lane offset = 0).
+	/// </summary>
+	public required Jaunt Jaunt { get; init; }
+
+	/// <summary>
+	/// Bounds into which the <see cref="Jaunt"/> should fit after applying <see cref="Rotation"/>.
+	/// </summary>
+	public required Rect Bounds { get; init; }
+
+	public required int Rotation { get; init; }
+	public required CardinalDirection OutsideDirection { get; init; }
 }

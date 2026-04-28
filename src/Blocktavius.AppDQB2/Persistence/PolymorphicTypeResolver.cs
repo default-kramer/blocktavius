@@ -33,6 +33,14 @@ sealed class PolymorphicTypeResolver : NullablePropertiesNotRequiredResolver
 				jsonTypeInfo.PolymorphismOptions.DerivedTypes.Add(new JsonDerivedType(hillType.ObjectType, hillType.Attr.Discriminator));
 			}
 		}
+		else if (jsonTypeInfo.Type == typeof(IPersistentCliffDesigner))
+		{
+			jsonTypeInfo.PolymorphismOptions = jsonTypeInfo.PolymorphismOptions ?? new();
+			foreach (var cliffType in KnownCliffDesignerTypes)
+			{
+				jsonTypeInfo.PolymorphismOptions.DerivedTypes.Add(new JsonDerivedType(cliffType.ObjectType, cliffType.Attr.Discriminator));
+			}
+		}
 
 		return jsonTypeInfo;
 	}
@@ -50,6 +58,12 @@ sealed class PolymorphicTypeResolver : NullablePropertiesNotRequiredResolver
 	private static IEnumerable<HillDesignerType> DiscoverHillDesignerTypes() =>
 		DiscoverTypes<PersistentHillDesignerAttribute>(typeof(IPersistentHillDesigner))
 		.Select(x => new HillDesignerType { ObjectType = x.type, Attr = x.attr });
+
+	private static IReadOnlyList<CliffDesignerType> KnownCliffDesignerTypes = DiscoverCliffDesignerTypes().ToList();
+
+	private static IEnumerable<CliffDesignerType> DiscoverCliffDesignerTypes() =>
+		DiscoverTypes<PersistentCliffDesignerAttribute>(typeof(IPersistentCliffDesigner))
+		.Select(x => new CliffDesignerType { ObjectType = x.type, Attr = x.attr });
 
 	private static IEnumerable<(Type type, TAttr attr)> DiscoverTypes<TAttr>(Type interfaceType) where TAttr : System.Attribute
 	{
@@ -91,5 +105,15 @@ sealed class PolymorphicTypeResolver : NullablePropertiesNotRequiredResolver
 		public required Type ObjectType { get; init; }
 
 		public required PersistentHillDesignerAttribute Attr { get; init; }
+	}
+
+	sealed record CliffDesignerType
+	{
+		/// <summary>
+		/// Must be non-abstract and implement <see cref="IPersistentCliffDesigner"/>
+		/// </summary>
+		public required Type ObjectType { get; init; }
+
+		public required PersistentCliffDesignerAttribute Attr { get; init; }
 	}
 }
