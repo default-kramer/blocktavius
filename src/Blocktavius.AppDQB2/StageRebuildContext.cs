@@ -30,6 +30,6 @@ sealed class StageRebuildContext
 
 	public bool TryParseJaunt(Point point, CardinalDirection outsideDir, out PositionedJaunt result)
 	{
-		return JauntExtractor.TryExtractJaunt(stage, point, outsideDir, out result);
+		return JauntParser.TryParseJaunt(stage, point, outsideDir, out result);
 	}
 }

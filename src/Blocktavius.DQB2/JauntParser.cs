@@ -7,9 +7,13 @@ using System.Threading.Tasks;
 
 namespace Blocktavius.DQB2;
 
-public static class JauntExtractor
+public static class JauntParser
 {
-	public static bool TryExtractJaunt(IStage stage, Point point, CardinalDirection outsideDir, out PositionedJaunt result)
+	/// <summary>
+	/// Follows all cardinal neighbors (keeping Y constant) which match the block at the given <paramref name="point"/>.
+	/// Returns true if these points define a <see cref="Jaunt"/> having the given <paramref name="outsideDir"/>.
+	/// </summary>
+	public static bool TryParseJaunt(IStage stage, Point point, CardinalDirection outsideDir, out PositionedJaunt result)
 	{
 		var xzs = CollectXZs(stage, point);
 		var bounds = new Rect.BoundsFinder().IncludeAll(xzs).CurrentBounds();
