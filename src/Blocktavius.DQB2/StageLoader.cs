@@ -291,6 +291,10 @@ static class StageLoader
 			// playinful: biome grid starts at 0x34EC8, 35 bytes per entry, grid size is 128x128
 			if ("hack the biome experimental code, disabled by default".Length < 0)
 			{
+				// It seems likely the Mod Squad will eventually figure out what all the bits do,
+				// so I don't want to make this official functionality until then.
+				// (Especially because just copying from the middle of the map may not work in all cases.)
+				// But keep the code alive and hidden here for reference.
 				HackTheBiome(ref position, stream, origBody);
 			}
 
