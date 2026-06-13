@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO.Compression;
 using System.Linq;
@@ -282,8 +283,18 @@ static class StageLoader
 			ushort chunkCount = (ushort)chunks.Count;
 			var origBody = OrigUncompressedBody.AsSpan;
 
-			// [[from start to Chunk Count]]
+			// [[advance to Biome Grid]]
 			int position = 0;
+			const int biomeGridStart = 0x34EC8;
+			stream.WriteSlice(origBody, ref position, biomeGridStart);
+
+			// playinful: biome grid starts at 0x34EC8, 35 bytes per entry, grid size is 128x128
+			if ("hack the biome experimental code, disabled by default".Length < 0)
+			{
+				HackTheBiome(ref position, stream, origBody);
+			}
+
+			// [[advance to Chunk Count]]
 			const int chunkCountAddr = 0x1451AF;
 			stream.WriteSlice(origBody, ref position, chunkCountAddr);
 
@@ -291,14 +302,14 @@ static class StageLoader
 			stream.WriteUInt16(chunkCount);
 			position += 2;
 
-			// [[from Chunk Count to Chunk Grid]]
+			// [[advance to Chunk Grid]]
 			stream.WriteSlice(origBody, ref position, chunkGridStart);
 
 			// Sapphire: Virtual Grid/ Chunk Grid: 0x24C7C1 - 0x24E7C1 (Size: 64*64 chunks * 2 bytes = 0x2000)
 			stream.Write(chunkGridData);
 			position += chunkGridData.Length;
 
-			// [[from Chunk Grid to Virtual Chunk Count]]
+			// [[advance to Virtual Chunk Count]]
 			const int virtualChunkCountAddr = 0x24E7C5;
 			stream.WriteSlice(origBody, ref position, virtualChunkCountAddr);
 
@@ -306,13 +317,46 @@ static class StageLoader
 			stream.WriteUInt16(chunkCount);
 			position += 2;
 
-			// [[from Virtual Chunk Count to start of blockdata]]
+			// [[advance to start of blockdata]]
 			stream.WriteSlice(origBody, ref position, blockdataStart);
 
 			// blockdata
 			foreach (var chunk in chunks)
 			{
 				chunk.Internals.WriteBlockdataAsync(stream).AsTask().Wait();
+			}
+		}
+
+		/// <summary>
+		/// This is crude, but it seems to enable minimap support for the entire map.
+		/// It also seems to be persistent; even if you perform chunk expansion later it still works.
+		/// </summary>
+		private static void HackTheBiome(ref int position, Stream stream, ReadOnlySpan<byte> origBody)
+		{
+			int biomeGridStartAddress = position;
+			const int bytesPerEntry = 35;
+			const int gridDimension = 128;
+
+			for (int x = 0; x < gridDimension; x++)
+			{
+				for (int z = 0; z < gridDimension; z++)
+				{
+					int fromX = x;
+					int fromZ = z;
+
+					int index = fromZ + fromX * gridDimension;
+					if (BinaryPrimitives.ReadUInt16LittleEndian(origBody.Slice(biomeGridStartAddress + index * bytesPerEntry)) == 1)
+					{
+						// copy from middle of the island
+						fromX = gridDimension / 2;
+						fromZ = gridDimension / 2;
+					}
+
+					index = fromZ + fromX * gridDimension;
+					var bytes = origBody.Slice(biomeGridStartAddress + index * bytesPerEntry, bytesPerEntry);
+					stream.Write(bytes);
+					position += bytes.Length;
+				}
 			}
 		}
 
