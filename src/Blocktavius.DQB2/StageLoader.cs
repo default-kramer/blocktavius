@@ -222,8 +222,10 @@ static class StageLoader
 		return chunkDataOffset + chunkId * ChunkMath.BytesPerChunk;
 	}
 
-	class StageSaver : IStageSaver
+	class StageSaver : IStageSaver, IStageSaver.TestHooks
 	{
+		IStageSaver.TestHooks IStageSaver.AsTestable => this;
+
 		public required string OriginalFilename { get; init; }
 		public required LittleEndianStuff.ReadonlyBytes OrigHeader { get; init; }
 		public required LittleEndianStuff.ReadonlyBytes OrigUncompressedBody { get; init; }
@@ -273,7 +275,7 @@ static class StageLoader
 			stream.Close();
 		}
 
-		private void WriteBodyUncompressed(Stream stream, IStage stage, bool includeEmptyChunks)
+		public void WriteBodyUncompressed(Stream stream, IStage stage, bool includeEmptyChunks)
 		{
 			// Sapphire: https://github.com/Sapphire645/DQB2IslandEditor/wiki/Info-on-all-memory-allocations-on-the-STGDATs
 
