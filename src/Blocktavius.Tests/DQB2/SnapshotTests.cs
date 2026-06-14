@@ -23,7 +23,21 @@ public class SnapshotTests
 			sb.Append($"{chunk.Offset.NorthwestCorner.X},{chunk.Offset.NorthwestCorner.Z}: {hashString}\n");
 		}
 
+		string bodyHash = await GetBodyHash(stage);
+		sb.Append($"uncompressed body hash: {bodyHash}");
+
 		return sb.ToString();
+	}
+
+	private static async Task<string> GetBodyHash(IStage stage)
+	{
+		using var bodyStream = new MemoryStream();
+		stage.Saver.AsTestable.WriteBodyUncompressed(bodyStream, stage, includeEmptyChunks: false);
+		bodyStream.Flush();
+		bodyStream.Seek(0, SeekOrigin.Begin);
+		using var hasher = System.Security.Cryptography.MD5.Create();
+		var hash = await hasher.ComputeHashAsync(bodyStream);
+		return string.Concat(hash.Select(b => b.ToString("x2")));
 	}
 
 	private void AssertSnapshot(string snapshotName, string content, params string[] path)

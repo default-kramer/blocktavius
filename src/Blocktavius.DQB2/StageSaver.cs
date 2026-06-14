@@ -19,4 +19,11 @@ public interface IStageSaver
 	bool CanSave { get; }
 
 	void Save(IWritableSaveSlot slot, IStage stage, FileInfo? assertDestFilename, bool includeEmptyChunks);
+
+	internal TestHooks AsTestable { get; }
+
+	internal interface TestHooks
+	{
+		void WriteBodyUncompressed(Stream stream, IStage stage, bool includeEmptyChunks);
+	}
 }
