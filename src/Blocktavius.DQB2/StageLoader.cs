@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO.Compression;
 using System.Linq;
@@ -275,46 +276,140 @@ static class StageLoader
 			stream.Close();
 		}
 
+		/// <summary>
+		/// Holds the original uncompressed body alongside the stream we are writing to.
+		/// </summary>
+		ref struct BodyOutstream
+		{
+			private readonly Stream stream;
+			public readonly ReadOnlySpan<byte> origBody;
+			public int CurrentPosition() => Convert.ToInt32(stream.Position);
+
+			public BodyOutstream(Stream stream, ReadOnlySpan<byte> origBody)
+			{
+				this.stream = stream;
+				this.origBody = origBody;
+
+				if (CurrentPosition() != 0)
+				{
+					// We need to start at 0 to line up with origBody.
+					// (We could just stash the starting position and subtract it,
+					//  but there's no need for that now.)
+					throw new ArgumentException("Position must start at 0");
+				}
+			}
+
+			/// <summary>
+			/// Copy bytes from the original body until we reach the <paramref name="targetPosition"/>.
+			/// </summary>
+			public void AdvanceTo(int targetPosition)
+			{
+				int start = CurrentPosition();
+				int length = targetPosition - start;
+				if (length < 0)
+				{
+					throw new Exception($"Assert fail, invalid span: {start} to {targetPosition}");
+				}
+				stream.Write(origBody.Slice(start, length));
+			}
+
+			public void WriteUInt16(ushort val)
+			{
+				stream.WriteUInt16(val);
+			}
+
+			public void WriteSpan(ReadOnlySpan<byte> bytes)
+			{
+				stream.Write(bytes);
+			}
+
+			public void WriteChunkBlockdata(IChunk chunk)
+			{
+				chunk.Internals.WriteBlockdataAsync(stream).AsTask().Wait();
+			}
+		}
+
 		public void WriteBodyUncompressed(Stream stream, IStage stage, bool includeEmptyChunks)
+		{
+			var body = new BodyOutstream(stream, OrigUncompressedBody.AsSpan);
+			WriteBodyUncompressed(body, stage, includeEmptyChunks);
+		}
+
+		private void WriteBodyUncompressed(BodyOutstream stream, IStage stage, bool includeEmptyChunks)
 		{
 			// Sapphire: https://github.com/Sapphire645/DQB2IslandEditor/wiki/Info-on-all-memory-allocations-on-the-STGDATs
 
 			int blockdataStart = GetChunkStartAddress(0);
 			var chunkGridData = CreateChunkGrid(stage, includeEmptyChunks, out var chunks).AsSpan();
 			ushort chunkCount = (ushort)chunks.Count;
-			var origBody = OrigUncompressedBody.AsSpan;
 
-			// [[from start to Chunk Count]]
-			int position = 0;
-			const int chunkCountAddr = 0x1451AF;
-			stream.WriteSlice(origBody, ref position, chunkCountAddr);
+			// playinful: biome grid starts at 0x34EC8, 35 bytes per entry, grid size is 128x128
+			const int biomeGridStart = 0x34EC8;
+			stream.AdvanceTo(biomeGridStart);
+			if ("hack the biome experimental code, disabled by default".Length < 0)
+			{
+				// It seems likely the Mod Squad will eventually figure out what all the bits do,
+				// so I don't want to make this official functionality until then.
+				// (Especially because just copying from the middle of the map may not work in all cases.)
+				// But keep the code alive and hidden here for reference.
+				HackTheBiome(stream);
+			}
 
 			// Sapphire: Chunk Count: 0x1451AF - 0x1451B1 (Size: 0x2)
+			const int chunkCountAddr = 0x1451AF;
+			stream.AdvanceTo(chunkCountAddr);
 			stream.WriteUInt16(chunkCount);
-			position += 2;
-
-			// [[from Chunk Count to Chunk Grid]]
-			stream.WriteSlice(origBody, ref position, chunkGridStart);
 
 			// Sapphire: Virtual Grid/ Chunk Grid: 0x24C7C1 - 0x24E7C1 (Size: 64*64 chunks * 2 bytes = 0x2000)
-			stream.Write(chunkGridData);
-			position += chunkGridData.Length;
-
-			// [[from Chunk Grid to Virtual Chunk Count]]
-			const int virtualChunkCountAddr = 0x24E7C5;
-			stream.WriteSlice(origBody, ref position, virtualChunkCountAddr);
+			stream.AdvanceTo(chunkGridStart);
+			stream.WriteSpan(chunkGridData);
 
 			// Sapphire: Virtual Chunk Count: 0x24E7C5 - 0x24E7C6 (Size: 0x2)
+			const int virtualChunkCountAddr = 0x24E7C5;
+			stream.AdvanceTo(virtualChunkCountAddr);
 			stream.WriteUInt16(chunkCount);
-			position += 2;
 
-			// [[from Virtual Chunk Count to start of blockdata]]
-			stream.WriteSlice(origBody, ref position, blockdataStart);
-
-			// blockdata
+			// blockdata (turtle-insect's original work)
+			stream.AdvanceTo(blockdataStart);
 			foreach (var chunk in chunks)
 			{
-				chunk.Internals.WriteBlockdataAsync(stream).AsTask().Wait();
+				stream.WriteChunkBlockdata(chunk);
+			}
+		}
+
+		/// <summary>
+		/// This is crude, but it seems to enable minimap support for the entire map.
+		/// It also seems to be persistent; even if you perform chunk expansion later it still works.
+		/// </summary>
+		private static void HackTheBiome(BodyOutstream stream)
+		{
+			int biomeGridStartAddress = stream.CurrentPosition();
+			var origBody = stream.origBody;
+
+			const int bytesPerEntry = 35;
+			const int gridDimension = 128;
+
+			// Note: For some reason, this grid uses X as the outer loop and Z as the inner loop.
+			// I confirmed this on my own 'topia after playinful told me.
+			for (int x = 0; x < gridDimension; x++)
+			{
+				for (int z = 0; z < gridDimension; z++)
+				{
+					int fromX = x;
+					int fromZ = z;
+
+					int index = fromZ + fromX * gridDimension;
+					if (BinaryPrimitives.ReadUInt16LittleEndian(origBody.Slice(biomeGridStartAddress + index * bytesPerEntry)) == 1)
+					{
+						// copy from middle of the island
+						fromX = gridDimension / 2;
+						fromZ = gridDimension / 2;
+					}
+
+					index = fromZ + fromX * gridDimension;
+					var bytes = origBody.Slice(biomeGridStartAddress + index * bytesPerEntry, bytesPerEntry);
+					stream.WriteSpan(bytes);
+				}
 			}
 		}
 
@@ -355,16 +450,5 @@ static class StageLoader
 		var hi = (byte)((val >> 8) & 0xFF);
 		stream.WriteByte(lo);
 		stream.WriteByte(hi);
-	}
-
-	private static void WriteSlice(this Stream stream, ReadOnlySpan<byte> span, ref int start, int end)
-	{
-		int length = end - start;
-		if (length < 0)
-		{
-			throw new Exception($"Assert fail, invalid span: {start} to {end}");
-		}
-		stream.Write(span.Slice(start, length));
-		start = end;
 	}
 }
