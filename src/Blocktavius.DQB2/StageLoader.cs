@@ -389,6 +389,8 @@ static class StageLoader
 			const int bytesPerEntry = 35;
 			const int gridDimension = 128;
 
+			// Note: For some reason, this grid uses X as the outer loop and Z as the inner loop.
+			// I confirmed this on my own 'topia after playinful told me.
 			for (int x = 0; x < gridDimension; x++)
 			{
 				for (int z = 0; z < gridDimension; z++)
