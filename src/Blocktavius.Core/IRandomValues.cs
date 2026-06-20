@@ -29,6 +29,16 @@ public static class RandomValues
 
 	public static IBoundedRandomValues<int> FromRange(int min, int max) => new RangeValues() { MinValue = min, MaxValue = max };
 
+	public static IBoundedRandomValues<int> Constant(int value) => new ConstantValue { Value = value };
+
+	private sealed class ConstantValue : IBoundedRandomValues<int>
+	{
+		public required int Value { get; init; }
+		public int MinValue => Value;
+		public int MaxValue => Value;
+		public int NextValue(PRNG prng) => Value;
+	}
+
 	private sealed class RangeValues : IBoundedRandomValues<int>
 	{
 		public required int MinValue { get; init; }

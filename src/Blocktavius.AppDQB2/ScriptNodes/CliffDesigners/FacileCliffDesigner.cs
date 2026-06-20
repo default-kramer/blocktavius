@@ -2,6 +2,7 @@
 using Blocktavius.Core;
 using Blocktavius.Core.Generators.Hills;
 using Blocktavius.DQB2;
+using Blocktavius.DQB2.Mutations;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -73,6 +74,57 @@ sealed class FacileCliffDesigner : ViewModelBase, ICliffDesigner
 
 	public StageMutation? CreateMutation(CliffDesignContext context)
 	{
+		if (1.ToString() == "1") // NOMERGE
+		{
+			var settings = new NEWCLIFF.Settings2
+			{
+				Block = context.FillBlockId,
+				Jaunt = context.PositionedJaunt.Jaunt,
+				Prng = context.Prng.AdvanceAndClone(),
+				CliffSpec = NEWCLIFF.StandardSpec(
+					startElevation: this.BaseCliffElevation,
+					targetElevation: this.BaseCliffElevation + this.MiddleHeight + this.OverhangHeight,
+					overhangStartElevation: this.BaseCliffElevation + this.MiddleHeight),
+			};
+
+			var TODO = new XZ(5, 0); // just make it easier to see what's happening
+
+			var snippet = NEWCLIFF.Build(settings)
+				.Rotate(context.PositionedJaunt.Rotation)
+				.TranslateTo(context.PositionedJaunt.Bounds.start.Add(TODO));
+
+			return new PutSnippetMutation()
+			{
+				Snippet = snippet,
+			};
+		}
+
+		if (1.ToString() == "1") // NOMERGE
+		{
+			var settings = new NEWCLIFF.Settings
+			{
+				Block = context.FillBlockId,
+				C = 2,
+				R = 4,
+				LayerC = 1,
+				LayerR = 2,
+				FloorY = this.BaseCliffElevation,
+				TargetY = this.BaseCliffElevation + this.OverhangHeight,
+				Prng = context.Prng.AdvanceAndClone(),
+			};
+
+			XZ TODO = new(0, -1); // see also "Spacer" below
+
+			var snippet = NEWCLIFF.Build(context.PositionedJaunt.Jaunt, settings)
+				.Rotate(context.PositionedJaunt.Rotation)
+				.TranslateTo(context.PositionedJaunt.Bounds.start.Add(TODO));
+
+			return new PutSnippetMutation()
+			{
+				Snippet = snippet,
+			};
+		}
+
 		ushort fillBlockId = context.FillBlockId;
 
 		var config = new FacileCliffBuilder.Config
