@@ -15,10 +15,16 @@ namespace Blocktavius.DQB2.Mutations;
 public sealed class RemoveChunksMutation : StageMutation
 {
 	/// <summary>
-	/// Any chunk which contains this block at Y=1 (just above the bedrock) will be eligible for removal.
+	/// Any chunk which contains this block at <see cref="SearchY"/> will be eligible for removal.
 	/// Eligible chunks must have zero props in order for removal to succeed.
 	/// </summary>
 	public ushort? FlagBlockId { get; init; }
+
+	/// <summary>
+	/// The Y coordinate to search for the <see cref="FlagBlockId"/>.
+	/// Defaults to Y=1 (just above the bedrock).
+	/// </summary>
+	public int SearchY { get; init; } = 1;
 
 	internal override void Apply(IMutableStage stage)
 	{
@@ -31,7 +37,7 @@ public sealed class RemoveChunksMutation : StageMutation
 		List<ChunkOffset> offsetsToRemove = new();
 		foreach (var offset in stage.ChunksInUse)
 		{
-			if (stage.TryReadChunk(offset, out var chunk) && HasFlagBlock(chunk, flag))
+			if (stage.TryReadChunk(offset, out var chunk) && HasFlagBlock(chunk, flag, SearchY))
 			{
 				offsetsToRemove.Add(offset);
 			}
@@ -40,12 +46,12 @@ public sealed class RemoveChunksMutation : StageMutation
 		stage.RemoveChunksWhenPropless(offsetsToRemove);
 	}
 
-	private static bool HasFlagBlock(IChunk chunk, int flagBlock)
+	private static bool HasFlagBlock(IChunk chunk, int flagBlock, int y)
 	{
 		var offset = chunk.Offset;
 		foreach (var xz in offset.Bounds.Enumerate())
 		{
-			var block = chunk.GetBlock(new Point(xz, 1));
+			var block = chunk.GetBlock(new Point(xz, y));
 			var canonical = Block.MakeCanonical(block);
 			if (canonical == flagBlock)
 			{

@@ -18,11 +18,13 @@ sealed class RemoveChunksNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageM
 	sealed record PersistModel : IPersistentScriptNode
 	{
 		public required string? BlockPersistId { get; init; }
+		public required int? SearchY { get; init; }
 
 		public bool TryDeserializeV1(out ScriptNodeVM node, ScriptDeserializationContext context)
 		{
 			var me = new RemoveChunksNodeVM();
 			me.FlagBlock = context.BlockManager.FindBlock(BlockPersistId);
+			me.SearchY = this.SearchY ?? me.SearchY;
 			node = me;
 			return true;
 		}
@@ -33,6 +35,7 @@ sealed class RemoveChunksNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageM
 		return new PersistModel()
 		{
 			BlockPersistId = this.FlagBlock?.PersistentId,
+			SearchY = this.SearchY,
 		};
 	}
 
@@ -52,6 +55,16 @@ sealed class RemoveChunksNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageM
 		}
 	}
 
+	private int _searchY = 1;
+	public int SearchY
+	{
+		get => _searchY;
+		set
+		{
+			if (ChangeProperty(ref _searchY, value)) { RebuildLongStatus(); }
+		}
+	}
+
 	private BindableRichText _longStatus = BindableRichText.Empty;
 	[Browsable(false)]
 	public BindableRichText LongStatus
@@ -65,7 +78,7 @@ sealed class RemoveChunksNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageM
 		LongStatus = new BindableRichTextBuilder()
 			.Append("Chunks containing ZERO props and having flag block ")
 			.FallbackIfNull("<not selected>", FlagBlock?.DisplayName)
-			.Append(" at Y=1 will be removed.")
+			.Append($" at Y={SearchY} will be removed.")
 			.Build();
 	}
 
@@ -77,6 +90,7 @@ sealed class RemoveChunksNodeVM : ScriptLeafNodeVM, IHaveLongStatusText, IStageM
 			return new Blocktavius.DQB2.Mutations.RemoveChunksMutation
 			{
 				FlagBlockId = flagBlockId.Value,
+				SearchY = this.SearchY,
 			};
 		}
 		return null;
