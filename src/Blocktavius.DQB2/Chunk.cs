@@ -31,6 +31,8 @@ public interface IMutableChunk : IChunk
 {
 	void SetBlock(Point point, ushort block);
 
+	void SetLayerZero(XZ xz, ushort block);
+
 	void ReplaceProp(Point point, Block prop);
 
 	internal void PerformColumnCleanup(ColumnCleanupMode mode);
@@ -182,6 +184,24 @@ sealed class MutableChunk<TReadBlockdata> : ChunkInternals, IMutableChunk where 
 		writeSource.SetBlock(point, block);
 	}
 
+	public void SetLayerZero(XZ xz, ushort block)
+	{
+		if (writeSource.IsNothing)
+		{
+			var prevVal = readSource.GetBlock(new Point(xz, 0));
+			if (block == prevVal)
+			{
+				return; // no change
+			}
+
+			// copy on write:
+			var clone = readSource.Clone();
+			writeSource = clone;
+			readSource = clone.HackySelfCast<TReadBlockdata>();
+		}
+		writeSource.SetLayerZero(xz, block);
+	}
+
 	public void ReplaceProp(Point point, Block prop)
 	{
 		ushort block = prop.BlockIdComplete;
@@ -242,6 +262,12 @@ sealed class MutableEmptyChunk : ChunkInternals, IMutableChunk
 	{
 		bytes = bytes ?? new LittleEndianStuff.ByteArrayBlockdata(new byte[ChunkMath.BytesPerChunk]);
 		bytes.Value.SetBlock(point, block);
+	}
+
+	public void SetLayerZero(XZ xz, ushort block)
+	{
+		bytes = bytes ?? new LittleEndianStuff.ByteArrayBlockdata(new byte[ChunkMath.BytesPerChunk]);
+		bytes.Value.SetLayerZero(xz, block);
 	}
 
 	public void ReplaceProp(Point point, Block block)

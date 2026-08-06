@@ -150,6 +150,7 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 		kinds.Add(new NodeKindVM(() => new ScriptNodes.PutHillNodeVM()) { DisplayName = "Put Hill" });
 		kinds.Add(new NodeKindVM(() => new ScriptNodes.PutCliffNodeVM()) { DisplayName = "Put Cliff" });
 		kinds.Add(new NodeKindVM(() => new ScriptNodes.RemoveChunksNodeVM()) { DisplayName = "Remove Chunks" });
+		kinds.Add(new NodeKindVM(() => new ScriptNodes.ReplaceLayerZeroNodeVM()) { DisplayName = "Replace Layer Zero (Bedrock)" });
 		NodeKinds = kinds;
 
 		CommandAddNode = new RelayCommand(_ => SelectedNodeKind != null, DoCommandAddNode);
