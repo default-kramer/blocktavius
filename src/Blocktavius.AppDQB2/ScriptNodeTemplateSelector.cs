@@ -11,6 +11,7 @@ public class ScriptNodeTemplateSelector : DataTemplateSelector
 	public static class TemplateNames
 	{
 		public const string SCRIPT_NODE_LONG_STATUS_TEMPLATE = "SCRIPT_NODE_LONG_STATUS_TEMPLATE";
+		public const string SCRIPT_NODE_CODE_TEXT_TEMPLATE = "SCRIPT_NODE_CODE_TEXT_TEMPLATE";
 	}
 
 	public DataTemplate? FallbackTemplate { get; set; }

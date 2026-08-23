@@ -60,6 +60,11 @@ interface IDynamicScriptNodeVM
 	bool CanBeDisabled => true;
 }
 
+interface ICodedNodeVM
+{
+	string ScriptCodeText { get; set; }
+}
+
 abstract class ScriptNodeVM : ViewModelBaseWithCustomTypeDescriptor
 {
 	private bool _isSelected = false;
@@ -109,6 +114,11 @@ abstract class ScriptLeafNodeVM : ScriptNodeVM
 {
 	public override bool SelectDataTemplate(out string resourceKey)
 	{
+		if (this is ICodedNodeVM)
+		{
+			resourceKey = ScriptNodeTemplateSelector.TemplateNames.SCRIPT_NODE_CODE_TEXT_TEMPLATE;
+			return true;
+		}
 		if (this is IHaveLongStatusText)
 		{
 			resourceKey = ScriptNodeTemplateSelector.TemplateNames.SCRIPT_NODE_LONG_STATUS_TEMPLATE;
@@ -151,6 +161,10 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 		kinds.Add(new NodeKindVM(() => new ScriptNodes.PutCliffNodeVM()) { DisplayName = "Put Cliff" });
 		kinds.Add(new NodeKindVM(() => new ScriptNodes.RemoveChunksNodeVM()) { DisplayName = "Remove Chunks" });
 		kinds.Add(new NodeKindVM(() => new ScriptNodes.ReplaceLayerZeroNodeVM()) { DisplayName = "Replace Layer Zero (Bedrock)" });
+		if (System.Diagnostics.Debugger.IsAttached) // too dangerous for now...?
+		{
+			kinds.Add(new NodeKindVM(() => new ScriptNodes.DangerouslyClearBlocksNodeVM()) { DisplayName = "Dangerously Clear Blocks" });
+		}
 		NodeKinds = kinds;
 
 		CommandAddNode = new RelayCommand(_ => SelectedNodeKind != null, DoCommandAddNode);

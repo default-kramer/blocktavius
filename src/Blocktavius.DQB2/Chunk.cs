@@ -31,6 +31,8 @@ public interface IMutableChunk : IChunk
 {
 	void SetBlock(Point point, ushort block);
 
+	void DangerouslySetBlock(Point point, ushort block);
+
 	void SetLayerZero(XZ xz, ushort block);
 
 	void ReplaceProp(Point point, Block prop);
@@ -166,7 +168,7 @@ sealed class MutableChunk<TReadBlockdata> : ChunkInternals, IMutableChunk where 
 
 	public ushort GetBlock(Point point) => readSource.GetBlock(point);
 
-	public void SetBlock(Point point, ushort block)
+	private void InternalSetBlock(Point point, ushort block, bool dangerous)
 	{
 		if (writeSource.IsNothing)
 		{
@@ -181,8 +183,20 @@ sealed class MutableChunk<TReadBlockdata> : ChunkInternals, IMutableChunk where 
 			writeSource = clone;
 			readSource = clone.HackySelfCast<TReadBlockdata>();
 		}
-		writeSource.SetBlock(point, block);
+
+		if (dangerous)
+		{
+			writeSource.DangerouslySetBlock(point, block);
+		}
+		else
+		{
+			writeSource.SetBlock(point, block);
+		}
 	}
+
+	public void SetBlock(Point point, ushort block) => InternalSetBlock(point, block, dangerous: false);
+
+	public void DangerouslySetBlock(Point point, ushort block) => InternalSetBlock(point, block, dangerous: true);
 
 	public void SetLayerZero(XZ xz, ushort block)
 	{
@@ -262,6 +276,12 @@ sealed class MutableEmptyChunk : ChunkInternals, IMutableChunk
 	{
 		bytes = bytes ?? new LittleEndianStuff.ByteArrayBlockdata(new byte[ChunkMath.BytesPerChunk]);
 		bytes.Value.SetBlock(point, block);
+	}
+
+	public void DangerouslySetBlock(Point point, ushort block)
+	{
+		bytes = bytes ?? new LittleEndianStuff.ByteArrayBlockdata(new byte[ChunkMath.BytesPerChunk]);
+		bytes.Value.DangerouslySetBlock(point, block);
 	}
 
 	public void SetLayerZero(XZ xz, ushort block)

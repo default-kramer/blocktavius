@@ -91,6 +91,13 @@ static class LittleEndianStuff
 			}
 		}
 
+		public void DangerouslySetBlock(Point point, ushort block)
+		{
+			var index = ChunkMath.GetUshortIndex(point);
+			var shortArray = MemoryMarshal.Cast<byte, ushort>(array);
+			shortArray[index] = block;
+		}
+
 		public void SetLayerZero(XZ xz, ushort block)
 		{
 			var index = ChunkMath.GetUshortIndex(new Point(xz, 0));

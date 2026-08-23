@@ -7,6 +7,9 @@
         <DataTemplate x:Key="SCRIPT_NODE_LONG_STATUS_TEMPLATE">
             <local:BindableRichTextBox BindableRichText="{Binding LongStatus}" IsReadOnly="True" MaxWidth="400" BorderThickness="0"></local:BindableRichTextBox>
         </DataTemplate>
+        <DataTemplate x:Key="SCRIPT_NODE_CODE_TEXT_TEMPLATE">
+            <TextBox Text="{Binding ScriptCodeText}" AcceptsReturn="True" MinWidth="250" Height="Auto" MaxHeight="300"></TextBox>
+        </DataTemplate>
         <local:ScriptNodeTemplateSelector x:Key="SCRIPT_NODE_TEMPLATE_SELECTOR">
             <local:ScriptNodeTemplateSelector.FallbackTemplate>
                 <DataTemplate>
