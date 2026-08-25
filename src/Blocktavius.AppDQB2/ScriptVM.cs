@@ -159,6 +159,7 @@ sealed class ScriptVM : ScriptNonleafNodeVM, IStageMutator, ISelectedNodeManager
 		kinds.Add(new NodeKindVM(() => new ScriptNodes.PutGroundNodeVM()) { DisplayName = "Put Ground" });
 		kinds.Add(new NodeKindVM(() => new ScriptNodes.PutHillNodeVM()) { DisplayName = "Put Hill" });
 		kinds.Add(new NodeKindVM(() => new ScriptNodes.PutCliffNodeVM()) { DisplayName = "Put Cliff" });
+		kinds.Add(new NodeKindVM(() => new ScriptNodes.PutSnippetNodeVM()) { DisplayName = "Put Snippet" });
 		kinds.Add(new NodeKindVM(() => new ScriptNodes.RemoveChunksNodeVM()) { DisplayName = "Remove Chunks" });
 		kinds.Add(new NodeKindVM(() => new ScriptNodes.ReplaceLayerZeroNodeVM()) { DisplayName = "Replace Layer Zero (Bedrock)" });
 		if (System.Diagnostics.Debugger.IsAttached) // too dangerous for now...?
