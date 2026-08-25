@@ -18,6 +18,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Antipasta", "Antipasta\Antipasta.csproj", "{098197E3-A33F-4D06-B6ED-FA61032DE307}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blocktavius.AppDQB2Tests", "Blocktavius.AppDQB2Tests\Blocktavius.AppDQB2Tests.csproj", "{DA50C9A5-B158-4162-9C81-DB1086B55D16}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -44,6 +46,10 @@ Global
 		{098197E3-A33F-4D06-B6ED-FA61032DE307}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{098197E3-A33F-4D06-B6ED-FA61032DE307}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{098197E3-A33F-4D06-B6ED-FA61032DE307}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DA50C9A5-B158-4162-9C81-DB1086B55D16}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DA50C9A5-B158-4162-9C81-DB1086B55D16}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DA50C9A5-B158-4162-9C81-DB1086B55D16}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DA50C9A5-B158-4162-9C81-DB1086B55D16}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
